@@ -1,18 +1,10 @@
 $LOAD_PATH.unshift(File.expand_path('../../lib', __FILE__))
 
-require 'flexmock'
 require 'zk'
 
+ZK_TEST_PORT = 2181
+
 RSpec.configure do |config|
-  config.mock_with :flexmock
-
-  config.before(:all) do
-    @zk = Zookeeper.new('localhost:2181')
-  end
-
-  config.after(:all) do
-    @zk.close
-  end
 end
 
 

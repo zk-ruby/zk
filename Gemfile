@@ -5,3 +5,4 @@ source "http://localhost:50000"
 # Specify your gem's dependencies in zk.gemspec
 gemspec
 
+# vim:ft=ruby

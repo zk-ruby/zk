@@ -72,22 +72,8 @@ module ZK
     end
     alias :unsubscribe :unregister
 
-    if defined?(JRUBY_VERSION)
-      # @private
-      # :nodoc:
-      def process(event)
-        handle_process(ZooKeeper::WatcherEvent.new(event.type.getIntValue, event.state.getIntValue, event.path))
-      end
-    else
-      # @private
-      # :nodoc:
-      def process(event)
-        handle_process(event)
-      end
-    end
-
-  protected
-    def handle_process(event)
+    # called from the client-registered callback when an event fires
+    def process(event) #:nodoc:
       if event.path and !event.path.empty? and @callbacks[event.path]
         @callbacks[event.path].each do |callback|
           callback.call(event, @zk) if callback.respond_to?(:call)
@@ -99,6 +85,5 @@ module ZK
       end
     end
   end
-
 end
 

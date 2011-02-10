@@ -1,15 +1,37 @@
 module ZK
   # a more ruby-friendly wrapper around the low-level drivers
   #
-  # TODO: need to implement the default watcher at this level
-  #
   class Client
+    extend Forwardable
+
+    attr_reader :event_handler
+
+    # for backwards compatibility
+    alias :watcher :event_handler #:nodoc:
+
     def initialize(connection, opts={})
       @cnx = connection
+      @event_handler = EventHandler.new(self)
     end
 
     def closed?
-      raise NotImplementedError
+      @cnx.state and false
+    rescue RuntimeError => e
+      # gah, lame error parsing here
+      raise e unless e.message == 'zookeeper handle is closed'
+      true
+    end
+
+    def connected?
+      wrap_state_closed_error { @cnx.connected? }
+    end
+
+    def associating?
+      wrap_state_closed_error { @cnx.associating? }
+    end
+
+    def connecting?
+      wrap_state_closed_error { @cnx.connecting? }
     end
 
     def create(path, data='', opts={})
@@ -31,17 +53,17 @@ module ZK
       opts[:callback] ? rv : rv[:path]
     end
 
-    # TODO: add watch handling
     # TODO: improve callback handling
     def get(path, opts={})
       h = { :path => path }.merge(opts)
+
+      setup_watcher(h)
 
       rv = check_rc(@cnx.get(h))
 
       opts[:callback] ? rv : rv.values_at(:data, :stat)
     end
 
-    # TODO: add watch handling
     def set(path, data, opts={})
       h = { :path => path, :data => data }.merge(opts)
 
@@ -50,10 +72,10 @@ module ZK
       opts[:callback] ? nil : rv[:stat]
     end
 
-
-    # TODO: add watch handling
     def stat(path, opts={})
       h = { :path => path }.merge(opts)
+
+      setup_watcher(h)
 
       check_rc(@cnx.stat(h))[:stat]
     rescue Exceptions::NoNode
@@ -62,7 +84,7 @@ module ZK
     alias :exists? :stat
 
     def close!
-      @cnx.close
+      wrap_state_closed_error { @cnx.close }
     end
 
     # TODO: improve callback handling
@@ -72,9 +94,11 @@ module ZK
       nil
     end
 
-    # TODO: add watch handling
     def children(path, opts={})
       h = { :path => path }.merge(opts)
+
+      setup_watcher(h)
+
       rv = check_rc(@cnx.get_children(h))
       opts[:callback] ? nil : rv[:children]
     end
@@ -112,7 +136,7 @@ module ZK
     rescue Exceptions::NoNode
       if File.dirname(path) == '/'
         # ok, we're screwed, blow up
-        raise ZooStoreException, "could not create '/', something is wrong", caller
+        raise KeeperException, "could not create '/', something is wrong", caller
       end
 
       mkdir_p(File.dirname(path))
@@ -151,7 +175,38 @@ module ZK
       true
     end
 
+    # creates a new locker based on the name you send in
+    # @param [String] name the name of the lock you wish to use
+    # @see ZooKeeper::Locker#initialize
+    # @return ZooKeeper::Locker the lock using this connection and name
+    # @example
+    #   zk.locker("blah").lock!
+    def locker(name)
+      Locker.new(self, name)
+    end
+
+    # convenience method for acquiring a lock then executing a code block
+    def with_lock(path, &b)
+      locker(path).with_lock(&b)
+    end
+
     protected
+      def wrap_state_closed_error
+        yield
+      rescue RuntimeError => e
+        # gah, lame error parsing here
+        raise e unless e.message == 'zookeeper handle is closed'
+        false
+      end
+
+      def setup_watcher(opts)
+        opts[:watcher] = watcher_callback if opts.delete(:watch)
+      end
+
+      def watcher_callback
+        ZookeeperCallbacks::WatcherCallback.create { |event| @event_handler.process(event) }
+      end
+
       def check_rc(hash)
         hash.tap do |h|
           if code = h[:rc]

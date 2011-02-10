@@ -4,18 +4,20 @@ module ZK
   module Callbacks
     module CallbackClassExt
       # allows for easier construction of a user callback block that will be
-      # called with the callback object itself as an argument
+      # called with the callback object itself as an argument. 
+      #
+      # *args, if given, will be passed on *after* the callback
       #
       # example:
       #   
-      #   WatcherCallback.new do |cb|
+      #   WatcherCallback.create do |cb|
       #     puts "watcher callback called with argument: #{cb.inspect}"
       #   end
       #
       #   "watcher callback called with argument: #<ZookeeperCallbacks::WatcherCallback:0x1018a3958 @state=3, @type=1, ...>"
       #
       #
-      def create(&block)
+      def create(*args, &block)
         # honestly, i have no idea how this could *possibly* work, but it does...
         cb_inst = new { block.call(cb_inst) }
       end
@@ -51,7 +53,6 @@ module ZK
 end     # ZK
 
 ZookeeperCallbacks::Callback.extend(::ZK::Callbacks::CallbackClassExt)
-
 ZookeeperCallbacks::WatcherCallback.send(:include, ::ZK::Callbacks::WatcherCallbackExt)
 
 
