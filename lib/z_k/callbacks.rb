@@ -24,41 +24,27 @@ module ZK
     module WatcherCallbackExt
       include ZookeeperConstants
 
-      def connecting?
-        @state == ZOO_CONNECTING_STATE
+      STATES = %w[connecting associating connected auth_failed expired_session].freeze unless defined?(STATES)
+
+      EVENT_TYPES = %w[created deleted changed child session notwatching].freeze unless defined?(EVENT_TYPES)
+
+      STATES.each do |state|
+        class_eval <<-RUBY, __FILE__, __LINE__ + 1
+          def #{state}?
+            @state == ZOO_#{state.upcase}_STATE
+          end
+        RUBY
       end
 
-      def associating?
-        @state == ZOO_ASSOCIATING_STATE
+      EVENT_TYPES.each do |ev|
+        class_eval <<-RUBY, __FILE__, __LINE__ + 1
+          def #{ev}?
+            @type == ZOO_#{ev.upcase}_EVENT
+          end
+        RUBY
       end
 
-      def connected?
-        @state == ZOO_CONNECTED_STATE
-      end
-
-      def created?
-        @type == ZOO_CREATED_EVENT
-      end
-
-      def deleted?
-        @type == ZOO_DELETED_EVENT
-      end
-
-      def changed?
-        @type == ZOO_CHANGED_EVENT
-      end
-
-      def child?
-        @type == ZOO_CHILD_EVENT
-      end
-
-      def session?
-        @type == ZOO_SESSION_EVENT
-      end
-
-      def not_watching?
-        @type == ZOO_NOTWATCHING_EVENT
-      end
+      alias :not_watching? :notwatching?
     end
 
   end   # Callbacks
