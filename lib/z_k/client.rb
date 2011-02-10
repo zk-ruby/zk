@@ -17,13 +17,13 @@ module ZK
 
       h = { :path => path, :data => data, :ephemeral => true, :sequence => false }.merge(opts)
 
-      # convert between mb-style and twitter-style
-      if h.delete(:ephemeral_sequential)
+      case mode = h.delete(:mode)
+      when :ephemeral_sequential
         h[:ephemeral] = h[:sequence] = true
-      elsif h.delete(:persistent_sequential)
+      when :persistent_sequential
         h[:ephemeral] = false
         h[:sequence] = true
-      elsif h.delete(:persistent)
+      when :persistent
         h[:ephemeral] = false
       end
 
@@ -69,8 +69,7 @@ module ZK
     def delete(path, opts={})
       h = { :path => path, :version => -1 }.merge(opts)
       rv = check_rc(@cnx.delete(h))
-
-      opts[:callback] ? nil : rv
+      nil
     end
 
     # TODO: add watch handling
@@ -92,6 +91,65 @@ module ZK
       opts[:callback] ? nil : rv[:stat]
     end
 
+    #--
+    #
+    # EXTENSIONS
+    #
+    # convenience methods for dealing with zookeeper (rm -rf, mkdir -p, etc)
+    #
+    #++
+    
+    # creates all parent paths and 'path' in zookeeper as nodes with zero data
+    # opts should be valid options to ZooKeeper#create
+    #---
+    # TODO: write a non-recursive version of this. ruby doesn't have TCO, so
+    # this could get expensive w/ psychotically long paths
+    #
+    def mkdir_p(path)
+      create(path, '', :mode => :persistent)
+    rescue Exceptions::NodeExists
+      return
+    rescue Exceptions::NoNode
+      if File.dirname(path) == '/'
+        # ok, we're screwed, blow up
+        raise ZooStoreException, "could not create '/', something is wrong", caller
+      end
+
+      mkdir_p(File.dirname(path))
+      retry
+    end
+
+    # recursively remove all children of path then remove path itself
+    def rm_rf(paths)
+      Array(paths).flatten.each do |path|
+        begin
+          children(path).each do |child|
+            rm_rf(File.join(path, child))
+          end
+
+          delete(path)
+          nil
+        rescue Exceptions::NoNode
+        end
+      end
+    end
+
+    # will block the caller until +abs_node_path+ has been removed
+    def block_until_node_deleted(abs_node_path)
+      queue = Queue.new
+
+      node_deletion_cb = lambda do
+        unless exists?(abs_node_path, :watch => true)
+          queue << :locked
+        end
+      end
+
+      watcher.register(abs_node_path, &node_deletion_cb)
+      node_deletion_cb.call
+
+      queue.pop # block waiting for node deletion
+      true
+    end
 
     protected
       def check_rc(hash)
