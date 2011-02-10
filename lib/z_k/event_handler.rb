@@ -6,6 +6,7 @@ module ZK
   class EventHandler
     import org.apache.zookeeper.Watcher if defined?(JRUBY_VERSION)
 
+
     # @private
     # :nodoc:
     attr_accessor :zk
@@ -40,7 +41,7 @@ module ZK
     # @param [Block] block the block to execute on state changes
     # @yield [connection, event] yields your block with
     def register_state_handler(state, &block)
-      register("state_#{state}", &block)
+      register(state_key(state), &block)
     end
 
     # @deprecated use #unsubscribe on the subscription object
@@ -49,7 +50,7 @@ module ZK
       if args.first.is_a?(EventHandlerSubscription)
         unregister(args.first)
       else
-        unregister("state_#{args.first}", args[1])
+        unregister(state_key(args.first), args[1])
       end
     end
 
@@ -84,6 +85,23 @@ module ZK
         end
       end
     end
+
+    protected
+      def state_key(arg)
+        int = 
+          case arg
+          when String, Symbol
+            ZookeeperConstants.const_get(:"ZOO_#{arg.to_s.upcase}_STATE")
+          when Integer
+            arg
+          else
+            raise NameError # ugh lame
+          end
+
+        "state_#{int}"
+      rescue NameError
+        raise ArgumentError, "#{arg} is not a valid zookeeper state"
+      end
   end
 end
 

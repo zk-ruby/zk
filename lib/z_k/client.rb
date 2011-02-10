@@ -200,7 +200,6 @@ module ZK
       MessageQueue.new(self, name)
     end
 
-
     protected
       def wrap_state_closed_error
         yield

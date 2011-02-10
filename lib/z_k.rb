@@ -10,6 +10,7 @@ require 'z_k/locker_base'
 require 'z_k/locker'
 require 'z_k/shared_locker'
 require 'z_k/client'
+require 'z_k/client_pool'
 
 module ZK
   def self.new(*args)
