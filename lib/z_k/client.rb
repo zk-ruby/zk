@@ -190,6 +190,17 @@ module ZK
       locker(path).with_lock(&b)
     end
 
+    # creates a new message queue of name _name_
+    # @param [String] name the name of the queue
+    # @return [ZooKeeper::MessageQueue] the queue object
+    # @see ZooKeeper::MessageQueue#initialize
+    # @example
+    #   zk.queue("blah").publish({:some_data => "that is yaml serializable"})
+    def queue(name)
+      MessageQueue.new(self, name)
+    end
+
+
     protected
       def wrap_state_closed_error
         yield
