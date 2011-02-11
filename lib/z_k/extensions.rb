@@ -50,13 +50,13 @@ module ZK
 
         EVENT_TYPES.each do |ev|
           class_eval <<-RUBY, __FILE__, __LINE__ + 1
-            def #{ev}?
+            def node_#{ev}?
               @type == ZOO_#{ev.upcase}_EVENT
             end
           RUBY
         end
 
-        alias :not_watching? :notwatching?
+        alias :node_not_watching? :node_notwatching?
 
         # has this watcher been called because of a change in connection state?
         def state_event?
@@ -91,6 +91,15 @@ module ZK
           end
         RUBY
       end
+
+      def self.included(mod)
+        mod.class_eval do
+          unless method_defined?(:exists?)
+            alias :exists? :exists
+          end
+        end
+      end
+
     end
   end     # Extensions
 end       # ZK

@@ -1,11 +1,11 @@
 module ZK
   module Election
-    attr_reader :zk, :vote_path
-
     VOTE_PREFIX = 'ballot'.freeze
     ROOT_NODE = '/_zkelection'.freeze
 
     class Base
+      attr_reader :zk, :vote_path
+
       def initialize(client, name, root_election_node=nil)
         @zk = client
         @name = name
@@ -85,14 +85,22 @@ module ZK
     # the leader acknowledgement node if and when we become the leader.
     class Candidate < Base
       def initialize(client, name, data=nil, root_election_node=nil)
-        super
-        @leader = false
+        super(client, name, root_election_node)
+        @leader = nil 
         @data   = data
         @winner_callbacks = []
+
+        @current_leader_watch_sub = nil # the subscription for leader acknowledgement changes
+        @mutex = Monitor.new
       end
 
       def leader?
-        false|@leader
+        @mutex.synchronize { false|@leader }
+      end
+
+      # true if leader has been determined at least once (used in tests)
+      def voted? #:nodoc:
+        @mutex.synchronize { !@leader.nil? }
       end
       
       # When we win the election, we will call the procs registered using this
@@ -114,9 +122,12 @@ module ZK
       #
       # +data+ will be placed in the znode representing our vote
       def vote!
-        cast_ballot!(@data) unless @vote_path
-        check_election_results!
+        @mutex.synchronize do
+          cast_ballot!(@data) unless @vote_path
+          check_election_results!
+        end
       end
+
 
       protected
         # the inauguration, as it were
@@ -124,21 +135,52 @@ module ZK
           @zk.create(leader_ack_path, @data, :ephemeral => true)
         end
 
+        # return the list of ephemeral vote nodes
+        def get_ballots
+          @zk.children(root_vote_path).tap do |ballots|
+            ballots.sort! {|a,b| digit(a) <=> digit(b) }
+          end
+        end
+
         # if +watch_next+ is true, we register a watcher for the next-lowest
         # index number in the list of ballots
         #
         def check_election_results!
-          ballots = @zk.children(root_vote_path)
-          ballots.sort! {|a,b| digit(a) <=> digit(b) }
+          return if leader?         # we already know we're the leader
+          ballots = get_ballots()
 
           our_idx = ballots.index(vote_basename)
           
           if our_idx == 0           # if we have the lowest number
             @leader = true  
             fire_winning_callbacks!
+
+            if @current_leader_watch_sub
+              @current_leader_watch_sub.unsubscribe 
+              @current_leader_watch_sub = nil
+            end
+
+            acknowledge_win!
           else
+            @leader = false
+
+            # we watch the next-lowest ballot, not the ack path
             leader_abspath = File.join(root_vote_path, ballots[our_idx - 1])
-            @zk.stat(leader_abspath, :watch => true)
+
+            @current_leader_watch_sub ||= @zk.watcher.register(leader_abspath) do |event| 
+              if event.node_deleted? 
+                vote! 
+              else
+                # this takes care of the race condition where the leader ballot would
+                # have been deleted before we could re-register to receive updates
+                # if zk.stat returns false, it means the path was deleted
+                vote! unless @zk.stat(event.path, :watch => true).exists?
+              end
+            end
+
+            # this catches a possible race condition, where the leader has died before
+            # our callback has fired. In this case, retry and do this procedure again
+            retry unless @zk.stat(leader_abspath, :watch => true).exists?
           end
         end
 

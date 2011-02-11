@@ -66,6 +66,4 @@ describe ZK::Locker do
     thread.join(10)
     array.length.should == 2
   end
-
-
 end
