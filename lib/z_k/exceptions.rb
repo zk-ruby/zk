@@ -78,6 +78,9 @@ module ZK
     }
 
     class LockFileNameParseError < KeeperException; end
+
+    # raised when you try to vote twice in a given leader election
+    class ThisIsNotChicagoError < KeeperException; end
   end
 end
 

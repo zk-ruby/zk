@@ -33,7 +33,7 @@ module ZK
 
         STATES.each do |state|
           class_eval <<-RUBY, __FILE__, __LINE__ + 1
-            def #{state}?
+            def state_#{state}?
               @state == ZOO_#{state.upcase}_STATE
             end
           RUBY
