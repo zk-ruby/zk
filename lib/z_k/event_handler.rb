@@ -75,12 +75,12 @@ module ZK
 
     # called from the client-registered callback when an event fires
     def process(event) #:nodoc:
-      if event.path and !event.path.empty? and @callbacks[event.path]
+      if event.node_event? # and @callbacks[event.path]
         @callbacks[event.path].each do |callback|
           callback.call(event, @zk) if callback.respond_to?(:call)
         end
-      elsif (!event.path || event.path.empty?) and @callbacks["state_#{event.state}"]
-        @callbacks["state_#{event.state}"].each do |callback|
+      elsif event.state_event? # and @callbacks[state_key(event.state)]
+        @callbacks[state_key(event.state)].each do |callback|
           callback.call(event, @zk) if callback.respond_to?(:call)
         end
       end

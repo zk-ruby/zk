@@ -81,7 +81,7 @@ module ZK
       end
     end
 
-private
+  private
 
     def populate_pool!
       @number_of_connections.times do

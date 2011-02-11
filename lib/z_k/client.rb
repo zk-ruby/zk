@@ -200,6 +200,25 @@ module ZK
       MessageQueue.new(self, name)
     end
 
+    def set_debug_level(level) #:nodoc:
+      if defined?(::JRUBY_VERSION)
+        warn "set_debug_level is not implemented for JRuby" 
+        return
+      else
+        num =
+          case level
+          when String, Symbol
+            ZookeeperBase.const_get(:"ZOO_LOG_LEVEL_#{level.to_s.upcase}") rescue NameError
+          when Integer
+            level
+          end
+
+        raise ArgumentError, "#{level.inspect} is not a valid argument to set_debug_level" unless num
+
+        @cnx.set_debug_level(num)
+      end
+    end
+
     protected
       def wrap_state_closed_error
         yield
