@@ -4,7 +4,7 @@ module ZK
   # any #children or #get or #exists calls
   # you never really need to initialize this yourself
   class EventHandler
-    import org.apache.zookeeper.Watcher if defined?(JRUBY_VERSION)
+    include org.apache.zookeeper.Watcher if defined?(JRUBY_VERSION)
 
 
     # @private
@@ -75,15 +75,23 @@ module ZK
 
     # called from the client-registered callback when an event fires
     def process(event) #:nodoc:
-      if event.node_event? # and @callbacks[event.path]
+      event.zk = @zk
+
+      if event.node_event?
         @callbacks[event.path].each do |callback|
-          callback.call(event, @zk) if callback.respond_to?(:call)
+          callback.call(event) if callback.respond_to?(:call)
         end
-      elsif event.state_event? # and @callbacks[state_key(event.state)]
+      elsif event.state_event?
         @callbacks[state_key(event.state)].each do |callback|
-          callback.call(event, @zk) if callback.respond_to?(:call)
+          callback.call(event) if callback.respond_to?(:call)
         end
       end
+    end
+
+    # used during shutdown to clear registered listeners
+    def clear! #:nodoc:
+      @callbacks.clear
+      nil
     end
 
     protected

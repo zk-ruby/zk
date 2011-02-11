@@ -84,6 +84,7 @@ module ZK
     alias :exists? :stat
 
     def close!
+      @event_handler.clear!
       wrap_state_closed_error { @cnx.close }
     end
 
