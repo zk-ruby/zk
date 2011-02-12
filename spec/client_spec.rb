@@ -47,6 +47,55 @@ describe ZK::Client do
       end
     end
   end
+
+  describe :block_until_node_deleted do
+    before do
+      @path = '/_bogualkjdhsna'
+    end
+
+    describe 'no node initially' do
+      before do
+        @zk.exists?(@path).should be_false
+      end
+
+      it %[should not block] do
+        @a = false
+
+        th = Thread.new do
+          @zk.block_until_node_deleted(@path)
+          @a = true
+        end
+
+        th.join(2)
+        @a.should be_true
+      end
+    end
+
+    describe 'node exists initially' do
+      before do
+        @zk.create(@path, '', :mode => :ephemeral)
+        @zk.exists?(@path).should be_true
+      end
+
+      it %[should block until the node is deleted] do
+        @a = false
+
+        th = Thread.new do
+          @zk.block_until_node_deleted(@path)
+          @a = true
+        end
+
+        Thread.pass
+        @a.should be_false
+
+        @zk.delete(@path)
+
+        wait_until(2) { @a }
+        @a.should be_true
+      end
+    end
+  end
 end
+
 
 

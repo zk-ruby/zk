@@ -101,7 +101,7 @@ module ZK
     # this method will act *exactly* like stat
     #
     def exists?(path, opts={})
-      rv = stat(path, opts={})
+      rv = stat(path, opts)
       opts[:callback] ? rv : rv.exists?
     end
 
@@ -184,18 +184,26 @@ module ZK
     # will block the caller until +abs_node_path+ has been removed
     def block_until_node_deleted(abs_node_path)
       queue = Queue.new
+      ev_sub = nil
 
-      node_deletion_cb = lambda do
-        unless exists?(abs_node_path, :watch => true)
+      node_deletion_cb = lambda do |event|
+        if event.node_deleted?
           queue << :locked
+        else
+          queue << :locked unless exists?(abs_node_path, :watch => true)
         end
       end
 
-      watcher.register(abs_node_path, &node_deletion_cb)
-      node_deletion_cb.call
+      ev_sub = watcher.register(abs_node_path, &node_deletion_cb)
+
+      # set up the callback, but bail if we don't need to wait
+      return true unless exists?(abs_node_path, :watch => true)  
 
       queue.pop # block waiting for node deletion
       true
+    ensure
+      # be sure we clean up after ourselves
+      ev_sub.unregister if ev_sub
     end
 
     # creates a new locker based on the name you send in
