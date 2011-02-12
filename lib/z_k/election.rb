@@ -4,12 +4,13 @@ module ZK
     ROOT_NODE = '/_zkelection'.freeze
 
     class Base
-      attr_reader :zk, :vote_path
+      attr_reader :zk, :vote_path, :root_election_node
 
       def initialize(client, name, root_election_node=nil)
         @zk = client
         @name = name
-        @root_election_node = root_election_node || ROOT_NODE
+        @root_election_node = (root_election_node || ROOT_NODE).dup.freeze
+        @mutex = Monitor.new
       end
 
       # holds the ephemeral nodes of this election
@@ -23,33 +24,7 @@ module ZK
       def leader_ack_path
         @leader_ack_path ||= "#{@root_election_node}/leader_ack"
       end
-
-      # register callbacks that should be fired when a leader dies
-      def on_leaders_death(&blk)
-        @zk.watcher.register(leader_ack_path) do |event,zk|
-          if event.state_deleted?
-            blk.call(event, zk)
-            leader_acked?(true) # renew watch
-          end
-        end
-      end
-
-      # register callbacks for when the new leader has acknowledged their role
-      # returns a subscription object that can be used to cancel further events
-      def on_new_leader_ack(&blk)
-        cb = lambda do 
-          if event.state_created?
-            blk.call
-            leader_acked?(true)
-          end
-        end
-
-        # XXX: not sure this is correct here
-        @zk.watcher.register(leader_ack_path, cb).tap do
-          cb.call if leader_acked?(true)
-        end
-      end
-      
+     
       def cast_ballot!(data)
         return if @vote_path
         create_root_path!
@@ -60,7 +35,7 @@ module ZK
       
       # has the leader acknowledged their role?
       def leader_acked?(watch=false)
-        false|@zk.exists?(leader_ack_path, :watch => watch)
+        @zk.exists?(leader_ack_path, :watch => watch)
       end
 
       protected
@@ -91,7 +66,6 @@ module ZK
         @winner_callbacks = []
 
         @current_leader_watch_sub = nil # the subscription for leader acknowledgement changes
-        @mutex = Monitor.new
       end
 
       def leader?
@@ -127,7 +101,6 @@ module ZK
           check_election_results!
         end
       end
-
 
       protected
         # the inauguration, as it were
@@ -190,6 +163,76 @@ module ZK
     end
 
     class Observer < Base
+      def initialize(client, name, root_election_node=nil)
+        super
+        @leader_death_cbs = []
+        @new_leader_cbs = []
+        @deletion_sub = @creation_sub = nil
+        @leader_alive = nil
+        @observing = false
+      end
+
+      # return the data from the current leader or nil if there is no current leader
+      def leader_data
+        @zk.get(leader_ack_path).first
+      rescue Exceptions::NoNode
+      end
+
+      # our current idea about the state of the election
+      def leader_alive #:nodoc:
+        @mutex.synchronize { @leader_alive }
+      end
+
+      # register callbacks that should be fired when a leader dies
+      def on_leaders_death(&blk)
+        @leader_death_cbs << blk
+      end
+
+      # register callbacks for when the new leader has acknowledged their role
+      # returns a subscription object that can be used to cancel further events
+      def on_new_leader(&blk)
+        @new_leader_cbs << blk
+      end
+
+      def observe!
+        @mutex.synchronize do
+          return if @observing 
+          @observing = true
+
+          @deletion_sub ||= @zk.watcher.register(leader_ack_path) do |event|
+            the_king_is_dead if event.node_deleted?
+          end
+
+          the_king_is_dead unless leader_acked?(true)
+
+          @creation_sub ||= @zk.watcher.register(leader_ack_path) do |event|
+            long_live_the_king if event.node_created?
+          end
+
+          long_live_the_king if leader_acked?(true)
+        end
+      end
+
+      protected
+        def the_king_is_dead
+          @mutex.synchronize do
+            $stderr.puts "the king is dead"
+            @leader_death_cbs.each { |blk| blk.call }
+            @leader_alive = false
+          end
+
+          long_live_the_king if leader_acked?(true)
+        end
+
+        def long_live_the_king
+          @mutex.synchronize do
+            $stderr.puts "long live the king"
+            @new_leader_cbs.each { |blk| blk.call }
+            @leader_alive = true
+          end
+
+          the_king_is_dead unless leader_acked?(true)
+        end
     end
   end
 end

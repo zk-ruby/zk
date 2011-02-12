@@ -77,11 +77,33 @@ module ZK
 
       setup_watcher(h)
 
-      check_rc(@cnx.stat(h))[:stat]
-    rescue Exceptions::NoNode
+      rv = @cnx.stat(h)
+
+      return rv if opts[:callback] 
+
+      case rv[:rc] 
+      when Zookeeper::ZOK, Zookeeper::ZNONODE
+        rv[:stat]
+      else
+        check_rc(rv) # throws the appropriate error
+      end
     end
 
-    alias :exists? :stat
+    # exists? is just sugar around stat, instead of 
+    #   
+    #   zk.stat('/path').exists?
+    #
+    # you can do
+    #
+    #   zk.exists?('/path')
+    #
+    # this only works for the synchronous version of stat. for async version,
+    # this method will act *exactly* like stat
+    #
+    def exists?(path, opts={})
+      rv = stat(path, opts={})
+      opts[:callback] ? rv : rv.exists?
+    end
 
     def close!
       @event_handler.clear!

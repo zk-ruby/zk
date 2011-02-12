@@ -96,5 +96,50 @@ describe ZK::Election do
       end
     end
   end
+
+  describe :Observer do
+    before do
+      @obama = ZK::Election::Candidate.new(@zk, @election_name, @data1)
+      @palin = ZK::Election::Candidate.new(@zk2, @election_name, @data2)
+
+      @zk3 = ZK.new('localhost:2181')
+
+#       @obama.vote!
+#       @palin.vote!
+#       wait_until(2) { @obama.leader? }
+#       @obama.should be_leader
+
+      @observer = ZK::Election::Observer.new(@zk3, @election_name)
+    end
+
+    after do
+      @zk3.close!
+    end
+
+    describe 'initial state' do
+      describe 'no leader' do
+        before do
+          @got_life_event = @got_death_event = false
+
+          @observer.on_leaders_death { @got_death_event = true }
+          @observer.on_new_leader { @got_life_event = true }
+
+          @observer.observe!
+          wait_until { !@observer.leader_alive.nil? }
+          @observer.leader_alive.should_not be_nil
+          $stderr.puts @zk3.children(@observer.root_election_node)
+        end
+
+        it %[should set leader_alive to false] do
+          $stderr.puts "leader_acked? is #{@observer.leader_acked?.inspect}"
+          @observer.leader_alive.should be_false
+        end
+
+        it %[should fire death callbacks] do
+          @got_death_event.should be_true
+        end
+      end
+    end
+  end
 end
 

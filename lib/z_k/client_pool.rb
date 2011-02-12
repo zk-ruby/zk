@@ -13,14 +13,18 @@ module ZK
     # @return ZK::ClientPool
     def initialize(host, number_of_connections=10, opts = {})
       @connection_args = opts
-      if opts[:watcher] and opts[:watcher] != :default
-        raise "You cannot specify a custom watcher on a connection pool. You will be given an event_handler on each connection"
-      else
-        @connection_args[:watcher] = :default
-      end
+      
+#       if opts[:watcher] and opts[:watcher] != :default
+#         raise "You cannot specify a custom watcher on a connection pool. You will be given an event_handler on each connection"
+#       else
+#         @connection_args[:watcher] = :default
+#       end
+
       @number_of_connections = number_of_connections
       @host = host
       @pool = ::Queue.new
+      @mutex = Monitor.new
+      @connections = []
 
       populate_pool!
     end
@@ -28,16 +32,22 @@ module ZK
     # close all the connections on the pool
     # @param optional Boolean graceful allow the checked out connections to come back first?
     def close_all!(graceful=false)
+      #XXX: "waiting" threads don't have a connection and are waiting for one, 
+      #     are you rather waiting for all the connections to be returned?
       if graceful
-        until @pool.num_waiting == 0 do
+        until @pool.num_waiting == 0
           sleep 0.1
         end
       else
         raise "Clients are still waiting for this pool" if @pool.num_waiting > 0
       end
 
-      until @pool.size == 0 do
-        @pool.pop.close!
+      @mutex.synchronize do
+        until @pool.size == 0
+          cnx = @pool.pop
+          @connections.delete(cnx)
+          cnx.close!
+        end
       end
     end
 
@@ -81,6 +91,15 @@ module ZK
       end
     end
 
+    def size #:nodoc:
+      @pool.size
+    end
+
+    # DANGER! test only, array of all connections
+    def connections #:nodoc:
+      @connections
+    end
+
   private
 
     def populate_pool!
@@ -92,6 +111,7 @@ module ZK
           mutex.synchronize do
             unless did_checkin
               checkin(zk)
+              @mutex.synchronize { @connections << zk }
               did_checkin = true
             end
           end
@@ -103,6 +123,7 @@ module ZK
           if connection.connected? and not did_checkin
             subscription.unsubscribe
             checkin(connection)
+            @mutex.synchronize { @connections << connection }
             did_checkin = true
           end
         end
