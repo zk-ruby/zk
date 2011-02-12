@@ -122,6 +122,8 @@ module ZK
           return if leader?         # we already know we're the leader
           ballots = get_ballots()
 
+#           $stderr.puts "#{@data} ballots: #{ballots.inspect}"
+
           our_idx = ballots.index(vote_basename)
           
           if our_idx == 0           # if we have the lowest number
@@ -216,7 +218,7 @@ module ZK
       protected
         def the_king_is_dead
           @mutex.synchronize do
-            $stderr.puts "the king is dead"
+#             $stderr.puts "the king is dead"
             @leader_death_cbs.each { |blk| blk.call }
             @leader_alive = false
           end
@@ -226,7 +228,7 @@ module ZK
 
         def long_live_the_king
           @mutex.synchronize do
-            $stderr.puts "long live the king"
+#             $stderr.puts "long live the king"
             @new_leader_cbs.each { |blk| blk.call }
             @leader_alive = true
           end

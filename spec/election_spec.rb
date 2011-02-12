@@ -12,6 +12,10 @@ describe ZK::Election do
   after do
     @zk.close!
     @zk2.close!
+
+    ZK.open('localhost:2181') do |cnx|
+      cnx.rm_rf('/_zkelection')
+    end
   end
 
   describe 'Candidate' do
@@ -99,10 +103,14 @@ describe ZK::Election do
 
   describe :Observer do
     before do
+      @zk3 = ZK.new('localhost:2181')
+
+      @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
+
       @obama = ZK::Election::Candidate.new(@zk, @election_name, @data1)
       @palin = ZK::Election::Candidate.new(@zk2, @election_name, @data2)
 
-      @zk3 = ZK.new('localhost:2181')
+      @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
 
 #       @obama.vote!
 #       @palin.vote!
@@ -119,24 +127,95 @@ describe ZK::Election do
     describe 'initial state' do
       describe 'no leader' do
         before do
+          @events = []
+
+          @observer.on_leaders_death { @events << :death }
+          @observer.on_new_leader { @events << :life }
+
+          @observer.observe!
+          wait_until { !@observer.leader_alive.nil? }
+          @observer.leader_alive.should_not be_nil
+          @zk3.exists?(@observer.root_election_node).should be_false
+        end
+
+        it %[should set leader_alive to false] do
+          @observer.leader_alive.should be_false
+        end
+
+        it %[should fire death callbacks] do
+          @events.length.should == 1
+          @events.first.should == :death
+        end
+      end
+
+      describe 'leader exists before' do
+        before do
+          @obama.vote!
+          @palin.vote!
+
+          wait_until(2) { @obama.leader? }
+
           @got_life_event = @got_death_event = false
 
           @observer.on_leaders_death { @got_death_event = true }
           @observer.on_new_leader { @got_life_event = true }
 
           @observer.observe!
-          wait_until { !@observer.leader_alive.nil? }
-          @observer.leader_alive.should_not be_nil
-          $stderr.puts @zk3.children(@observer.root_election_node)
+
+          wait_until(2) { !@observer.leader_alive.nil? }
         end
 
-        it %[should set leader_alive to false] do
-          $stderr.puts "leader_acked? is #{@observer.leader_acked?.inspect}"
-          @observer.leader_alive.should be_false
+        it %[should be obama that won] do
+          @obama.should be_leader
         end
 
-        it %[should fire death callbacks] do
+        it %[should be palin that lost] do
+          @palin.should_not be_leader
+        end
+
+        it %[should set leader_alive to true] do
+          @observer.leader_alive.should be_true
+        end
+
+        it %[should fire the new leader callbacks] do
+          @got_life_event.should be_true
+        end
+      end
+
+      describe 'leadership transition' do
+        before do
+          @obama.vote!
+          @palin.vote!
+
+          wait_until(2) { @obama.leader? }
+
+          @palin.should_not be_leader
+
+          @got_life_event = @got_death_event = false
+
+          @observer.on_leaders_death { @got_death_event = true }
+          @observer.on_new_leader { @got_life_event = true }
+
+          @observer.observe!
+
+          wait_until(2) { !@observer.leader_alive.nil? }
+
+          @observer.leader_alive.should be_true
+          @zk.close!
+          wait_until(2) { !@zk.connected? && @palin.leader? }
+        end
+
+        it %[should be palin who is leader] do
+          @palin.should be_leader
+        end
+
+        it %[should have seen both the death and life events] do
+          @got_life_event.should be_true
           @got_death_event.should be_true
+        end
+
+        it %[should see the data of the new leader] do
+          @observer.leader_data.should == 'palin'
         end
       end
     end

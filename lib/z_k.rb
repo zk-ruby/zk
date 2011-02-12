@@ -25,5 +25,12 @@ module ZK
     # ignore opts for now
     Client.new(Zookeeper.new(*args))
   end
+
+  def self.open(*args)
+    cnx = new(*args)
+    yield cnx
+  ensure
+    cnx.close! if cnx
+  end
 end
 

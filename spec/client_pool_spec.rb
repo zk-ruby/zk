@@ -5,9 +5,9 @@ describe ZK::ClientPool do
   before(:each) do
     @pool_size = 2
     @connection_pool = ZK::ClientPool.new("localhost:#{ZK_TEST_PORT}", @pool_size, :watcher => :default)
-    unless defined?(::JRUBY_VERSION)
-      @connection_pool.connections.each { |cp| cp.set_debug_level(Zookeeper::ZOO_LOG_LEVEL_DEBUG) }
-    end
+#     unless defined?(::JRUBY_VERSION)
+#       @connection_pool.connections.each { |cp| cp.set_debug_level(Zookeeper::ZOO_LOG_LEVEL_DEBUG) }
+#     end
   end
 
   after(:each) do
