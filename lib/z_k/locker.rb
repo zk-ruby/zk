@@ -75,6 +75,9 @@ module ZK
       lock_files = @zk.children(root_lock_path, :watch => watch)
       lock_files.sort! {|a,b| digit_from_lock_path(a) <=> digit_from_lock_path(b)}
       digit_from_lock_path(lock_files.first) == digit_from_lock_path(@lock_path)
+    rescue Exceptions::NoNode => e
+      debugger
+      $stderr.puts e
     end
 
     def digit_from_lock_path(path)

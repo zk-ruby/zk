@@ -30,7 +30,7 @@ describe ZK do
     end
 
     it "should not exist" do
-      @zk.exists?("/test").should be_nil
+      @zk.exists?("/test").should be_false
     end
 
     it "should create a path" do
@@ -62,7 +62,7 @@ describe ZK do
 
       @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => nil)
       wait_until{ @zk.connected? }
-      @zk.exists?("/test").should be_nil
+      @zk.exists?("/test").should be_false
     end
 
     it "should remove sequential ephemeral path when client session ends" do
@@ -73,7 +73,7 @@ describe ZK do
 
       @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => nil)
       wait_until{ @zk.connected? }
-      @zk.exists?(created).should be_nil
+      @zk.exists?(created).should be_false
     end
 
   end
@@ -100,7 +100,11 @@ describe ZK do
     end
 
     it "should return a stat" do
-      @zk.exists?("/test").should be_instance_of(ZookeeperStat::Stat)
+      @zk.stat("/test").should be_instance_of(ZookeeperStat::Stat)
+    end
+
+    it "should return a boolean" do
+      @zk.exists?("/test").should be_true
     end
 
     it "should get data and stat" do
@@ -118,7 +122,7 @@ describe ZK do
 
     it "should delete path" do
       @zk.delete("/test")
-      @zk.exists?("/test").should be_nil
+      @zk.exists?("/test").should be_false
     end
 
     it "should create a child path" do

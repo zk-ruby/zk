@@ -20,8 +20,8 @@ module ZK
 
     # @private
     # :nodoc:
-    def call(event, zk)
-      callback.call(event,zk)
+    def call(event)
+      callback.call(event)
     end
 
   end
