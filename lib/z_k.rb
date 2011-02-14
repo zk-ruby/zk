@@ -23,7 +23,7 @@ module ZK
     args = %w[localhost:2181] if args.empty?
 
     # ignore opts for now
-    Client.new(Zookeeper.new(*args))
+    Client.new(*args)
   end
 
   def self.open(*args)

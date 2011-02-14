@@ -13,81 +13,98 @@ module ZK
     # @return ZK::ClientPool
     def initialize(host, number_of_connections=10, opts = {})
       @connection_args = opts
-      
-#       if opts[:watcher] and opts[:watcher] != :default
-#         raise "You cannot specify a custom watcher on a connection pool. You will be given an event_handler on each connection"
-#       else
-#         @connection_args[:watcher] = :default
-#       end
 
+      @status = :init
+      
       @number_of_connections = number_of_connections
       @host = host
       @pool = ::Queue.new
-      @mutex = Monitor.new
+
       @connections = []
+      @connections.extend(MonitorMixin)
+      @checkin_cond = @connections.new_cond
 
       populate_pool!
+    end
+
+    # has close_all! been called on this ConnectionPool ?
+    def closed?
+      @connections.synchronize { @status == :closed }
+    end
+
+    def closing?
+      @connections.synchronize { @status == :closing }
+    end
+
+    def open?
+      @connections.synchronize { @status == :open }
     end
 
     # close all the connections on the pool
     # @param optional Boolean graceful allow the checked out connections to come back first?
     def close_all!(graceful=false)
-      #XXX: "waiting" threads don't have a connection and are waiting for one, 
-      #     are you rather waiting for all the connections to be returned?
-      if graceful
-        until @pool.num_waiting == 0
-          sleep 0.1
-        end
-      else
-        raise "Clients are still waiting for this pool" if @pool.num_waiting > 0
-      end
+      @connections.synchronize do 
+        return unless open?
+        @status = :closing
 
-      @mutex.synchronize do
-        until @pool.size == 0
-          cnx = @pool.pop
-          @connections.delete(cnx)
+        @checkin_cond.wait_until { @pool.size == @connections.length }
+
+        @pool.clear
+
+        while cnx = @connections.shift
           cnx.close!
         end
+
+        @status = :closed
       end
     end
 
-    # checkout a connection from the pool - takes a block which will check it
-    # back in after the block is finished
-    # @param optional [Boolean] blocking If blocking is set to false then false will be returned
-    #   if no connection is available
-    # @yield [connection] The checked out connection
-    def checkout(blocking = true, &block)
-      if block
-        checkout_checkin_with_block(block)
-      else
-        return @pool.pop(!blocking)
-      end
+    # yields next available connection to the block
+    #
+    # raises PoolIsShuttingDownException immediately if close_all! has been
+    # called on this pool
+    def with_connection
+      assert_open!
+
+      cnx = checkout(true)
+      yield cnx
+    ensure
+      checkin(cnx)
+    end
+
+    def checkout(blocking = true, &block) #:nodoc:
+      assert_open!
+
+      @pool.pop(!blocking)
     rescue ThreadError
-      return false
+      false
     end
 
-    def checkin(connection)
-      @pool.push(connection)
+    def checkin(connection) #:nodoc:
+      @connections.synchronize do
+        @pool.push(connection)
+        @checkin_cond.signal
+      end
     end
 
     #lock lives on past the connection checkout
     def locker(path)
-      checkout do |connection|
+      with_connection do |connection|
         connection.locker(path)
       end
     end
 
     #prefer this method if you can (keeps connection checked out)
     def with_lock(path, &block)
-      checkout do |connection|
+      with_connection do |connection|
         connection.locker(path).with_lock(&block)
       end
     end
 
     # handle all
     def method_missing(meth, *args, &block)
-      checkout do |connection|
-        connection.send(meth, *args, &block)
+      with_connection do |connection|
+        connection.__send__(meth, *args, &block)
       end
     end
 
@@ -101,41 +118,19 @@ module ZK
     end
 
   private
+    def assert_open!
+      raise Exceptions::PoolIsShuttingDownException unless open? 
+    end
 
     def populate_pool!
-      @number_of_connections.times do
-        mutex, did_checkin = Mutex.new, false
-
-        connection = ZK.new(@host, @connection_args)
-        subscription = connection.watcher.register_state_handler(:connected) do |event, zk|
-          mutex.synchronize do
-            unless did_checkin
-              checkin(zk)
-              @mutex.synchronize { @connections << zk }
-              did_checkin = true
-            end
-          end
-          subscription.unsubscribe
-        end
-
-        mutex.synchronize do
-          # incase we missed the watcher
-          if connection.connected? and not did_checkin
-            subscription.unsubscribe
-            checkin(connection)
-            @mutex.synchronize { @connections << connection }
-            did_checkin = true
-          end
+      @connections.synchronize do
+        @number_of_connections.times do
+          connection = ZK.new(@host, @connection_args)
+          @connections << connection
+          checkin(connection)
+          @status = :open
         end
       end
     end
-
-    def checkout_checkin_with_block(block)
-      connection = checkout
-      block.call(connection)
-    ensure
-      checkin(connection)
-    end
-
   end
 end

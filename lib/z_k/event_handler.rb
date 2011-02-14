@@ -78,6 +78,7 @@ module ZK
 
     # called from the client-registered callback when an event fires
     def process(event) #:nodoc:
+#       $stderr.puts "EventHandler#process: #{event.inspect}"
       @callbacks.synchronize do
         event.zk = @zk
 

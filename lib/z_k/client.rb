@@ -4,21 +4,24 @@ module ZK
   class Client
     extend Forwardable
 
+    DEFAULT_TIMEOUT = 10
+
     attr_reader :event_handler
 
     # for backwards compatibility
     alias :watcher :event_handler #:nodoc:
 
-    def initialize(connection, opts={})
-      @cnx = connection
+    def initialize(host, opts={})
       @event_handler = EventHandler.new(self)
+      @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, get_default_watcher_block)
+      @state = nil
     end
 
     def closed?
       @cnx.state and false
     rescue RuntimeError => e
       # gah, lame error parsing here
-      raise e unless e.message == 'zookeeper handle is closed'
+      raise e if (e.message != 'zookeeper handle is closed') and not defined?(::JRUBY_VERSION)
       true
     end
 
@@ -257,6 +260,14 @@ module ZK
         # gah, lame error parsing here
         raise e unless e.message == 'zookeeper handle is closed'
         false
+      end
+
+      def get_default_watcher_block
+        lambda do |hash|
+          watcher_callback.tap do |cb|
+            cb.call(hash)
+          end
+        end
       end
 
       def setup_watcher(opts)

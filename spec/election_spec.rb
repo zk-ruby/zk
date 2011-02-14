@@ -26,16 +26,24 @@ describe ZK::Election do
 
     describe 'vote!' do
       before do
-        @obama_won = false
+        @obama_won = @obama_lost = @palin_won = @palin_lost = nil
 
         @obama.on_winning_election do 
           @obama_won = true
         end
 
+        @obama.on_losing_election do
+          @obama_lost = true
+        end
+
         @palin.on_winning_election do
           @palin_won = true
         end
-        
+
+        @palin.on_losing_election do
+          @palin_lost = true
+        end
+         
         @obama.vote!
         @palin.vote!
         wait_until(2) { @obama_won }
@@ -44,6 +52,10 @@ describe ZK::Election do
       describe 'winner' do
         it %[should fire the on_winning_election callbacks] do
           @obama_won.should be_true
+        end
+
+        it %[should not fire the on_losing_election callbacks] do
+          @obama_lost.should be_nil
         end
 
         it %[should acknowledge completion of winning callbacks] do
@@ -64,8 +76,12 @@ describe ZK::Election do
           @palin.should_not be_leader
         end
 
-        it %[should not fire the callbacks] do
+        it %[should not fire the winning callbacks] do
           @palin_won.should_not be_true
+        end
+
+        it %[should fire the losing callbacks] do
+          @palin_lost.should be_true
         end
 
         it %[should take over as leader when the current leader goes away] do

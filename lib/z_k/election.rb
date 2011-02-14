@@ -64,6 +64,7 @@ module ZK
         @leader = nil 
         @data   = data
         @winner_callbacks = []
+        @loser_callbacks = []
 
         @current_leader_watch_sub = nil # the subscription for leader acknowledgement changes
       end
@@ -81,6 +82,13 @@ module ZK
       # method.
       def on_winning_election(&block)
         @winner_callbacks << block
+      end
+
+      # When we lose the election and are relegated to the shadows, waiting for
+      # the leader to make one small misstep, where we can finally claim what
+      # is rightfully ours! MWUAHAHAHAHAHA(*cough*)
+      def on_losing_election(&block)
+        @loser_callbacks << block
       end
 
       # These procs should be run in the case of an error when trying to assume
@@ -139,6 +147,8 @@ module ZK
           else
             @leader = false
 
+            fire_losing_callbacks!
+
             # we watch the next-lowest ballot, not the ack path
             leader_abspath = File.join(root_vote_path, ballots[our_idx - 1])
 
@@ -161,6 +171,10 @@ module ZK
 
         def fire_winning_callbacks!
           @winner_callbacks.each { |blk| blk.call }
+        end
+
+        def fire_losing_callbacks!
+          @loser_callbacks.each { |blk| blk.call }
         end
     end
 
