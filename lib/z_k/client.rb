@@ -18,7 +18,15 @@ module ZK
     end
 
     def closed?
-      @cnx.state and false
+      defined?(::JRUBY_VERSION) ? jruby_closed? : mri_closed?
+    end
+
+    def jruby_closed?
+      @cnx.state == Java::OrgApacheZookeeper::ZooKeeper::States::CLOSED
+    end
+
+    def mri_closed?
+      @cnx.state or false
     rescue RuntimeError => e
       # gah, lame error parsing here
       raise e if (e.message != 'zookeeper handle is closed') and not defined?(::JRUBY_VERSION)
@@ -251,6 +259,11 @@ module ZK
 
         @cnx.set_debug_level(num)
       end
+    end
+
+    # the state of the underlying connection
+    def state #:nodoc:
+      @cnx.state
     end
 
     protected

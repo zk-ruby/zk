@@ -19,7 +19,7 @@ describe ZK::Client do
     @zk.close!
 
     report_realtime("shutdown client") do
-      wait_until { @zk.closed? }
+      wait_until(2) { @zk.closed? }
     end
   end
 
