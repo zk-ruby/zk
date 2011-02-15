@@ -13,7 +13,7 @@ require 'z_k/shared_locker'
 require 'z_k/extensions'
 require 'z_k/election'
 require 'z_k/client'
-require 'z_k/client_pool'
+require 'z_k/pool'
 
 module ZK
   def self.new(*args)
