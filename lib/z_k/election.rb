@@ -4,6 +4,7 @@ module ZK
     ROOT_NODE = '/_zkelection'.freeze
 
     class Base
+      include Logging
       attr_reader :zk, :vote_path, :root_election_node
 
       def initialize(client, name, root_election_node=nil)
@@ -157,6 +158,8 @@ module ZK
           our_idx = ballots.index(vote_basename)
           
           if our_idx == 0           # if we have the lowest number
+            logger.info { "ZK: We have become leader" }
+
             @leader = true  
             fire_winning_callbacks!
 
@@ -168,6 +171,7 @@ module ZK
             acknowledge_win!
           else
             @leader = false
+            logger.info { "ZK: we are not the leader" }
             
             wait_for_leader_ack   # wait until winner has acknowledged new role
 
@@ -177,6 +181,8 @@ module ZK
             leader_abspath = File.join(root_vote_path, ballots[our_idx - 1])
 
             @current_leader_watch_sub ||= @zk.watcher.register(leader_abspath) do |event| 
+              logger.debug { "current_leader_watch callback got event #{event.inspect}" }
+
               if event.node_deleted? 
                 vote! 
               else
