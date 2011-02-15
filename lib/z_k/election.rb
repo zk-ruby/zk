@@ -37,6 +37,12 @@ module ZK
       def leader_acked?(watch=false)
         @zk.exists?(leader_ack_path, :watch => watch)
       end
+      
+      # return the data from the current leader or nil if there is no current leader
+      def leader_data
+        @zk.get(leader_ack_path).first
+      rescue Exceptions::NoNode
+      end
 
       protected
         def create_root_path!
@@ -186,12 +192,6 @@ module ZK
         @deletion_sub = @creation_sub = nil
         @leader_alive = nil
         @observing = false
-      end
-
-      # return the data from the current leader or nil if there is no current leader
-      def leader_data
-        @zk.get(leader_ack_path).first
-      rescue Exceptions::NoNode
       end
 
       # our current idea about the state of the election
