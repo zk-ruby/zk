@@ -44,6 +44,24 @@ module ZK
       rescue Exceptions::NoNode
       end
 
+      # waits for the leader_ack path to be created
+      def wait_for_leader_ack #:nodoc:
+        queue = Queue.new
+
+        creation_sub = @zk.watcher.register(leader_ack_path) do |event|
+          if event.node_created?
+            queue << :leader_exists
+          else
+            queue << :leader_exists if @zk.exists?(leader_ack_path, :watch => true)
+          end
+        end
+
+        return if @zk.exists?(leader_ack_path, :watch => true)
+        queue.pop # wait for callback
+      ensure
+        creation_sub.unregister if creation_sub
+      end
+
       protected
         def create_root_path!
           @zk.mkdir_p(root_vote_path)
@@ -136,8 +154,6 @@ module ZK
           return if leader?         # we already know we're the leader
           ballots = get_ballots()
 
-#           $stderr.puts "#{@data} ballots: #{ballots.inspect}"
-
           our_idx = ballots.index(vote_basename)
           
           if our_idx == 0           # if we have the lowest number
@@ -152,6 +168,8 @@ module ZK
             acknowledge_win!
           else
             @leader = false
+            
+            wait_for_leader_ack   # wait until winner has acknowledged new role
 
             fire_losing_callbacks!
 
