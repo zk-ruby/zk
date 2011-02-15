@@ -32,23 +32,23 @@ describe ZK do
     callback_called.should be_true
   end
 
-  it %[should allow the block to renew the watch] do
-    @count = 0
+#   it %[should allow the block to renew the watch] do
+#     @count = 0
 
-    @zk.watcher.register(@path) do |event|
-      @count += 1
-      event.renew_watch!
-    end
+#     @zk.watcher.register(@path) do |event|
+#       @count += 1
+#       event.renew_watch!
+#     end
 
-    @zk.exists?(@path, :watch => true).should be_false
-    @zk.create(@path, "", :mode => :ephemeral)
+#     @zk.exists?(@path, :watch => true).should be_false
+#     @zk.create(@path, "", :mode => :ephemeral).should == @path
 
-    wait_until(2) { @count > 0 }
-    @count.should == 1
+#     wait_until(2) { @count > 0 }
+#     @count.should == 1
 
-    @zk.delete(@path)
-    wait_until(2) { @count > 1 }
+#     @zk.delete(@path)
 
-    @count.should == 2
-  end
+#     wait_until(2) { @count > 1 }
+#     @count.should == 2
+#   end
 end

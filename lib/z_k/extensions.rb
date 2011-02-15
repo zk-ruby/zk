@@ -69,10 +69,10 @@ module ZK
         end
 
         # cause this watch to be re-registered
-        def renew_watch!
-          zk.stat(path, :watch => true)
-          nil
-        end
+#         def renew_watch!
+#           zk.stat(path, :watch => true)
+#           nil
+#         end
       end
     end   # Callbacks
 
