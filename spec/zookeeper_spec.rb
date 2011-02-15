@@ -34,11 +34,11 @@ describe ZK do
     end
 
     it "should create a path" do
-      @zk.create("/test", "test_data").should == "/test"
+      @zk.create("/test", "test_data", :mode => :ephemeral).should == "/test"
     end
 
     it "should be able to set the data" do
-      @zk.create("/test", "something")
+      @zk.create("/test", "something", :mode => :ephemeral)
       @zk.set("/test", "somethingelse")
       @zk.get("/test").first.should == "somethingelse"
     end
@@ -126,7 +126,7 @@ describe ZK do
     end
 
     it "should create a child path" do
-      @zk.create("/test/child", "child").should == "/test/child"
+      @zk.create("/test/child", "child", :mode => :ephemeral).should == "/test/child"
     end
 
     it "should create sequential child paths" do

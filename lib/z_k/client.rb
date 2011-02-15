@@ -46,9 +46,7 @@ module ZK
     end
 
     def create(path, data='', opts={})
-      # ephemeral is the default mode for us
-
-      h = { :path => path, :data => data, :ephemeral => true, :sequence => false }.merge(opts)
+      h = { :path => path, :data => data, :ephemeral => false, :sequence => false }.merge(opts)
 
       case mode = h.delete(:mode)
       when :ephemeral_sequential
