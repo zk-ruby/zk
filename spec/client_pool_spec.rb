@@ -1,22 +1,26 @@
 require File.join(File.dirname(__FILE__), %w[spec_helper])
 
 describe ZK::Pool do
-  describe Client do
+  describe :Simple do
 
-    before(:each) do
-      @pool_size = 2
-      @connection_pool = ZK::Pool::Client.new("localhost:#{ZK_TEST_PORT}", @pool_size, :watcher => :default)
-  #     unless defined?(::JRUBY_VERSION)
-  #       @connection_pool.connections.each { |cp| cp.set_debug_level(Zookeeper::ZOO_LOG_LEVEL_DEBUG) }
-  #     end
+    before do
+      report_realtime('opening pool') do
+        @pool_size = 2
+        @connection_pool = ZK::Pool::Simple.new("localhost:#{ZK_TEST_PORT}", @pool_size, :watcher => :default)
+        @connection_pool.should be_open
+      end
     end
 
-    after(:each) do
-      @connection_pool.close_all! unless @connection_pool.closed?
+    after do
+      report_realtime("close_all!") do
+        @connection_pool.close_all! unless @connection_pool.closed?
+      end
 
-      zk = ZK.new("localhost:#{ZK_TEST_PORT}")
-      zk.delete('/test_pool') rescue ZK::Exceptions::NoNode
-      zk.close!
+      report_realtime("closing") do
+        zk = ZK.new("localhost:#{ZK_TEST_PORT}")
+        zk.delete('/test_pool') rescue ZK::Exceptions::NoNode
+        zk.close!
+      end
     end
 
     it "should allow you to execute commands on a connection" do
@@ -75,27 +79,8 @@ describe ZK::Pool do
       end
     end
 
-  #   it "using non-blocking it should only let you checkout the pool size" do
-  #     @connection_pool.size.should == 2
-
-  #     ary = []
-
-  #     wait_until(2) { ary << @connection_pool.checkout(false) }
-  #     ary.length.should == 1
-
-  #     @connection_pool.size.should == 1
-
-  #     (@pool_size - 1).times do
-  #       ary << @connection_pool.checkout(false)
-  #     end
-
-  #     @connection_pool.checkout(false).should be_false
-
-
-  #   end
-
     it "should allow watchers still" do
-      pending "No idea why this is busted"
+#       pending "No idea why this is busted"
 
       @callback_called = false
 

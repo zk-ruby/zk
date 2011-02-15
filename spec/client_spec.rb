@@ -1,12 +1,5 @@
 require File.join(File.dirname(__FILE__), %w[spec_helper])
 
-require 'benchmark'
-
-def report_realtime(what)
-  t = Benchmark.realtime { yield }
-  $stderr.puts "#{what}: %0.3f" % [t.to_f]
-end
-
 describe ZK::Client do
   before do
     @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => nil)

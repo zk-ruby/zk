@@ -1,7 +1,7 @@
 module ZK
   module Pool
-    # like a ClientPool but has high/low watermarks, and can grow dynamically as needed
-    class BoundedClient
+    # like a Simple pool but has high/low watermarks, and can grow dynamically as needed
+    class Bounded < Base
       DEFAULT_OPTIONS = {
         :timeout      => 10,
         :min_clients  => 1,
@@ -26,6 +26,8 @@ module ZK
         # for compatibility w/ ClientPool we'll use @connections for synchronization
         @pool = []            # currently available connections
 
+
+        populate_pool!(@min_clients)
       end
 
       def checkin(connection)

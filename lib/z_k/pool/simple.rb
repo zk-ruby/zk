@@ -2,10 +2,10 @@ module ZK
   module Pool
     # create a connection pool useful for multithreaded applications
     # @example
-    #   pool = ZK::ClientPool.new("localhost:2181", 10)
+    #   pool = ZK::Pool::Simple.new("localhost:2181", 10)
     #   pool.checkout do |zk|
     #     zk.create("/mynew_path")
-    class ClientPool < PoolBase
+    class Simple < Base
 
       # initialize a connection pool using the same optons as ZK.new
       # @param String host the same arguments as ZK.new
@@ -20,20 +20,8 @@ module ZK
         @host = host
         @pool = ::Queue.new
 
-        populate_pool!
+        populate_pool!(@number_of_connections)
       end
-
-    private
-      def populate_pool!
-        @connections.synchronize do
-          @number_of_connections.times do
-            connection = ZK.new(@host, @connection_args)
-            @connections << connection
-            checkin(connection)
-            @status = :open
-          end
-        end
-      end
-    end # Client
+    end # Simple
   end   # Pool
 end     # ZK

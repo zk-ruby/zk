@@ -1,6 +1,6 @@
 module ZK
   module Pool
-    class PoolBase
+    class Base
       def initialize
         @state = :init
 
@@ -56,6 +56,7 @@ module ZK
 
       def checkout(blocking=true) #:nodoc:
         assert_open!
+        debugger
 
         @pool.pop(!blocking)
       rescue ThreadError
@@ -103,6 +104,18 @@ module ZK
         def assert_open!
           raise Exceptions::PoolIsShuttingDownException unless open? 
         end
+
+        def populate_pool!(num_cnx)
+          @connections.synchronize do
+            num_cnx.times do
+              connection = ZK.new(@host, @connection_args)
+              @connections << connection
+              checkin(connection)
+              @state = :open
+            end
+          end
+        end
+
     end # Base
   end   # Pool
 end     # ZK
