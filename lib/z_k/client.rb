@@ -239,13 +239,14 @@ module ZK
     end
 
     # convenience method for constructing an election candidate
-    def election_candidate(name, data)
-      ZK::Election::Candidate.new(self, name, data)
+    def election_candidate(name, data, opts={})
+      opts = opts.merge(:data => data)
+      ZK::Election::Candidate.new(self, name, opts)
     end
 
     # convenience method for constructing an election observer
-    def election_observer(name)
-      ZK::Election::Observer.new(self, name)
+    def election_observer(name, opts={})
+      ZK::Election::Observer.new(self, name, opts)
     end
 
     # creates a new message queue of name _name_

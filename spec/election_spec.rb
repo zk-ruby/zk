@@ -2,6 +2,8 @@ require File.join(File.dirname(__FILE__), %w[spec_helper])
 
 describe ZK::Election do
   before do
+    ZK.open('localhost:2181') { |cnx| cnx.rm_rf('/_zkelection') }
+
     @zk = ZK.new('localhost:2181')
     @zk2 = ZK.new('localhost:2181')
     @election_name = '2012'
@@ -13,15 +15,13 @@ describe ZK::Election do
     @zk.close!
     @zk2.close!
 
-    ZK.open('localhost:2181') do |cnx|
-      cnx.rm_rf('/_zkelection')
-    end
+    ZK.open('localhost:2181') { |cnx| cnx.rm_rf('/_zkelection') }
   end
 
-  describe 'Candidate' do
+  describe 'Candidate', 'following next_node' do
     before do
-      @obama = ZK::Election::Candidate.new(@zk, @election_name, @data1)
-      @palin = ZK::Election::Candidate.new(@zk2, @election_name, @data2)
+      @obama = ZK::Election::Candidate.new(@zk, @election_name, :data => @data1)
+      @palin = ZK::Election::Candidate.new(@zk2, @election_name, :data => @data2)
     end
 
     describe 'vote!' do
@@ -153,7 +153,7 @@ describe ZK::Election do
             wait_until(2) { @palin_won }
 
             zk = ZK.new('localhost:2181')
-            newbama = ZK::Election::Candidate.new(zk, @election_name, @data1)
+            newbama = ZK::Election::Candidate.new(zk, @election_name, :data => @data1)
 
             win_again = false
 
@@ -173,21 +173,88 @@ describe ZK::Election do
     end
   end
 
+  describe :Candidate, 'following leader' do
+    before do
+      @zk3 = ZK.new('localhost:2181')
+
+      @data1, @data2, @data3 = 'node1', 'node2', 'node3'
+
+      @node1 = @zk.election_candidate(@election_name, @data1, :follow => :leader)
+      @node2 = @zk2.election_candidate(@election_name, @data2, :follow => :leader)
+      @node3 = @zk3.election_candidate(@election_name, @data3, :follow => :leader)
+    end
+
+    after do
+      @zk3.close!
+    end
+
+    describe 'all nodes' do
+      it %[should notice the leadership change] do
+        @events = []
+        @node1.on_winning_election { @events << :node1_win }
+        @node1.on_losing_election { @events << :node1_lose }
+
+        @node2.on_winning_election { @events << :node2_win }
+        @node2.on_losing_election { @events << :node2_lose }
+
+        @node3.on_winning_election { @events << :node3_win }
+        @node3.on_losing_election { @events << :node3_lose }
+
+        logger.debug { "node1 voting" }
+        @node1.vote!
+        wait_until(2) { @node1.voted? }
+        @node1.should be_leader
+
+        logger.debug { "node2 voting" }
+        @node2.vote!
+        wait_until(2) { @node2.voted? }
+        @node2.should_not be_leader
+
+        logger.debug { "node3 voting" }
+        @node3.vote!
+
+        wait_until(2) { @node3.voted? }
+        logger.debug { "node3 voted" }
+
+        @node3.should_not be_leader
+        logger.debug { "node3 is not leader" }
+
+        wait_until(2) { @events.length == 3 }
+        @events.length.should == 3
+
+        logger.debug { "@events:  #{@events.inspect}" }
+        @events.should == [:node1_win, :node2_lose, :node3_lose]
+
+        @events.clear
+
+        logger.debug { "cleared events, closing @zk" }
+        @zk.close!
+        wait_until(2) { !@zk.connected? }
+
+        logger.debug { "@zk closed!" }
+
+        wait_until(2) { @events.length == 2 }
+        @events.length.should == 2
+
+        logger.debug { "@events: #{@events.inspect}" }
+        @events.should == [:node2_win, :node3_lose]
+
+        logger.debug { "clearing events" }
+        @events.clear
+      end
+    end
+  end
+
   describe :Observer do
     before do
       @zk3 = ZK.new('localhost:2181')
 
       @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
 
-      @obama = ZK::Election::Candidate.new(@zk, @election_name, @data1)
-      @palin = ZK::Election::Candidate.new(@zk2, @election_name, @data2)
+      @obama = ZK::Election::Candidate.new(@zk, @election_name, :data => @data1)
+      @palin = ZK::Election::Candidate.new(@zk2, @election_name, :data => @data2)
 
       @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
-
-#       @obama.vote!
-#       @palin.vote!
-#       wait_until(2) { @obama.leader? }
-#       @obama.should be_leader
 
       @observer = ZK::Election::Observer.new(@zk3, @election_name)
     end

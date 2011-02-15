@@ -4,7 +4,13 @@ require 'zk'
 
 ZK_TEST_PORT = 2181
 
+ZK.logger = Logger.new(File.join(ZK::ZK_ROOT, 'test.log')).tap { |log| log.level = Logger::DEBUG }
+
 RSpec.configure do |config|
+end
+
+def logger
+  ZK.logger
 end
 
 # method to wait until block passed returns true or timeout (default is 10 seconds) is reached 

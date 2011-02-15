@@ -17,6 +17,8 @@ require 'z_k/client'
 require 'z_k/client_pool'
 
 module ZK
+  ZK_ROOT = File.expand_path('../..', __FILE__)
+
   def self.logger
     @logger ||= Logger.new('/dev/null')
   end

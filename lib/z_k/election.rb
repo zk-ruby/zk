@@ -3,14 +3,22 @@ module ZK
     VOTE_PREFIX = 'ballot'.freeze
     ROOT_NODE = '/_zkelection'.freeze
 
+    VALID_FOLLOW_OPTIONS = [:next_node, :leader].freeze
+
+    DEFAULT_OPTS = {
+      :root_election_node => ROOT_NODE,
+      :follow => :next_node,
+    }.freeze
+ 
     class Base
-      include Logging
+     include Logging
       attr_reader :zk, :vote_path, :root_election_node
 
-      def initialize(client, name, root_election_node=nil)
+      def initialize(client, name, opts={})
         @zk = client
         @name = name
-        @root_election_node = (root_election_node || ROOT_NODE).dup.freeze
+        opts = DEFAULT_OPTS.merge(opts)
+        @root_election_node = opts[:root_election_node]
         @mutex = Monitor.new
       end
 
@@ -45,20 +53,47 @@ module ZK
       rescue Exceptions::NoNode
       end
 
+      def on_leader_ack(&block)
+        creation_sub = @zk.watcher.register(leader_ack_path) do |event|
+          if event.node_created?
+            begin
+              logger.debug { "in #{leader_ack_path} watcher, got creation event, notifying" }
+              block.call
+            ensure
+              creation_sub.unregister
+            end
+          else
+            if @zk.exists?(leader_ack_path, :watch => true)
+              begin
+                logger.debug { "in #{leader_ack_path} watcher, node created behind our back, notifying" }
+                block.call
+              ensure
+                creation_sub.unregister
+              end
+            else
+              logger.debug { "in #{leader_ack_path} watcher, got non-creation event, re-watching" }
+            end
+          end
+        end
+
+        if @zk.exists?(leader_ack_path, :watch => true)
+          logger.debug { "wait_for_leader_ack, #{leader_ack_path} exists, returning" }
+          begin
+            block.call
+          ensure
+            creation_sub.unregister if creation_sub
+          end
+        end
+      end
+
+
       # waits for the leader_ack path to be created
       def wait_for_leader_ack #:nodoc:
         queue = Queue.new
 
-        creation_sub = @zk.watcher.register(leader_ack_path) do |event|
-          if event.node_created?
-            queue << :leader_exists
-          else
-            queue << :leader_exists if @zk.exists?(leader_ack_path, :watch => true)
-          end
-        end
-
-        return if @zk.exists?(leader_ack_path, :watch => true)
+        logger.debug { "wait_for_leader_ack, #{leader_ack_path} did not exist, waiting for creation" }
         queue.pop # wait for callback
+        logger.debug { "wait_for_leader_ack, got notification, returning" }
       ensure
         creation_sub.unregister if creation_sub
       end
@@ -84,10 +119,19 @@ module ZK
     # if data is given, it will be used as the content of both our ballot and
     # the leader acknowledgement node if and when we become the leader.
     class Candidate < Base
-      def initialize(client, name, data=nil, root_election_node=nil)
-        super(client, name, root_election_node)
+      def initialize(client, name, opts={})
+        super(client, name, opts)
+        opts = DEFAULT_OPTS.merge(opts)
+
         @leader = nil 
-        @data   = data
+        @data   = opts[:data] || ''
+
+        unless VALID_FOLLOW_OPTIONS.include?(opts[:follow])
+          raise ArgumentError, "Invalid :follow value: #{opts[:follow].inspect}"
+        end
+
+        @follow = opts[:follow]
+        
         @winner_callbacks = []
         @loser_callbacks = []
 
@@ -138,7 +182,11 @@ module ZK
       protected
         # the inauguration, as it were
         def acknowledge_win!
+          logger.debug { "ZK: creating #{leader_ack_path}, data: #{@data.inspect}" }
           @zk.create(leader_ack_path, @data, :ephemeral => true)
+        rescue Exception => e
+          logger.error { "got error creating #{leader_ack_path}: #{e.class} #{e.message}" }
+          raise e
         end
 
         # return the list of ephemeral vote nodes
@@ -158,7 +206,7 @@ module ZK
           our_idx = ballots.index(vote_basename)
           
           if our_idx == 0           # if we have the lowest number
-            logger.info { "ZK: We have become leader" }
+            logger.info { "ZK: We have become leader, data: #{@data.inspect}" }
 
             @leader = true  
             fire_winning_callbacks!
@@ -171,31 +219,46 @@ module ZK
             acknowledge_win!
           else
             @leader = false
-            logger.info { "ZK: we are not the leader" }
+            logger.info { "ZK: we are not the leader, data: #{@data.inspect}" }
             
-            wait_for_leader_ack   # wait until winner has acknowledged new role
+            on_leader_ack do
+              fire_losing_callbacks!
 
-            fire_losing_callbacks!
+              follow_node =
+                case @follow
+                when :leader
+                  # watch the ack path, that way we get notified if the master goes away
+                  leader_ack_path
+                when :next_node
+                  # we watch the next-lowest ballot, not the ack path, that way we only get
+                  # notified if we need to become the leader
+                  File.join(root_vote_path, ballots[our_idx - 1])
+                end
 
-            # we watch the next-lowest ballot, not the ack path
-            leader_abspath = File.join(root_vote_path, ballots[our_idx - 1])
+              logger.info { "ZK: following #{follow_node} for changes, #{@data.inspect}" }
 
-            @current_leader_watch_sub ||= @zk.watcher.register(leader_abspath) do |event| 
-              logger.debug { "current_leader_watch callback got event #{event.inspect}" }
+              @current_leader_watch_sub ||= @zk.watcher.register(follow_node) do |event| 
+                if event.node_deleted? 
+                  logger.debug { "#{follow_node} was deleted, voting, #{@data.inspect}" }
+                  vote! 
+                else
+                  # this takes care of the race condition where the leader ballot would
+                  # have been deleted before we could re-register to receive updates
+                  # if zk.stat returns false, it means the path was deleted
+                  unless @zk.stat(event.path, :watch => true).exists?
+                    logger.debug { "#{follow_node} was deleted (detected on re-watch), voting, #{@data.inspect}" }
+                    vote! 
+                  end
+                end
+              end
 
-              if event.node_deleted? 
-                vote! 
-              else
-                # this takes care of the race condition where the leader ballot would
-                # have been deleted before we could re-register to receive updates
-                # if zk.stat returns false, it means the path was deleted
-                vote! unless @zk.stat(event.path, :watch => true).exists?
+              # this catches a possible race condition, where the leader has died before
+              # our callback has fired. In this case, retry and do this procedure again
+              unless @zk.stat(follow_node, :watch => true).exists?
+                logger.debug { "the node #{follow_node} did not exist, retrying, #{@data.inspect}" }
+                return check_election_results!
               end
             end
-
-            # this catches a possible race condition, where the leader has died before
-            # our callback has fired. In this case, retry and do this procedure again
-            retry unless @zk.stat(leader_abspath, :watch => true).exists?
           end
         end
 
@@ -209,7 +272,7 @@ module ZK
     end
 
     class Observer < Base
-      def initialize(client, name, root_election_node=nil)
+      def initialize(client, name, opts={})
         super
         @leader_death_cbs = []
         @new_leader_cbs = []
