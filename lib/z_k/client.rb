@@ -48,14 +48,22 @@ module ZK
     def create(path, data='', opts={})
       h = { :path => path, :data => data, :ephemeral => false, :sequence => false }.merge(opts)
 
-      case mode = h.delete(:mode)
-      when :ephemeral_sequential
-        h[:ephemeral] = h[:sequence] = true
-      when :persistent_sequential
-        h[:ephemeral] = false
-        h[:sequence] = true
-      when :persistent
-        h[:ephemeral] = false
+      if mode = h.delete(:mode)
+        mode = mode.to_sym
+
+        case mode
+        when :ephemeral_sequential
+          h[:ephemeral] = h[:sequence] = true
+        when :persistent_sequential
+          h[:ephemeral] = false
+          h[:sequence] = true
+        when :persistent
+          h[:ephemeral] = false
+        when :ephemeral
+          h[:ephemeral] = true
+        else
+          raise ArgumentError, "Unknown mode: #{mode.inspect}"
+        end
       end
 
       rv = check_rc(@cnx.create(h))

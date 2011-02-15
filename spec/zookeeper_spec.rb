@@ -59,6 +59,8 @@ describe ZK do
       @zk.create("/test", "test_data", :mode => :ephemeral).should == "/test"
       @zk.exists?("/test").should_not be_nil
       @zk.close!
+      wait_until(2) { !@zk.connected? }
+      @zk.should_not be_connected
 
       @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => nil)
       wait_until{ @zk.connected? }
