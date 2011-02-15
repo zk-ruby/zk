@@ -238,6 +238,16 @@ module ZK
       locker(path).with_lock(&b)
     end
 
+    # convenience method for constructing an election candidate
+    def election_candidate(name, data)
+      ZK::Election::Candidate.new(self, name, data)
+    end
+
+    # convenience method for constructing an election observer
+    def election_observer(name)
+      ZK::Election::Observer.new(self, name)
+    end
+
     # creates a new message queue of name _name_
     # @param [String] name the name of the queue
     # @return [ZooKeeper::MessageQueue] the queue object
