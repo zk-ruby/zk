@@ -311,9 +311,9 @@ module ZK
     end
 
     # the state of the underlying connection
-    def state #:nodoc:
-      @cnx.state
-    end
+#     def state #:nodoc:
+#       @cnx.state
+#     end
 
     # register a block to be called on connection, when the client has
     # connected (syncronously if connected? is true, or on a watcher thread if
