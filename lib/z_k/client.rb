@@ -8,6 +8,8 @@ module ZK
 
     attr_reader :event_handler
 
+    attr_reader :cnx #:nodoc:
+
     # for backwards compatibility
     alias :watcher :event_handler #:nodoc:
 
