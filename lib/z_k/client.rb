@@ -310,6 +310,16 @@ module ZK
       end
     end
 
+    # register a block to be called when the client is attempting to reconnect
+    # to the zookeeper server. the documentation says that this state should be
+    # taken to mean that the application should enter into "safe mode" and operate
+    # conservatively, as it won't be getting updates until it has reconnected
+    def on_connecting(&block)
+      watcher.register_state_handler(:connecting, &block).tap do
+        block.call if connected?
+      end
+    end
+
     # register a block to be called when our session has expired. This usually happens
     # due to a network partitioning event, and means that all callbacks and watches must
     # be re-registered with the server
