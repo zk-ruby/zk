@@ -36,6 +36,15 @@ module ZK
       module WatcherCallbackExt
         include ZookeeperConstants
 
+        EVENT_NAME_MAP = {
+          1   => 'created',
+          2   => 'deleted', 
+          3   => 'changed',
+          4   => 'child',
+          -1  => 'session',
+          -2  => 'notwatching',
+        }.freeze
+
         STATES = %w[connecting associating connected auth_failed expired_session].freeze unless defined?(STATES)
 
         EVENT_TYPES = %w[created deleted changed child session notwatching].freeze unless defined?(EVENT_TYPES)
@@ -69,10 +78,10 @@ module ZK
         end
 
         # cause this watch to be re-registered
-        def renew_watch!
-          zk.stat(path, :watch => true)
-          nil
-        end
+#         def renew_watch!
+#           zk.stat(path, :watch => true)
+#           nil
+#         end
       end
     end   # Callbacks
 

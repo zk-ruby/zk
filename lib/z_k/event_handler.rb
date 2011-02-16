@@ -16,6 +16,9 @@ module ZK
     def initialize(zookeeper_client)
       @zk = zookeeper_client
       @callbacks = Hash.new { |h,k| h[k] = [] }
+
+      # allow for synchronization on shutdown
+      @callbacks.extend(MonitorMixin)
     end
 
     # register a path with the handler
@@ -75,23 +78,28 @@ module ZK
 
     # called from the client-registered callback when an event fires
     def process(event) #:nodoc:
-      event.zk = @zk
+#       $stderr.puts "EventHandler#process: #{event.inspect}"
+      @callbacks.synchronize do
+        event.zk = @zk
 
-      if event.node_event?
-        @callbacks[event.path].each do |callback|
-          callback.call(event) if callback.respond_to?(:call)
-        end
-      elsif event.state_event?
-        @callbacks[state_key(event.state)].each do |callback|
-          callback.call(event) if callback.respond_to?(:call)
+        if event.node_event?
+          @callbacks[event.path].each do |callback|
+            callback.call(event) if callback.respond_to?(:call)
+          end
+        elsif event.state_event?
+          @callbacks[state_key(event.state)].each do |callback|
+            callback.call(event) if callback.respond_to?(:call)
+          end
         end
       end
     end
 
     # used during shutdown to clear registered listeners
     def clear! #:nodoc:
-      @callbacks.clear
-      nil
+      @callbacks.synchronize do
+        @callbacks.clear
+        nil
+      end
     end
 
     protected

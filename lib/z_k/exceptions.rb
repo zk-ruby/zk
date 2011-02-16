@@ -81,6 +81,9 @@ module ZK
 
     # raised when you try to vote twice in a given leader election
     class ThisIsNotChicagoError < KeeperException; end
+    
+    # raised when close_all! has been called on a pool and some thread attempts a checkout
+    class PoolIsShuttingDownException < KeeperException; end
   end
 end
 

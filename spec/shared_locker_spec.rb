@@ -111,6 +111,7 @@ describe ZK::SharedLocker do
 
           th.join(2)
 
+          wait_until(2) { !ary.empty? }
           ary.length.should == 1
 
           @read_locker.should be_locked

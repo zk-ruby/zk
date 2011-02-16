@@ -4,21 +4,32 @@ module ZK
   class Client
     extend Forwardable
 
+    DEFAULT_TIMEOUT = 10
+
     attr_reader :event_handler
 
     # for backwards compatibility
     alias :watcher :event_handler #:nodoc:
 
-    def initialize(connection, opts={})
-      @cnx = connection
+    def initialize(host, opts={})
       @event_handler = EventHandler.new(self)
+      @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, get_default_watcher_block)
+      @state = nil
     end
 
     def closed?
-      @cnx.state and false
+      defined?(::JRUBY_VERSION) ? jruby_closed? : mri_closed?
+    end
+
+    def jruby_closed?
+      @cnx.state == Java::OrgApacheZookeeper::ZooKeeper::States::CLOSED
+    end
+
+    def mri_closed?
+      @cnx.state or false
     rescue RuntimeError => e
       # gah, lame error parsing here
-      raise e unless e.message == 'zookeeper handle is closed'
+      raise e if (e.message != 'zookeeper handle is closed') and not defined?(::JRUBY_VERSION)
       true
     end
 
@@ -35,18 +46,24 @@ module ZK
     end
 
     def create(path, data='', opts={})
-      # ephemeral is the default mode for us
+      h = { :path => path, :data => data, :ephemeral => false, :sequence => false }.merge(opts)
 
-      h = { :path => path, :data => data, :ephemeral => true, :sequence => false }.merge(opts)
+      if mode = h.delete(:mode)
+        mode = mode.to_sym
 
-      case mode = h.delete(:mode)
-      when :ephemeral_sequential
-        h[:ephemeral] = h[:sequence] = true
-      when :persistent_sequential
-        h[:ephemeral] = false
-        h[:sequence] = true
-      when :persistent
-        h[:ephemeral] = false
+        case mode
+        when :ephemeral_sequential
+          h[:ephemeral] = h[:sequence] = true
+        when :persistent_sequential
+          h[:ephemeral] = false
+          h[:sequence] = true
+        when :persistent
+          h[:ephemeral] = false
+        when :ephemeral
+          h[:ephemeral] = true
+        else
+          raise ArgumentError, "Unknown mode: #{mode.inspect}"
+        end
       end
 
       rv = check_rc(@cnx.create(h))
@@ -77,11 +94,33 @@ module ZK
 
       setup_watcher(h)
 
-      check_rc(@cnx.stat(h))[:stat]
-    rescue Exceptions::NoNode
+      rv = @cnx.stat(h)
+
+      return rv if opts[:callback] 
+
+      case rv[:rc] 
+      when Zookeeper::ZOK, Zookeeper::ZNONODE
+        rv[:stat]
+      else
+        check_rc(rv) # throws the appropriate error
+      end
     end
 
-    alias :exists? :stat
+    # exists? is just sugar around stat, instead of 
+    #   
+    #   zk.stat('/path').exists?
+    #
+    # you can do
+    #
+    #   zk.exists?('/path')
+    #
+    # this only works for the synchronous version of stat. for async version,
+    # this method will act *exactly* like stat
+    #
+    def exists?(path, opts={})
+      rv = stat(path, opts)
+      opts[:callback] ? rv : rv.exists?
+    end
 
     def close!
       @event_handler.clear!
@@ -162,18 +201,26 @@ module ZK
     # will block the caller until +abs_node_path+ has been removed
     def block_until_node_deleted(abs_node_path)
       queue = Queue.new
+      ev_sub = nil
 
-      node_deletion_cb = lambda do
-        unless exists?(abs_node_path, :watch => true)
+      node_deletion_cb = lambda do |event|
+        if event.node_deleted?
           queue << :locked
+        else
+          queue << :locked unless exists?(abs_node_path, :watch => true)
         end
       end
 
-      watcher.register(abs_node_path, &node_deletion_cb)
-      node_deletion_cb.call
+      ev_sub = watcher.register(abs_node_path, &node_deletion_cb)
+
+      # set up the callback, but bail if we don't need to wait
+      return true unless exists?(abs_node_path, :watch => true)  
 
       queue.pop # block waiting for node deletion
       true
+    ensure
+      # be sure we clean up after ourselves
+      ev_sub.unregister if ev_sub
     end
 
     # creates a new locker based on the name you send in
@@ -189,6 +236,17 @@ module ZK
     # convenience method for acquiring a lock then executing a code block
     def with_lock(path, &b)
       locker(path).with_lock(&b)
+    end
+
+    # convenience method for constructing an election candidate
+    def election_candidate(name, data, opts={})
+      opts = opts.merge(:data => data)
+      ZK::Election::Candidate.new(self, name, opts)
+    end
+
+    # convenience method for constructing an election observer
+    def election_observer(name, opts={})
+      ZK::Election::Observer.new(self, name, opts)
     end
 
     # creates a new message queue of name _name_
@@ -220,6 +278,11 @@ module ZK
       end
     end
 
+    # the state of the underlying connection
+    def state #:nodoc:
+      @cnx.state
+    end
+
     protected
       def wrap_state_closed_error
         yield
@@ -227,6 +290,14 @@ module ZK
         # gah, lame error parsing here
         raise e unless e.message == 'zookeeper handle is closed'
         false
+      end
+
+      def get_default_watcher_block
+        lambda do |hash|
+          watcher_callback.tap do |cb|
+            cb.call(hash)
+          end
+        end
       end
 
       def setup_watcher(opts)
