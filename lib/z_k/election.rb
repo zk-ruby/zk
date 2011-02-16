@@ -31,7 +31,7 @@ module ZK
       # that it's aware of its status as the new leader and has run its 
       # procedures to become master
       def leader_ack_path
-        @leader_ack_path ||= "#{@root_election_node}/leader_ack"
+        @leader_ack_path ||= "#{root_vote_path}/leader_ack"
       end
      
       def cast_ballot!(data)
@@ -183,18 +183,29 @@ module ZK
       protected
         # in the situation where we disconnected from zookeeper, and we've
         # called vote! again, we may still hold the acknowledgement. we test for this
-        # by seeing if our data is the same as the leader_ack data
-        #---
-        # TODO: should probably test to see if the stat of the current ack path
-        # is the same as when we acknowledged, as @data is not guaranteed to be
-        # unique across candidates
+        # by seeing if the current stat of the znode is the same as the one
+        # that we saved when we acked earlier
         def we_already_acked?
-          @zk.exists?(leader_ack_path) and (leader_data == @data)
+          return false unless @ack_stat
+
+
         end
 
         # the inauguration, as it were
         def acknowledge_win!
-          if we_already_acked?
+          stat = @zk.stat(leader_ack_path) 
+
+          if (@ack_stat and stat.exists)
+            unless (stat.mtime == @ack_stat.mtime) and (stat.version == @ack_stat.version) and (stat.ctime == @ack_stat.ctime)
+
+              # TODO: talk to topper, if this condition happens, something is
+              # ROYALLY screwed up, not sure what to do in this case
+
+              bug_msg = "[ZK_BUG] This situation should never have happened, leader_ack_path exists but isn't the one we thought it should be"
+              logger.fatal { bug_msg }
+              Kernel.abort(bug_msg)
+            end
+          
             logger.debug { "ZK: we have already acknowledged our leadership, not re-acking" }
           else
             logger.debug { "ZK: creating #{leader_ack_path}, data: #{@data.inspect}" }
