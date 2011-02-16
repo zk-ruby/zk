@@ -185,8 +185,11 @@ module ZK
         def acknowledge_win!
           stat = @zk.stat(leader_ack_path) 
 
+          logger.debug { "leader_ack_path stat: #{stat.inspect}" }
+          logger.debug { "@ack_stat: #{@ack_stat.inspect}" }
+
           if (@ack_stat and stat.exists)
-            unless (stat.mtime == @ack_stat.mtime) and (stat.version == @ack_stat.version) and (stat.ctime == @ack_stat.ctime)
+            unless @ack_stat == stat
 
               # TODO: talk to topper, if this condition happens, something is
               # ROYALLY screwed up, not sure what to do in this case

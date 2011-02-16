@@ -101,6 +101,8 @@ module ZK
         RUBY
       end
 
+      MEMBERS = [:version, :exists, :czxid, :mzxid, :ctime, :mtime, :cversion, :aversion, :ephemeralOwner, :dataLength, :numChildren, :pzxid]
+
       def self.included(mod)
         mod.class_eval do
           unless method_defined?(:exists?)
@@ -109,6 +111,9 @@ module ZK
         end
       end
 
+      def ==(other)
+        MEMBERS.all? { |m| self.__send__(m) == other.__send__(m) }
+      end
     end
   end     # Extensions
 end       # ZK
