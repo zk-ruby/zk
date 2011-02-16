@@ -181,16 +181,6 @@ module ZK
       end
 
       protected
-        # in the situation where we disconnected from zookeeper, and we've
-        # called vote! again, we may still hold the acknowledgement. we test for this
-        # by seeing if the current stat of the znode is the same as the one
-        # that we saved when we acked earlier
-        def we_already_acked?
-          return false unless @ack_stat
-
-
-        end
-
         # the inauguration, as it were
         def acknowledge_win!
           stat = @zk.stat(leader_ack_path) 
@@ -218,7 +208,7 @@ module ZK
 
         # return the list of ephemeral vote nodes
         def get_ballots
-          @zk.children(root_vote_path).tap do |ballots|
+          @zk.children(root_vote_path).grep(/^ballot/).tap do |ballots|
             ballots.sort! {|a,b| digit(a) <=> digit(b) }
           end
         end
