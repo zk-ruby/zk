@@ -9,7 +9,7 @@ end
 
 describe ZK::Client do
   before do
-    @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => nil)
+    @zk = ZK.new("localhost:#{ZK_TEST_PORT}")
     wait_until{ @zk.connected? }
     @zk.rm_rf('/test')
   end
@@ -18,9 +18,7 @@ describe ZK::Client do
     @zk.rm_rf('/test')
     @zk.close!
 
-    report_realtime("shutdown client") do
-      wait_until(2) { @zk.closed? }
-    end
+    wait_until(2) { @zk.closed? }
   end
 
   describe :mkdir_p do

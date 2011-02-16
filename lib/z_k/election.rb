@@ -22,6 +22,7 @@ module ZK
         @mutex = Monitor.new
       end
 
+
       # holds the ephemeral nodes of this election
       def root_vote_path #:nodoc:
         @root_vote_path ||= "#{@root_election_node}/#{@name.gsub('/', '__')}"
@@ -183,30 +184,7 @@ module ZK
       protected
         # the inauguration, as it were
         def acknowledge_win!
-          stat = @zk.stat(leader_ack_path) 
-
-          logger.debug { "leader_ack_path stat: #{stat.inspect}" }
-          logger.debug { "@ack_stat: #{@ack_stat.inspect}" }
-
-          if (@ack_stat and stat.exists)
-            unless @ack_stat == stat
-
-              # TODO: talk to topper, if this condition happens, something is
-              # ROYALLY screwed up, not sure what to do in this case
-
-              bug_msg = "[ZK_BUG] This situation should never have happened, leader_ack_path exists but isn't the one we thought it should be"
-              logger.fatal { bug_msg }
-              Kernel.abort(bug_msg)
-            end
-          
-            logger.debug { "ZK: we have already acknowledged our leadership, not re-acking" }
-          else
-            logger.debug { "ZK: creating #{leader_ack_path}, data: #{@data.inspect}" }
-            _, @ack_stat = @zk.create(leader_ack_path, @data, :ephemeral => true, :return_stat => true)
-          end
-        rescue Exception => e
-          logger.error { "got error creating #{leader_ack_path}: #{e.class} #{e.message}" }
-          raise e
+          @zk.create(leader_ack_path, @data, :ephemeral => true) rescue Exceptions::NodeExists
         end
 
         # return the list of ephemeral vote nodes
