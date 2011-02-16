@@ -13,26 +13,43 @@ module ZK
     # for backwards compatibility
     alias :watcher :event_handler #:nodoc:
 
+    STATE_SYM_MAP = {
+      Zookeeper::ZOO_EXPIRED_SESSION_STATE  => :expired_session,
+      Zookeeper::ZOO_AUTH_FAILED_STATE      => :auth_failed,
+      Zookeeper::ZOO_CONNECTING_STATE       => :connecting,
+      Zookeeper::ZOO_CONNECTED_STATE        => :connected,
+      Zookeeper::ZOO_ASSOCIATING_STATE      => :associating,
+    }.freeze
+
     def initialize(host, opts={})
       @event_handler = EventHandler.new(self)
       @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, get_default_watcher_block)
-      @state = nil
     end
 
     def closed?
       defined?(::JRUBY_VERSION) ? jruby_closed? : mri_closed?
     end
 
-    def jruby_closed?
-      @cnx.state == Java::OrgApacheZookeeper::ZooKeeper::States::CLOSED
-    end
+    private
+      def jruby_closed?
+        @cnx.state == Java::OrgApacheZookeeper::ZooKeeper::States::CLOSED
+      end
 
-    def mri_closed?
-      @cnx.state or false
-    rescue RuntimeError => e
-      # gah, lame error parsing here
-      raise e if (e.message != 'zookeeper handle is closed') and not defined?(::JRUBY_VERSION)
-      true
+      def mri_closed?
+        @cnx.state or false
+      rescue RuntimeError => e
+        # gah, lame error parsing here
+        raise e if (e.message != 'zookeeper handle is closed') and not defined?(::JRUBY_VERSION)
+        true
+      end
+
+    public
+    def state
+      if defined?(::JRUBY_VERSION) 
+        @cnx.state.to_string.downcase.to_sym
+      else
+        STATE_SYM_MAP.fetch(state) { |k| raise IndexError, "unrecognized state: #{k}" }
+      end
     end
 
     def connected?
