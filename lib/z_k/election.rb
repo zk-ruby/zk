@@ -181,10 +181,25 @@ module ZK
       end
 
       protected
+        # in the situation where we disconnected from zookeeper, and we've
+        # called vote! again, we may still hold the acknowledgement. we test for this
+        # by seeing if our data is the same as the leader_ack data
+        #---
+        # TODO: should probably test to see if the stat of the current ack path
+        # is the same as when we acknowledged, as @data is not guaranteed to be
+        # unique across candidates
+        def we_already_acked?
+          @zk.exists?(leader_ack_path) and (leader_data == @data)
+        end
+
         # the inauguration, as it were
         def acknowledge_win!
-          logger.debug { "ZK: creating #{leader_ack_path}, data: #{@data.inspect}" }
-          @zk.create(leader_ack_path, @data, :ephemeral => true)
+          if we_already_acked?
+            logger.debug { "ZK: we have already acknowledged our leadership, not re-acking" }
+          else
+            logger.debug { "ZK: creating #{leader_ack_path}, data: #{@data.inspect}" }
+            _, @ack_stat = @zk.create(leader_ack_path, @data, :ephemeral => true, :return_stat => true)
+          end
         rescue Exception => e
           logger.error { "got error creating #{leader_ack_path}: #{e.class} #{e.message}" }
           raise e
@@ -208,57 +223,64 @@ module ZK
           
           if our_idx == 0           # if we have the lowest number
             logger.info { "ZK: We have become leader, data: #{@data.inspect}" }
+            handle_winning_election
+          else
+            logger.info { "ZK: we are not the leader, data: #{@data.inspect}" }
+            handle_losing_election
+          end
+        end
 
-            @leader = true  
-            fire_winning_callbacks!
+        def handle_winning_election
+          @leader = true  
+          fire_winning_callbacks!
 
-            if @current_leader_watch_sub
-              @current_leader_watch_sub.unsubscribe 
-              @current_leader_watch_sub = nil
+          if @current_leader_watch_sub
+            @current_leader_watch_sub.unsubscribe 
+            @current_leader_watch_sub = nil
+          end
+
+          acknowledge_win!
+        end
+
+        def handle_losing_election
+          @leader = false
+
+          on_leader_ack do
+            fire_losing_callbacks!
+
+            follow_node =
+              case @follow
+              when :leader
+                # watch the ack path, that way we get notified if the master goes away
+                leader_ack_path
+              when :next_node
+                # we watch the next-lowest ballot, not the ack path, that way we only get
+                # notified if we need to become the leader
+                File.join(root_vote_path, ballots[our_idx - 1])
+              end
+
+            logger.info { "ZK: following #{follow_node} for changes, #{@data.inspect}" }
+
+            @current_leader_watch_sub ||= @zk.watcher.register(follow_node) do |event| 
+              if event.node_deleted? 
+                logger.debug { "#{follow_node} was deleted, voting, #{@data.inspect}" }
+                vote! 
+              else
+                # this takes care of the race condition where the leader ballot would
+                # have been deleted before we could re-register to receive updates
+                # if zk.stat returns false, it means the path was deleted
+                unless @zk.stat(event.path, :watch => true).exists?
+                  logger.debug { "#{follow_node} was deleted (detected on re-watch), voting, #{@data.inspect}" }
+                  vote! 
+                end
+              end
             end
 
-            acknowledge_win!
-          else
-            @leader = false
-            logger.info { "ZK: we are not the leader, data: #{@data.inspect}" }
-            
-            on_leader_ack do
-              fire_losing_callbacks!
-
-              follow_node =
-                case @follow
-                when :leader
-                  # watch the ack path, that way we get notified if the master goes away
-                  leader_ack_path
-                when :next_node
-                  # we watch the next-lowest ballot, not the ack path, that way we only get
-                  # notified if we need to become the leader
-                  File.join(root_vote_path, ballots[our_idx - 1])
-                end
-
-              logger.info { "ZK: following #{follow_node} for changes, #{@data.inspect}" }
-
-              @current_leader_watch_sub ||= @zk.watcher.register(follow_node) do |event| 
-                if event.node_deleted? 
-                  logger.debug { "#{follow_node} was deleted, voting, #{@data.inspect}" }
-                  vote! 
-                else
-                  # this takes care of the race condition where the leader ballot would
-                  # have been deleted before we could re-register to receive updates
-                  # if zk.stat returns false, it means the path was deleted
-                  unless @zk.stat(event.path, :watch => true).exists?
-                    logger.debug { "#{follow_node} was deleted (detected on re-watch), voting, #{@data.inspect}" }
-                    vote! 
-                  end
-                end
-              end
-
-              # this catches a possible race condition, where the leader has died before
-              # our callback has fired. In this case, retry and do this procedure again
-              unless @zk.stat(follow_node, :watch => true).exists?
-                logger.debug { "the node #{follow_node} did not exist, retrying, #{@data.inspect}" }
-                return check_election_results!
-              end
+            # this catches a possible race condition, where the leader has died before
+            # our callback has fired. In this case, retry and do this procedure again
+            unless @zk.stat(follow_node, :watch => true).exists?
+              logger.debug { "the node #{follow_node} did not exist, retrying, #{@data.inspect}" }
+              return check_election_results!
             end
           end
         end
