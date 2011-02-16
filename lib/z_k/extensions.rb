@@ -36,6 +36,15 @@ module ZK
       module WatcherCallbackExt
         include ZookeeperConstants
 
+        EVENT_NAME_MAP = {
+          1   => 'created',
+          2   => 'deleted', 
+          3   => 'changed',
+          4   => 'child',
+          -1  => 'session',
+          -2  => 'notwatching',
+        }.freeze
+
         STATES = %w[connecting associating connected auth_failed expired_session].freeze unless defined?(STATES)
 
         EVENT_TYPES = %w[created deleted changed child session notwatching].freeze unless defined?(EVENT_TYPES)
@@ -92,6 +101,8 @@ module ZK
         RUBY
       end
 
+      MEMBERS = [:version, :exists, :czxid, :mzxid, :ctime, :mtime, :cversion, :aversion, :ephemeralOwner, :dataLength, :numChildren, :pzxid]
+
       def self.included(mod)
         mod.class_eval do
           unless method_defined?(:exists?)
@@ -100,6 +111,9 @@ module ZK
         end
       end
 
+      def ==(other)
+        MEMBERS.all? { |m| self.__send__(m) == other.__send__(m) }
+      end
     end
   end     # Extensions
 end       # ZK

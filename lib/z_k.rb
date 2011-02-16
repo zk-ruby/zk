@@ -1,8 +1,9 @@
-
+require 'logger'
 require 'zookeeper'
 require 'forwardable'
 require 'monitor'
 
+require 'z_k/logging'
 require 'z_k/exceptions'
 require 'z_k/event_handler_subscription'
 require 'z_k/event_handler'
@@ -16,6 +17,16 @@ require 'z_k/client'
 require 'z_k/pool'
 
 module ZK
+  ZK_ROOT = File.expand_path('../..', __FILE__)
+
+  def self.logger
+    @logger ||= Logger.new('/dev/null')
+  end
+
+  def self.logger=(logger)
+    @logger = logger
+  end
+
   def self.new(*args)
     # XXX: might need to do some param parsing here
    

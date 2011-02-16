@@ -8,29 +8,56 @@ module ZK
 
     attr_reader :event_handler
 
+    attr_reader :cnx #:nodoc:
+
     # for backwards compatibility
     alias :watcher :event_handler #:nodoc:
+
+    STATE_SYM_MAP = {
+      Zookeeper::ZOO_CLOSED_STATE           => :closed,
+      Zookeeper::ZOO_EXPIRED_SESSION_STATE  => :expired_session,
+      Zookeeper::ZOO_AUTH_FAILED_STATE      => :auth_failed,
+      Zookeeper::ZOO_CONNECTING_STATE       => :connecting,
+      Zookeeper::ZOO_CONNECTED_STATE        => :connected,
+      Zookeeper::ZOO_ASSOCIATING_STATE      => :associating,
+    }.freeze
 
     def initialize(host, opts={})
       @event_handler = EventHandler.new(self)
       @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, get_default_watcher_block)
-      @state = nil
     end
 
     def closed?
       defined?(::JRUBY_VERSION) ? jruby_closed? : mri_closed?
     end
 
-    def jruby_closed?
-      @cnx.state == Java::OrgApacheZookeeper::ZooKeeper::States::CLOSED
+    private
+      def jruby_closed?
+        @cnx.state == Java::OrgApacheZookeeper::ZooKeeper::States::CLOSED
+      end
+
+      def mri_closed?
+        @cnx.state or false
+      rescue RuntimeError => e
+        # gah, lame error parsing here
+        raise e if (e.message != 'zookeeper handle is closed') and not defined?(::JRUBY_VERSION)
+        true
+      end
+
+    public
+    def state
+      if defined?(::JRUBY_VERSION) 
+        @cnx.state.to_string.downcase.to_sym
+      else
+        STATE_SYM_MAP.fetch(@cnx.state) { |k| raise IndexError, "unrecognized state: #{k}" }
+      end
     end
 
-    def mri_closed?
-      @cnx.state or false
-    rescue RuntimeError => e
-      # gah, lame error parsing here
-      raise e if (e.message != 'zookeeper handle is closed') and not defined?(::JRUBY_VERSION)
-      true
+    # reopen the underlying connection
+    # returns state of connection after operation
+    def reopen(timeout=10, watcher=nil)
+      @cnx.reopen(timeout, watcher)
+      state
     end
 
     def connected?
@@ -43,6 +70,14 @@ module ZK
 
     def connecting?
       wrap_state_closed_error { @cnx.connecting? }
+    end
+
+    def expired_session?
+      if defined?(::JRUBY_VERSION)
+        @cnx.state == Java::OrgApacheZookeeper::ZooKeeper::States::EXPIRED_SESSION
+      else
+        wrap_state_closed_error { @cnx.state == Zookeeper::ZOO_EXPIRED_SESSION_STATE }
+      end
     end
 
     def create(path, data='', opts={})
@@ -67,7 +102,8 @@ module ZK
       end
 
       rv = check_rc(@cnx.create(h))
-      opts[:callback] ? rv : rv[:path]
+
+      h[:callback] ? rv : rv[:path]
     end
 
     # TODO: improve callback handling
@@ -199,6 +235,10 @@ module ZK
     end
 
     # will block the caller until +abs_node_path+ has been removed
+    #
+    # NOTE: this is dangerous to use in callbacks! there is only one
+    # event-delivery thread, so if you use this method in a callback or
+    # watcher, you *will* deadlock!
     def block_until_node_deleted(abs_node_path)
       queue = Queue.new
       ev_sub = nil
@@ -238,6 +278,17 @@ module ZK
       locker(path).with_lock(&b)
     end
 
+    # convenience method for constructing an election candidate
+    def election_candidate(name, data, opts={})
+      opts = opts.merge(:data => data)
+      ZK::Election::Candidate.new(self, name, opts)
+    end
+
+    # convenience method for constructing an election observer
+    def election_observer(name, opts={})
+      ZK::Election::Observer.new(self, name, opts)
+    end
+
     # creates a new message queue of name _name_
     # @param [String] name the name of the queue
     # @return [ZooKeeper::MessageQueue] the queue object
@@ -268,8 +319,44 @@ module ZK
     end
 
     # the state of the underlying connection
-    def state #:nodoc:
-      @cnx.state
+#     def state #:nodoc:
+#       @cnx.state
+#     end
+
+    # register a block to be called on connection, when the client has
+    # connected (syncronously if connected? is true, or on a watcher thread if
+    # we haven't connected yet). 
+    # 
+    # the block will be called with no arguments
+    #
+    # returns an EventHandlerSubscription object that can be used to unregister
+    # this block from further updates
+    def on_connected(&block)
+      watcher.register_state_handler(:connected, &block).tap do
+        block.call if connected?
+      end
+    end
+
+    # register a block to be called when the client is attempting to reconnect
+    # to the zookeeper server. the documentation says that this state should be
+    # taken to mean that the application should enter into "safe mode" and operate
+    # conservatively, as it won't be getting updates until it has reconnected
+    def on_connecting(&block)
+      watcher.register_state_handler(:connecting, &block).tap do
+        block.call if connected?
+      end
+    end
+
+    # register a block to be called when our session has expired. This usually happens
+    # due to a network partitioning event, and means that all callbacks and watches must
+    # be re-registered with the server
+    # 
+    #---
+    # NOTE: need to come up with a way to test this
+    def on_expired_session(&block)
+      watcher.register_state_handler(:expired_session, &block).tap do
+        block.call if expired_session?
+      end
     end
 
     protected
