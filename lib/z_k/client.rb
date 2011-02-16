@@ -45,6 +45,14 @@ module ZK
       wrap_state_closed_error { @cnx.connecting? }
     end
 
+    def expired_session?
+      if defined?(::JRUBY_VERSION)
+        @cnx.state == Java::OrgApacheZookeeper::ZooKeeper::States::EXPIRED_SESSION
+      else
+        wrap_state_closed_error { @cnx.state == Zookeeper::ZOO_EXPIRED_SESSION_STATE }
+      end
+    end
+
     def create(path, data='', opts={})
       h = { :path => path, :data => data, :ephemeral => false, :sequence => false }.merge(opts)
 
@@ -199,6 +207,10 @@ module ZK
     end
 
     # will block the caller until +abs_node_path+ has been removed
+    #
+    # NOTE: this is dangerous to use in callbacks! there is only one
+    # event-delivery thread, so if you use this method in a callback or
+    # watcher, you *will* deadlock!
     def block_until_node_deleted(abs_node_path)
       queue = Queue.new
       ev_sub = nil
@@ -281,6 +293,32 @@ module ZK
     # the state of the underlying connection
     def state #:nodoc:
       @cnx.state
+    end
+
+    # register a block to be called on connection, when the client has
+    # connected (syncronously if connected? is true, or on a watcher thread if
+    # we haven't connected yet). 
+    # 
+    # the block will be called with no arguments
+    #
+    # returns an EventHandlerSubscription object that can be used to unregister
+    # this block from further updates
+    def on_connected(&block)
+      watcher.register_state_handler(:connected, &block).tap do
+        block.call if connected?
+      end
+    end
+
+    # register a block to be called when our session has expired. This usually happens
+    # due to a network partitioning event, and means that all callbacks and watches must
+    # be re-registered with the server
+    # 
+    #---
+    # NOTE: need to come up with a way to test this
+    def on_expired_session(&block)
+      watcher.register_state_handler(:expired_session, &block).tap do
+        block.call if expired_session?
+      end
     end
 
     protected

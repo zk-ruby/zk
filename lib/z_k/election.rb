@@ -53,6 +53,7 @@ module ZK
       rescue Exceptions::NoNode
       end
 
+      # (possibly) asynchronously call the block when the leader has acknowledged its role
       def on_leader_ack(&block)
         creation_sub = @zk.watcher.register(leader_ack_path) do |event|
           if event.node_created?
@@ -316,10 +317,26 @@ module ZK
         end
       end
 
+      def close
+        @mutex.synchronize do
+          return unless @observing
+
+          @deletion_sub.unregister if @deletion_sub
+          @creation_sub.unregister if @creation_sub
+
+          @deletion_sub = @creation_sub = nil
+
+          @leader_death_cbs.clear
+          @new_leader_cbs.clear
+
+          @leader_alive = nil
+          @observing = false
+        end
+      end
+
       protected
         def the_king_is_dead
           @mutex.synchronize do
-#             $stderr.puts "the king is dead"
             @leader_death_cbs.each { |blk| blk.call }
             @leader_alive = false
           end
@@ -329,7 +346,6 @@ module ZK
 
         def long_live_the_king
           @mutex.synchronize do
-#             $stderr.puts "long live the king"
             @new_leader_cbs.each { |blk| blk.call }
             @leader_alive = true
           end
