@@ -48,7 +48,7 @@ module ZK
       if defined?(::JRUBY_VERSION) 
         @cnx.state.to_string.downcase.to_sym
       else
-        STATE_SYM_MAP.fetch(state) { |k| raise IndexError, "unrecognized state: #{k}" }
+        STATE_SYM_MAP.fetch(@cnx.state) { |k| raise IndexError, "unrecognized state: #{k}" }
       end
     end
 
