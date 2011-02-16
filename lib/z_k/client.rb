@@ -53,6 +53,13 @@ module ZK
       end
     end
 
+    # reopen the underlying connection
+    # returns state of connection after operation
+    def reopen(timeout=10, watcher=nil)
+      @cnx.reopen(timeout, watcher)
+      state
+    end
+
     def connected?
       wrap_state_closed_error { @cnx.connected? }
     end
