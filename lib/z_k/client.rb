@@ -76,7 +76,7 @@ module ZK
 
       # allows us to get the stat at time of creation, by default, just return
       # the created path
-      return_stat = opts.delete(:return_stat)
+      return_stat = h.delete(:return_stat)
 
       rv = check_rc(@cnx.create(h))
       if opts[:callback]
