@@ -14,6 +14,7 @@ module ZK
     alias :watcher :event_handler #:nodoc:
 
     STATE_SYM_MAP = {
+      Zookeeper::ZOO_CLOSED_STATE           => :closed,
       Zookeeper::ZOO_EXPIRED_SESSION_STATE  => :expired_session,
       Zookeeper::ZOO_AUTH_FAILED_STATE      => :auth_failed,
       Zookeeper::ZOO_CONNECTING_STATE       => :connecting,
