@@ -79,7 +79,7 @@ module ZK
         end
 
         if @zk.exists?(leader_ack_path, :watch => true)
-          logger.debug { "wait_for_leader_ack, #{leader_ack_path} exists, returning" }
+          logger.debug { "on_leader_ack, #{leader_ack_path} exists, calling block" }
           begin
             block.call
           ensure
@@ -208,7 +208,7 @@ module ZK
             handle_winning_election
           else
             logger.info { "ZK: we are not the leader, data: #{@data.inspect}" }
-            handle_losing_election
+            handle_losing_election(our_idx, ballots)
           end
         end
 
@@ -224,7 +224,7 @@ module ZK
           acknowledge_win!
         end
 
-        def handle_losing_election
+        def handle_losing_election(our_idx, ballots)
           @leader = false
 
           on_leader_ack do
@@ -262,7 +262,7 @@ module ZK
             # our callback has fired. In this case, retry and do this procedure again
             unless @zk.stat(follow_node, :watch => true).exists?
               logger.debug { "the node #{follow_node} did not exist, retrying, #{@data.inspect}" }
-              return check_election_results!
+              check_election_results!
             end
           end
         end

@@ -2,7 +2,10 @@ require File.join(File.dirname(__FILE__), %w[spec_helper])
 
 describe ZK::Election do
   before do
-    ZK.open('localhost:2181') { |cnx| cnx.rm_rf('/_zkelection') }
+    ZK.open('localhost:2181') do |cnx| 
+      ZK.logger.debug { "REMOVING /_zkelection" }
+      cnx.rm_rf('/_zkelection')
+    end
 
     @zk = ZK.new('localhost:2181')
     @zk2 = ZK.new('localhost:2181')
@@ -53,11 +56,9 @@ describe ZK::Election do
 
           oth = Thread.new do
             @obama.vote!
-          end
-
-          pth = Thread.new do
             @palin.vote!
           end
+          oth.run
 
           wait_until(2) { @obama_waiting }
           @obama_waiting.should be_true
@@ -70,10 +71,7 @@ describe ZK::Election do
           wait_until(2) { @obama_won }
           @obama_won.should be_true
 
-          lambda do
-            oth.join(1).should == oth
-            pth.join(1).should == pth
-          end.should_not raise_error
+          lambda { oth.join(1).should == oth }.should_not raise_error
 
           @palin_lost.should be_true
         end
