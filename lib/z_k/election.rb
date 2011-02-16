@@ -201,7 +201,7 @@ module ZK
         # index number in the list of ballots
         #
         def check_election_results!
-          return if leader?         # we already know we're the leader
+          #return if leader?         # we already know we're the leader
           ballots = get_ballots()
 
           our_idx = ballots.index(vote_basename)
