@@ -14,8 +14,8 @@ def logger
   ZK.logger
 end
 
-# method to wait until block passed returns true or timeout (default is 10 seconds) is reached 
-def wait_until(timeout=10)
+# method to wait until block passed returns true or timeout (default is 2 seconds) is reached 
+def wait_until(timeout=2)
   time_to_stop = Time.now + timeout
 
   until yield 

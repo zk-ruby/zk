@@ -78,12 +78,14 @@ module ZK
           end
         end
 
-        if @zk.exists?(leader_ack_path, :watch => true)
-          logger.debug { "on_leader_ack, #{leader_ack_path} exists, calling block" }
-          begin
-            block.call
-          ensure
-            creation_sub.unregister if creation_sub
+        @zk.defer do
+          if @zk.exists?(leader_ack_path, :watch => true)
+            logger.debug { "on_leader_ack, #{leader_ack_path} exists, calling block" }
+            begin
+              block.call
+            ensure
+              creation_sub.unregister if creation_sub
+            end
           end
         end
       end

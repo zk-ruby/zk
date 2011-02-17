@@ -60,7 +60,7 @@ describe ZK::Election do
           end
           oth.run
 
-          wait_until(2) { @obama_waiting }
+          wait_until { @obama_waiting }
           @obama_waiting.should be_true
 
           # palin's callbacks haven't fired
@@ -68,10 +68,12 @@ describe ZK::Election do
 
           queue << :ok
 
-          wait_until(2) { @obama_won }
+          wait_until { @obama_won }
           @obama_won.should be_true
 
           lambda { oth.join(1).should == oth }.should_not raise_error
+
+          wait_until { @palin_lost }
 
           @palin_lost.should be_true
         end
@@ -99,7 +101,9 @@ describe ZK::Election do
           
           @obama.vote!
           @palin.vote!
-          wait_until(2) { @obama_won }
+
+          wait_until { @obama_won }
+          wait_until { @palin_lost }
         end
 
         describe 'winner' do
@@ -139,7 +143,7 @@ describe ZK::Election do
 
           it %[should take over as leader when the current leader goes away] do
             @zk.close!
-            wait_until(2) { @palin_won }
+            wait_until { @palin_won }
 
             @palin_won.should be_true # god forbid
             @zk2.exists?(@palin.leader_ack_path).should be_true
@@ -148,7 +152,7 @@ describe ZK::Election do
 
           it %[should remain leader if the original leader comes back] do
             @zk.close!
-            wait_until(2) { @palin_won }
+            wait_until { @palin_won }
 
             zk = ZK.new('localhost:2181')
             newbama = ZK::Election::Candidate.new(zk, @election_name, :data => @data1)
@@ -160,7 +164,7 @@ describe ZK::Election do
             end
 
             newbama.vote!
-            wait_until(2) { newbama.voted? }
+            wait_until { newbama.voted? }
 
             newbama.should be_voted
             win_again.should be_false
@@ -200,24 +204,24 @@ describe ZK::Election do
 
         logger.debug { "node1 voting" }
         @node1.vote!
-        wait_until(2) { @node1.voted? }
+        wait_until { @node1.voted? }
         @node1.should be_leader
 
         logger.debug { "node2 voting" }
         @node2.vote!
-        wait_until(2) { @node2.voted? }
+        wait_until { @node2.voted? }
         @node2.should_not be_leader
 
         logger.debug { "node3 voting" }
         @node3.vote!
 
-        wait_until(2) { @node3.voted? }
+        wait_until { @node3.voted? }
         logger.debug { "node3 voted" }
 
         @node3.should_not be_leader
         logger.debug { "node3 is not leader" }
 
-        wait_until(2) { @events.length == 3 }
+        wait_until { @events.length == 3 }
         @events.length.should == 3
 
         logger.debug { "@events:  #{@events.inspect}" }
@@ -227,11 +231,11 @@ describe ZK::Election do
 
         logger.debug { "cleared events, closing @zk" }
         @zk.close!
-        wait_until(2) { !@zk.connected? }
+        wait_until { !@zk.connected? }
 
         logger.debug { "@zk closed!" }
 
-        wait_until(2) { @events.length == 2 }
+        wait_until { @events.length == 2 }
         @events.length.should == 2
 
         logger.debug { "@events: #{@events.inspect}" }
@@ -290,7 +294,7 @@ describe ZK::Election do
           @obama.vote!
           @palin.vote!
 
-          wait_until(2) { @obama.leader? }
+          wait_until { @obama.leader? }
 
           @got_life_event = @got_death_event = false
 
@@ -299,7 +303,7 @@ describe ZK::Election do
 
           @observer.observe!
 
-          wait_until(2) { !@observer.leader_alive.nil? }
+          wait_until { !@observer.leader_alive.nil? }
         end
 
         it %[should be obama that won] do
@@ -324,7 +328,7 @@ describe ZK::Election do
           @obama.vote!
           @palin.vote!
 
-          wait_until(2) { @obama.leader? }
+          wait_until { @obama.leader? }
 
           @palin.should_not be_leader
 
@@ -335,11 +339,11 @@ describe ZK::Election do
 
           @observer.observe!
 
-          wait_until(2) { !@observer.leader_alive.nil? }
+          wait_until { !@observer.leader_alive.nil? }
 
           @observer.leader_alive.should be_true
           @zk.close!
-          wait_until(2) { !@zk.connected? && @palin.leader? }
+          wait_until { !@zk.connected? && @palin.leader? }
         end
 
         it %[should be palin who is leader] do

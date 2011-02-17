@@ -67,7 +67,6 @@ module ZK
       @mutex.synchronize do
         return unless @running
 
-        logger.debug { "shutting down threadpool" }
         @running = false
 
         @threadqueue.clear
