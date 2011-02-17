@@ -77,13 +77,19 @@ module ZK
       AUTHFAILED              => AuthFailed,
     }
 
-    class LockFileNameParseError < KeeperException; end
+    # base class of ZK generated errors (not driver-level errors)
+    class ZKError < StandardError; end
+
+    class LockFileNameParseError < ZKError; end
 
     # raised when you try to vote twice in a given leader election
-    class ThisIsNotChicagoError < KeeperException; end
+    class ThisIsNotChicagoError < ZKError; end
     
     # raised when close_all! has been called on a pool and some thread attempts a checkout
-    class PoolIsShuttingDownException < KeeperException; end
+    class PoolIsShuttingDownException < ZKError; end
+
+    # raised when defer is called on a threadpool that is not running
+    class ThreadpoolIsNotRunningException < ZKError; end
   end
 end
 

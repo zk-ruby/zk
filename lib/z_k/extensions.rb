@@ -115,6 +115,7 @@ module ZK
         MEMBERS.all? { |m| self.__send__(m) == other.__send__(m) }
       end
     end
+
   end     # Extensions
 end       # ZK
 
@@ -123,4 +124,11 @@ ZookeeperCallbacks::Callback.send(:include, ZK::Extensions::Callbacks::Callback)
 ZookeeperCallbacks::WatcherCallback.send(:include, ZK::Extensions::Callbacks::WatcherCallbackExt)
 ZookeeperStat::Stat.send(:include, ZK::Extensions::Stat)
 
+class ::Exception
+  unless method_defined?(:to_std_format)
+    def to_std_format
+      "#{self.class}: #{message}\n\t" + backtrace.join("\n\t")
+    end
+  end
+end
 

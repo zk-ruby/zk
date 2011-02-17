@@ -4,10 +4,12 @@ require 'bundler/setup'
 require 'logger'
 require 'zookeeper'
 require 'forwardable'
+require 'thread'
 require 'monitor'
 
 require 'z_k/logging'
 require 'z_k/exceptions'
+require 'z_k/threadpool'
 require 'z_k/event_handler_subscription'
 require 'z_k/event_handler'
 require 'z_k/message_queue'
@@ -21,6 +23,9 @@ require 'z_k/pool'
 
 module ZK
   ZK_ROOT = File.expand_path('../..', __FILE__)
+
+  KILL_TOKEN = :__kill_token__ #:nodoc:
+
 
   # The logger used by the ZK library. uses a Logger to +/dev/null+ by default
   #

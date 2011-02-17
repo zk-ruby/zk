@@ -38,9 +38,28 @@ module ZK
     def initialize(host, opts={})
       @event_handler = EventHandler.new(self)
       @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, get_default_watcher_block)
+      @threadpool = Threadpool.new
+    end
+
+    # Queue an operation to be run on an internal threadpool. You may either
+    # provide an object that responds_to?(:call) or pass a block. There is no
+    # mechanism for retrieving the result of the operation, it is purely
+    # fire-and-forget, so the user is expected to make arrangements for this in
+    # their code. 
+    #
+    # An ArgumentError will be raised if +callable+ does not <tt>respond_to?(:call)</tt>
+    #
+    # ==== Arguments
+    # * <tt>callable</tt>: an object that <tt>respond_to?(:call)</tt>, takes precedence
+    #   over a given block
+    #
+    def defer(callable=nil, &block)
+      @threadpool.defer(callable, &block)
     end
 
     # returns true if the connection has been closed
+    #--
+    # XXX: should this be *our* idea of closed or ZOO_CLOSED_STATE ?
     def closed?
       defined?(::JRUBY_VERSION) ? jruby_closed? : mri_closed?
     end
@@ -80,6 +99,7 @@ module ZK
     # returns state of connection after operation
     def reopen(timeout=10, watcher=nil)
       @cnx.reopen(timeout, watcher)
+      @threadpool.start!  # restart the threadpool if previously stopped by close!
       state
     end
 
@@ -432,6 +452,8 @@ module ZK
     def close!
       @event_handler.clear!
       wrap_state_closed_error { @cnx.close }
+      @threadpool.shutdown
+      nil
     end
 
     # Delete the node with the given path. The call will succeed if such a node
