@@ -11,21 +11,21 @@ module ZK
 
       # has close_all! been called on this ConnectionPool ?
       def closed?
-        @connections.synchronize { @state == :closed }
+        synchronize { @state == :closed }
       end
 
       def closing?
-        @connections.synchronize { @state == :closing }
+        synchronize { @state == :closing }
       end
 
       def open?
-        @connections.synchronize { @state == :open }
+        synchronize { @state == :open }
       end
 
       # close all the connections on the pool
       # @param optional Boolean graceful allow the checked out connections to come back first?
       def close_all!(graceful=false)
-        @connections.synchronize do 
+        synchronize do 
           return unless open?
           @state = :closing
 
@@ -66,7 +66,7 @@ module ZK
       end
 
       def checkin(connection) #:nodoc:
-        @connections.synchronize do
+        synchronize do
           @pool.push(connection)
           @checkin_cond.signal
         end
@@ -103,12 +103,16 @@ module ZK
       end
 
       protected
+        def synchronize
+          @connections.synchronize { yield }
+        end
+
         def assert_open!
           raise Exceptions::PoolIsShuttingDownException unless open? 
         end
 
         def populate_pool!(num_cnx)
-          @connections.synchronize do
+          synchronize do
             num_cnx.times do
               connection = ZK.new(@host, @connection_args)
               @connections << connection
@@ -161,11 +165,11 @@ module ZK
         @host = host
         @connection_args = opts
 
-        opts = opts.symbolize_keys.reverse_merge(DEFAULT_OPTIONS)
+        opts = DEFAULT_OPTIONS.merge(opts)
 
-        @min_clients = Integer(opts[:min_clients])
-        @max_clients = Integer(opts[:max_clients])
-        @connection_timeout = opts[:timeout]
+        @min_clients = Integer(opts.delete(:min_clients))
+        @max_clients = Integer(opts.delete(:max_clients))
+        @connection_timeout = opts.delete(:timeout)
 
         # for compatibility w/ ClientPool we'll use @connections for synchronization
         @pool = []            # currently available connections
@@ -173,15 +177,31 @@ module ZK
         populate_pool!(@min_clients)
       end
 
+      # returns the current number of allocated clients in the pool (not
+      # available clients)
+      def size
+        synchronize { @connections.length }
+      end
+
+      # clients available for checkout (at time of call)
+      def available_size
+        synchronize { @pool.length }
+      end
+
       def checkin(connection)
-        @connections.synchronize do
+        synchronize do
           @pool.unshift(connection)
           @checkin_cond.signal
         end
       end
 
+      # number of threads waiting for connections
+      def count_waiters #:nodoc:
+        @checkin_cond.count_waiters
+      end
+
       def checkout(blocking=true) 
-        @connections.synchronize do
+        synchronize do
           begin
             assert_open!
 
@@ -201,7 +221,7 @@ module ZK
 
       protected
         def can_grow_pool?
-          @connections.synchronize { @connections.size < @max_clients }
+          synchronize { @connections.size < @max_clients }
         end
 
         def create_connection
