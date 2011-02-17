@@ -126,6 +126,7 @@ describe ZK::Pool do
 
     after do
       @connection_pool.close_all! unless @connection_pool.closed?
+      @connection_pool.should be_closed
     end
 
     describe 'initial state' do
@@ -156,9 +157,8 @@ describe ZK::Pool do
           end
         end
 
-        th1.run
-
-        wait_until(2) { th1[:cnx] }
+        th1.join_until(2) { th1[:cnx] }
+        th1[:cnx].should_not be_nil
 
         th2 = Thread.new do
           @connection_pool.with_connection do |cnx|
@@ -167,9 +167,8 @@ describe ZK::Pool do
           end
         end
 
-        th2.run
+        th2.join_until(2) { th2[:cnx] }
 
-        wait_until(2) { th2[:cnx] }
         th2[:cnx].should_not be_nil
         th2[:cnx].should be_connected
 
@@ -221,13 +220,17 @@ describe ZK::Pool do
 
         lambda { threads.each { |th| th.join(2).should == th } }.should_not raise_error
 
-        wait_until(2) { loser[:cnx] }
+        loser.join_until(2) { loser[:cnx] }
 
         loser[:cnx].should_not be_nil
 
         lose_q.enq(:release)
 
         lambda { loser.join(2).should == loser }.should_not raise_error
+
+        @connection_pool.count_waiters.should be_zero
+        @connection_pool.available_size.should == 2
+        @connection_pool.size.should == 2
       end
     end
   end

@@ -24,6 +24,20 @@ def wait_until(timeout=10)
   end
 end
 
+class ::Thread
+  # join with thread until given block is true, the thread joins successfully, 
+  # or timeout seconds have passed
+  #
+  def join_until(timeout=10)
+    time_to_stop = Time.now + timeout
+
+    until yield
+      break if Time.now > time_to_stop
+      break if join(0.1)
+    end
+  end
+end
+
 def report_realtime(what)
   t = Benchmark.realtime { yield }
   $stderr.puts "#{what}: %0.3f" % [t.to_f]

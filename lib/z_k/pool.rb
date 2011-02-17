@@ -202,16 +202,19 @@ module ZK
 
       def checkout(blocking=true) 
         synchronize do
-          begin
+          while true
             assert_open!
 
             if @pool.length > 0
               return @pool.shift
             elsif can_grow_pool?
-              return create_connection.tap { |cnx| @connections << cnx }
+              cnx = create_connection
+              @connections << cnx
+              @pool.unshift(cnx)
+              next
             elsif blocking
               @checkin_cond.wait_while { @pool.empty? }
-              retry
+              next
             else
               return false
             end
