@@ -1,5 +1,7 @@
 require File.join(File.dirname(__FILE__), %w[spec_helper])
 
+require 'tracer'
+
 describe ZK::Pool do
   describe :Simple do
 
@@ -86,11 +88,11 @@ describe ZK::Pool do
 
       @path = '/_testWatch'
 
-      @connection_pool.checkout do |zk|
+      @connection_pool.with_connection do |zk|
         zk.delete(@path) rescue ZK::Exceptions::NoNode
       end
 
-      @connection_pool.checkout do |zk|
+      @connection_pool.with_connection do |zk|
         $stderr.puts "registering callback"
         zk.watcher.register(@path) do |event|
           $stderr.puts "callback fired! event: #{event.inspect}"
@@ -104,7 +106,7 @@ describe ZK::Pool do
         zk.exists?(@path, :watch => true).should be_false
       end
 
-      @connection_pool.checkout do |zk|
+      @connection_pool.with_connection do |zk|
         $stderr.puts "creating path"
         zk.create(@path, "", :mode => :ephemeral).should == @path
       end

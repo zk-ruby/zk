@@ -56,7 +56,9 @@ module ZK
 
       def checkout(blocking=true) #:nodoc:
         assert_open!
-        debugger
+
+        # api change
+        raise ArgumentError, "checkout does not take a block" if block_given?
 
         @pool.pop(!blocking)
       rescue ThreadError
@@ -167,7 +169,6 @@ module ZK
 
         # for compatibility w/ ClientPool we'll use @connections for synchronization
         @pool = []            # currently available connections
-
 
         populate_pool!(@min_clients)
       end

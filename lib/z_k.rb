@@ -1,3 +1,6 @@
+require 'rubygems'
+require 'bundler/setup'
+
 require 'logger'
 require 'zookeeper'
 require 'forwardable'
@@ -19,14 +22,21 @@ require 'z_k/pool'
 module ZK
   ZK_ROOT = File.expand_path('../..', __FILE__)
 
+  # The logger used by the ZK library. uses a Logger to +/dev/null+ by default
+  #
   def self.logger
     @logger ||= Logger.new('/dev/null')
   end
 
+  # Assign the Logger instance to be used by ZK
   def self.logger=(logger)
     @logger = logger
   end
 
+  # Create a new ZK::Client instance. If no arguments are given, the default
+  # config of 'localhost:2181' will be used. Otherwise all args will be passed
+  # to ZK::Client#new
+  #
   def self.new(*args)
     # XXX: might need to do some param parsing here
    
@@ -37,6 +47,8 @@ module ZK
     Client.new(*args)
   end
 
+  # Like new, yields a connection to the given block and closes it when the
+  # block returns
   def self.open(*args)
     cnx = new(*args)
     yield cnx
