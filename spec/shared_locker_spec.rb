@@ -1,25 +1,6 @@
 require File.join(File.dirname(__FILE__), 'spec_helper')
-require 'timeout'
-require 'tracer'
-
-if ENV['RUN_TRACER']
-  $traceio = File.open('/tmp/trace.out', 'w')
-
-  Tracer.stdout = $traceio
-  Tracer.on
-end
 
 describe ZK::SharedLocker do
-  if ENV['STRESS_GC']
-    before do
-      @orig_gc_stress, GC.stress = GC.stress, true
-    end
-
-    after do
-      GC.stress = @orig_gc_stress
-    end
-  end
-
   before do
     @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => :default)
     @zk2 = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => :default)

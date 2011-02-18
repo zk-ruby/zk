@@ -90,6 +90,9 @@ module ZK
 
     # raised when defer is called on a threadpool that is not running
     class ThreadpoolIsNotRunningException < ZKError; end
+
+    # raised when assert_locked_for_update! is called and no exclusive lock is held
+    class MustBeExclusivelyLockedException < ZKError; end
   end
 end
 

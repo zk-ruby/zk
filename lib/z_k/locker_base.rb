@@ -8,9 +8,11 @@ module ZK
     # ex. '/_zklocking/foobar/__blah/lock000000007'
     attr_reader :lock_path #;nodoc:
 
+    def self.digit_from_lock_path(path) #:nodoc:
+      path[/0*(\d+)$/, 1].to_i
+    end
 
-    # @private
-    def initialize(zookeeper_client, name, root_lock_node = "/_zklocking")
+    def initialize(zookeeper_client, name, root_lock_node = "/_zklocking") 
       @zk = zookeeper_client
       @root_lock_node = root_lock_node
       @path = name
@@ -43,7 +45,21 @@ module ZK
       end
     end
 
-    protected
+    protected 
+      def digit_from(path)
+        self.class.digit_from_lock_path(path)
+      end
+
+      def lock_children(watch=false)
+        @zk.children(root_lock_path, :watch => watch)
+      end
+
+      def ordered_lock_children(watch=false)
+        lock_children(watch).tap do |ary|
+          ary.sort! { |a,b| digit_from(a) <=> digit_from(b) }
+        end
+      end
+
       def create_root_path!
         @zk.mkdir_p(root_lock_path)
       end

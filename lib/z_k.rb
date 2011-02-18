@@ -18,6 +18,7 @@ require 'z_k/locker'
 require 'z_k/shared_locker'
 require 'z_k/extensions'
 require 'z_k/election'
+require 'z_k/mongoid'
 require 'z_k/client'
 require 'z_k/pool'
 
@@ -59,6 +60,11 @@ module ZK
     yield cnx
   ensure
     cnx.close! if cnx
+  end
+
+  # creates a new ZK::Pool::Bounded with the default options.
+  def self.new_pool(host, opts={})
+    ZK::Pool::Bounded.new(host, opts)
   end
 end
 

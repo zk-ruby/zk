@@ -9,12 +9,12 @@ module ZK
     READ_LOCK_PREFIX  = 'read'.freeze
     WRITE_LOCK_PREFIX = 'write'.freeze
 
-    def self.read_locker(zk, path)
-      ReadLocker.new(zk, path)
+    def self.read_locker(zk, name)
+      ReadLocker.new(zk, name)
     end
 
-    def self.write_locker(zk, path)
-      WriteLocker.new(zk, path)
+    def self.write_locker(zk, name)
+      WriteLocker.new(zk, name)
     end
     
     class NoWriteLockFoundException < StandardError #:nodoc:
@@ -24,10 +24,6 @@ module ZK
     end
 
     class Base < LockerBase
-      def self.digit_from_lock_path(path)
-        path[/0*(\d+)$/, 1].to_i
-      end
-
       def initialize(zookeeper_client, name, root_lock_node = '/_zksharedlocking')
         super
       end
@@ -40,18 +36,6 @@ module ZK
         unlock!
       end
 
-      protected 
-        def digit_from(path)
-          self.class.digit_from_lock_path(path)
-        end
-
-        def lock_children(watch=false)
-          @zk.children(root_lock_path, :watch => watch)
-        end
-
-        def ordered_lock_children(watch=false)
-          lock_children(watch).sort { |a,b| digit_from(a) <=> digit_from(b) }
-        end
     end
 
     class ReadLocker < Base
@@ -124,6 +108,7 @@ module ZK
         end
     end # ReadLocker
 
+    # An exclusive lock implementation
     class WriteLocker < Base
       def lock!(blocking=false)
         return true if @locked

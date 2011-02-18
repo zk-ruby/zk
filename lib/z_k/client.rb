@@ -740,7 +740,7 @@ module ZK
     #   # => #<ZK::Locker:0x102034cf8 ...>
     #
     def locker(name)
-      Locker.new(self, name)
+      SharedLocker.write_locker(self, name)
     end
 
     # Convenience method for acquiring a lock then executing a code block. This

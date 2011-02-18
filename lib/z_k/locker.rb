@@ -5,8 +5,10 @@ module ZK
   class Locker < LockerBase
 
     # a blocking lock that waits until the lock is available for continuing
+    #
     # @param [Block] the block you want to execute once your client has
     #   received the lock
+    #
     # @example
     #   zk.locker("boooyah").with_lock do
     #     #some logic
@@ -18,10 +20,10 @@ module ZK
       first_lock_blk = lambda do
         if have_first_lock?(true)
            queue << :locked
-         end
+        end
       end
 
-      @zk.watcher.register(root_lock_path, &first_lock_blk)
+      subscription = @zk.watcher.register(root_lock_path, &first_lock_blk)
       first_lock_blk.call
 
       if queue.pop
@@ -29,6 +31,7 @@ module ZK
           @locked = true
           return blk.call
         ensure
+          subscription.unsubscribe
           unlock!
         end
       end
@@ -43,7 +46,7 @@ module ZK
     #   locker = zk.locker("booyah")
     #   locker.lock! # => true or false depending on if you got the lock or not
     #   locker.unlock!
-    def lock!
+    def lock! #:nodoc:
       create_lock_path!
       if have_first_lock?(false)
         @locked = true
@@ -58,7 +61,7 @@ module ZK
     #   locker = zk.locker("booyah")
     #   locker.lock!
     #   locker.unlock!
-    def unlock!
+    def unlock! #;nodoc:
       if @locked
         cleanup_lock_path!
         @locked = false
@@ -72,10 +75,11 @@ module ZK
 
   protected
     def have_first_lock?(watch = true)
-      lock_files = @zk.children(root_lock_path, :watch => watch)
-      lock_files.sort! {|a,b| digit_from_lock_path(a) <=> digit_from_lock_path(b)}
-      digit_from_lock_path(lock_files.first) == digit_from_lock_path(@lock_path)
+      lock_files = ordered_lock_children(watch)
+
+      digit_from(lock_files.first) == digit_from(@lock_path)
     rescue Exceptions::NoNode => e
+      # XXX: gah, clean this up
       $stderr.puts e
     end
 
