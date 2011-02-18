@@ -726,9 +726,9 @@ module ZK
 
     # creates a new locker based on the name you send in
     #
-    # see ZK::Locker#initialize
+    # see ZK::Locker
     #
-    # returns a ZK::Locker instance using this Client and provided
+    # returns a ZK::Locker::ExclusiveLocker instance using this Client and provided
     # lock name
     #
     # ==== Arguments
@@ -737,10 +737,10 @@ module ZK
     # ==== Examples
     #
     #   zk.locker("blah")
-    #   # => #<ZK::Locker:0x102034cf8 ...>
+    #   # => #<ZK::Locker::ExclusiveLocker:0x102034cf8 ...>
     #
     def locker(name)
-      SharedLocker.write_locker(self, name)
+      Locker.exclusive_locker(self, name)
     end
 
     # Convenience method for acquiring a lock then executing a code block. This
