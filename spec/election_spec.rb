@@ -7,25 +7,33 @@ describe ZK::Election do
       ZK.logger.debug { "REMOVING /_zkelection" }
       cnx.rm_rf('/_zkelection')
     end
-
-    @zk = ZK.new('localhost:2181')
-    @zk2 = ZK.new('localhost:2181')
-    @election_name = '2012'
-    @data1 = 'obama'
-    @data2 = 'palin'
-  end
-
-  after do
-    @zk.close!
-    @zk2.close!
-
-    ZK.open('localhost:2181') { |cnx| cnx.rm_rf('/_zkelection') }
   end
 
   describe 'Candidate', 'following next_node' do
     before do
+      @zk = ZK.new('localhost:2181')
+      @zk2 = ZK.new('localhost:2181')
+      @election_name = '2012'
+      @data1 = 'obama'
+      @data2 = 'palin'
+
       @obama = ZK::Election::Candidate.new(@zk, @election_name, :data => @data1)
       @palin = ZK::Election::Candidate.new(@zk2, @election_name, :data => @data2)
+    end
+
+    after do
+      logger.debug { "close obama" }
+      @obama.close
+
+      logger.debug { "close palin" }
+      @palin.close
+
+      logger.debug { "closing @zk" }
+      @zk.close!
+      logger.debug { "closing @zk2" }
+      @zk2.close!
+
+      ZK.open('localhost:2181') { |cnx| cnx.rm_rf('/_zkelection') }
     end
 
     describe 'vote!' do
@@ -176,93 +184,18 @@ describe ZK::Election do
     end
   end
 
-#   describe :Candidate, 'following leader' do
-#     before do
-#       @zk3 = ZK.new('localhost:2181')
-
-#       @data1, @data2, @data3 = 'node1', 'node2', 'node3'
-
-#       @node1 = @zk.election_candidate(@election_name, @data1, :follow => :leader)
-#       @node2 = @zk2.election_candidate(@election_name, @data2, :follow => :leader)
-#       @node3 = @zk3.election_candidate(@election_name, @data3, :follow => :leader)
-#     end
-
-#     after do
-#       @zk3.close!
-#     end
-
-#     describe 'all nodes' do
-#       it %[should notice the leadership change] do
-#         @events = []
-#         @node1.on_winning_election { @events << :node1_win }
-#         @node1.on_losing_election { @events << :node1_lose }
-
-#         @node2.on_winning_election { @events << :node2_win }
-#         @node2.on_losing_election do 
-#           logger.debug { "node2 callback registry" }
-#           logger.debug { PP.pp(@node2.zk.event_handler.callbacks, '') }
-#           @events << :node2_lose
-#         end
-
-#         @node3.on_winning_election do 
-#           @events << :node3_win
-#         end
-
-#         @node3.on_losing_election do 
-#           logger.debug { "node3 callback registry" }
-#           logger.debug { PP.pp(@node3.zk.event_handler.callbacks, '') }
-#           @events << :node3_lose
-#         end
-
-#         logger.debug { "node1 voting" }
-#         @node1.vote!
-#         wait_until { @node1.voted? }
-#         @node1.should be_leader
-
-#         logger.debug { "node2 voting" }
-#         @node2.vote!
-#         wait_until { @node2.voted? }
-#         @node2.should_not be_leader
-
-#         logger.debug { "node3 voting" }
-#         @node3.vote!
-
-#         wait_until { @node3.voted? }
-#         logger.debug { "node3 voted" }
-
-#         @node3.should_not be_leader
-#         logger.debug { "node3 is not leader" }
-
-#         wait_until { @events.length == 3 }
-#         @events.length.should == 3
-
-#         logger.debug { "@events:  #{@events.inspect}" }
-#         @events.should include(:node1_win) 
-#         @events.should include(:node2_lose)
-#         @events.should include(:node3_lose)
-
-#         @events.clear
-
-#         logger.debug { "cleared events, closing @zk" }
-#         @zk.close!
-#         wait_until { !@zk.connected? }
-
-#         logger.debug { "@zk closed!" }
-
-#         wait_until { @events.length == 2 }
-#         @events.length.should == 2
-
-#         logger.debug { "@events: #{@events.inspect}" }
-#         @events.should == [:node2_win, :node3_lose]
-
-#         logger.debug { "clearing events" }
-#         @events.clear
-#       end
-#     end
-#   end
-
   describe :Observer do
     before do
+      logger.debug { "connecting @zk" }
+      @zk = ZK.new('localhost:2181')
+
+      logger.debug { "connecting @zk2" }
+      @zk2 = ZK.new('localhost:2181')
+
+      @election_name = '2012'
+      @data1 = 'obama'
+      @data2 = 'palin'
+
       @zk3 = ZK.new('localhost:2181')
 
       @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
@@ -276,7 +209,25 @@ describe ZK::Election do
     end
 
     after do
-      @zk3.close!
+      logger.debug { "closing obama" }
+      @obama.close
+
+      logger.debug { "closing @zk" }
+      @obama.zk.close!
+
+      wait_until { @obama.zk.closed? }
+
+      logger.debug { "closing palin" }
+      @palin.close
+
+      logger.debug { "closing @zk2" }
+      @palin.zk.close!
+
+      logger.debug { "closing observer" }
+      @observer.close
+
+      logger.debug { "closing @zk3" }
+      @observer.zk.close!
     end
 
     describe 'initial state' do
@@ -306,6 +257,9 @@ describe ZK::Election do
       describe 'leader exists before' do
         before do
           @obama.vote!
+
+          wait_until { @obama.leader? }
+
           @palin.vote!
 
           wait_until { @obama.leader? }
@@ -321,11 +275,15 @@ describe ZK::Election do
 
           @observer.observe!
 
+          logger.debug { "we observed" }
+
           wait_until { !@observer.leader_alive.nil? }
         end
 
         it %[should be obama that won] do
+          logger.debug { "obama should be the leader" }
           @obama.should be_leader
+          logger.debug { "obama was the leader" }
         end
 
         it %[should be palin that lost] do

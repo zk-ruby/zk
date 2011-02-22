@@ -70,7 +70,7 @@ module ZK
       end
 
       def mri_closed?
-        @cnx.state or false
+        state == :closed
       rescue RuntimeError => e
         # gah, lame error parsing here
         raise e if (e.message != 'zookeeper handle is closed') and not defined?(::JRUBY_VERSION)
@@ -448,11 +448,20 @@ module ZK
       opts[:callback] ? rv : rv.exists?
     end
 
+    def close_called? #:nodoc:
+      @close_called 
+    end
+
     # closes the underlying connection and deregisters all callbacks
     def close!
+      logger.debug { "close! called" }
+      @close_called = true
+      @threadpool.shutdown
       @event_handler.clear!
       wrap_state_closed_error { @cnx.close }
-      @threadpool.shutdown
+      
+      sleep(0.1) until closed?
+      logger.debug { "close! exiting" }
       nil
     end
 
@@ -638,8 +647,6 @@ module ZK
       rv = check_rc(@cnx.set_acl(h))
       opts[:callback] ? nil : rv[:stat]
     end
-
-      
 
     #--
     #

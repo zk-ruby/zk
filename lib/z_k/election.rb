@@ -70,6 +70,11 @@ module ZK
         @mutex = Monitor.new
         @leader_ack_callbacks = []
         @leader_ack_callbacks.extend(MonitorMixin)
+        @closed = false
+      end
+
+      def closed?
+        @closed
       end
 
       # holds the ephemeral nodes of this election
@@ -107,7 +112,15 @@ module ZK
       
       # register callbacks to be fired when leader_ack path is created
       def on_leader_ack(&block)
-        @leader_ack_callbacks.synchronize { @leader_ack_callbacks << block }
+        @mutex.synchronize { @leader_ack_callbacks << block }
+      end
+
+      def close
+        @mutex.synchronize do
+          return if @closed
+          @closed = true
+          @leader_ack_callbacks = []
+        end
       end
 
       protected
@@ -167,8 +180,6 @@ module ZK
         @leader = nil 
         @data   = opts[:data] || ''
 
-        @cb_mutex = Mutex.new
-        
         @winner_callbacks = []
         @loser_callbacks = []
 
@@ -211,9 +222,19 @@ module ZK
       # +data+ will be placed in the znode representing our vote
       def vote!
         @mutex.synchronize do
+          return if closed?
           cast_ballot!(@data)
           check_election_results!
           watch_for_leader_ack!
+        end
+      end
+
+      def close
+        @mutex.synchronize do
+          super
+          @current_leader_watch_sub.unregister if @current_leader_watch_sub
+          @winner_callbacks = []
+          @loser_callbacks = []
         end
       end
 
@@ -238,7 +259,7 @@ module ZK
           ballots = get_ballots()
 
           our_idx = ballots.index(vote_basename)
-          debugger unless our_idx 
+          raise "our_idx was nil" unless our_idx
           
           if our_idx == 0           # if we have the lowest number
             logger.info { "ZK: We have become leader, data: #{@data.inspect}" }
@@ -300,13 +321,13 @@ module ZK
         end
 
         def fire_winning_callbacks!
-          @cb_mutex.synchronize do
+          @mutex.synchronize do
             safe_call(*@winner_callbacks)
           end
         end
 
         def fire_losing_callbacks!
-          @cb_mutex.synchronize do
+          @mutex.synchronize do
             safe_call(*@loser_callbacks)
           end
         end
@@ -363,6 +384,7 @@ module ZK
 
       def close
         @mutex.synchronize do
+          super
           return unless @observing
 
           @deletion_sub.unregister if @deletion_sub
@@ -370,8 +392,8 @@ module ZK
 
           @deletion_sub = @creation_sub = nil
 
-          @leader_death_cbs.clear
-          @new_leader_cbs.clear
+          @leader_death_cbs = []
+          @new_leader_cbs = []
 
           @leader_alive = nil
           @observing = false
