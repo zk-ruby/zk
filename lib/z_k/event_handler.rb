@@ -5,11 +5,8 @@ module ZK
   # you never really need to initialize this yourself
   class EventHandler
     include org.apache.zookeeper.Watcher if defined?(JRUBY_VERSION)
-
-
-    # @private
-    # :nodoc:
-    attr_accessor :zk
+    
+    attr_accessor :zk # :nodoc:
 
     # @private
     # :nodoc:
@@ -66,13 +63,12 @@ module ZK
         subscription = args[1]
       else
         path, index = args[0..1]
-        @callbacks[path][index] = nil
+        @callbacks[path].delete_at(index)
         return
       end
       ary = @callbacks[subscription.path]
-      if index = ary.index(subscription)
-        ary[index] = nil
-      end
+
+      index = ary.index(subscription) and ary.delete_at(index)
     end
     alias :unsubscribe :unregister
 
@@ -100,6 +96,11 @@ module ZK
         @callbacks.clear
         nil
       end
+    end
+
+    # returns a copy of the callback registry
+    def callbacks #:nodoc:
+      @callbacks.dup
     end
 
     protected

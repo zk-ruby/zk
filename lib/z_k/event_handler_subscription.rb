@@ -24,6 +24,9 @@ module ZK
       callback.call(event)
     end
 
+    def inspect
+      "#<#{self.class.name}:#{self.object_id} @path=#{@path.inspect}>"
+    end
   end
 end
 

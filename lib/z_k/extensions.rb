@@ -36,7 +36,7 @@ module ZK
       module WatcherCallbackExt
         include ZookeeperConstants
 
-        EVENT_NAME_MAP = {
+        EVENT_TYPE_NAME_MAP = {
           1   => 'created',
           2   => 'deleted', 
           3   => 'changed',
@@ -75,6 +75,11 @@ module ZK
         # has this watcher been called because of a change to a zookeeper node?
         def node_event?
           path and not path.empty?
+        end
+
+        # XXX: This is kind of bad to do, but will help clarify in debugging output
+        def inspect 
+          "#<#{self.class.name} @context=#{@context.inspect}, @proc=#{@proc.inspect}, @completed=#{@completed.inspect}, @type=#{EVENT_TYPE_NAME_MAP[@type].inspect}, @state=#{@state.inspect}, @path=#{@path.inspect}>"
         end
 
         # cause this watch to be re-registered

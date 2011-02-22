@@ -68,6 +68,8 @@ module ZK
         opts = DEFAULT_OPTS.merge(opts)
         @root_election_node = opts[:root_election_node]
         @mutex = Monitor.new
+        @leader_ack_callbacks = []
+        @leader_ack_callbacks.extend(MonitorMixin)
       end
 
       # holds the ephemeral nodes of this election
@@ -85,7 +87,9 @@ module ZK
       def cast_ballot!(data)
         return if @vote_path
         create_root_path!
+        logger.debug { "#{@data.inspect}, cast_ballot!" }
         @vote_path = @zk.create("#{root_vote_path}/#{VOTE_PREFIX}", data, :mode => :ephemeral_sequential)
+        logger.debug { "#{@data.inspect}, got vote path: #{@vote_path}" }
       rescue Exceptions::NoNode
         retry
       end
@@ -100,57 +104,31 @@ module ZK
         @zk.get(leader_ack_path).first
       rescue Exceptions::NoNode
       end
-
-      # Asynchronously call the block when the leader has acknowledged its
-      # role. The given block will *always* be called on a background thread. 
+      
+      # register callbacks to be fired when leader_ack path is created
       def on_leader_ack(&block)
-        creation_sub = @zk.watcher.register(leader_ack_path) do |event|
-          if event.node_created?
-            begin
-              logger.debug { "in #{leader_ack_path} watcher, got creation event, notifying" }
-              block.call
-            ensure
-              creation_sub.unregister
-            end
-          else
-            if @zk.exists?(leader_ack_path, :watch => true)
-              begin
-                logger.debug { "in #{leader_ack_path} watcher, node created behind our back, notifying" }
-                block.call
-              ensure
-                creation_sub.unregister
-              end
-            else
-              logger.debug { "in #{leader_ack_path} watcher, got non-creation event, re-watching" }
-            end
-          end
-        end
-
-        @zk.defer do
-          if @zk.exists?(leader_ack_path, :watch => true)
-            logger.debug { "on_leader_ack, #{leader_ack_path} exists, calling block" }
-            begin
-              block.call
-            ensure
-              creation_sub.unregister if creation_sub
-            end
-          end
-        end
-      end
-
-
-      # waits for the leader_ack path to be created
-      def wait_for_leader_ack #:nodoc:
-        queue = Queue.new
-
-        logger.debug { "wait_for_leader_ack, #{leader_ack_path} did not exist, waiting for creation" }
-        queue.pop # wait for callback
-        logger.debug { "wait_for_leader_ack, got notification, returning" }
-      ensure
-        creation_sub.unregister if creation_sub
+        @leader_ack_callbacks.synchronize { @leader_ack_callbacks << block }
       end
 
       protected
+        # Asynchronously call the registered block when the leader has acknowledged its
+        # role. The given blocks will *always* be called on a background thread. 
+        def watch_for_leader_ack!
+          @leader_ack_creation_sub ||= @zk.watcher.register(leader_ack_path) do |event|
+            fire_leader_ack_callbacks! if leader_acked?(true)
+          end
+
+          zk.defer do
+            fire_leader_ack_callbacks! if leader_acked?(true)
+          end
+        end
+
+        def fire_leader_ack_callbacks!
+          @leader_ack_callbacks.synchronize do
+            safe_call(*@leader_ack_callbacks)
+          end
+        end
+
         def create_root_path!
           @zk.mkdir_p(root_vote_path)
         end
@@ -189,11 +167,7 @@ module ZK
         @leader = nil 
         @data   = opts[:data] || ''
 
-        unless VALID_FOLLOW_OPTIONS.include?(opts[:follow])
-          raise ArgumentError, "Invalid :follow value: #{opts[:follow].inspect}"
-        end
-
-        @follow = opts[:follow]
+        @cb_mutex = Mutex.new
         
         @winner_callbacks = []
         @loser_callbacks = []
@@ -237,8 +211,9 @@ module ZK
       # +data+ will be placed in the znode representing our vote
       def vote!
         @mutex.synchronize do
-          cast_ballot!(@data) unless @vote_path
+          cast_ballot!(@data)
           check_election_results!
+          watch_for_leader_ack!
         end
       end
 
@@ -259,10 +234,11 @@ module ZK
         # index number in the list of ballots
         #
         def check_election_results!
-          #return if leader?         # we already know we're the leader
+          logger.debug { "#{@data.inspect}, check_election_results!" }
           ballots = get_ballots()
 
           our_idx = ballots.index(vote_basename)
+          debugger unless our_idx 
           
           if our_idx == 0           # if we have the lowest number
             logger.info { "ZK: We have become leader, data: #{@data.inspect}" }
@@ -291,20 +267,15 @@ module ZK
           on_leader_ack do
             fire_losing_callbacks!
 
-            follow_node =
-              case @follow
-              when :leader
-                # watch the ack path, that way we get notified if the master goes away
-                leader_ack_path
-              when :next_node
-                # we watch the next-lowest ballot, not the ack path, that way we only get
-                # notified if we need to become the leader
-                File.join(root_vote_path, ballots[our_idx - 1])
-              end
+            # we watch the next-lowest ballot, not the ack path, that way we only get
+            # notified if we need to become the leader
+            follow_node = File.join(root_vote_path, ballots[our_idx - 1])
 
             logger.info { "ZK: following #{follow_node} for changes, #{@data.inspect}" }
 
             @current_leader_watch_sub ||= @zk.watcher.register(follow_node) do |event| 
+              logger.debug { "current_leader_watch_sub #{@data.inspect} got event #{event.inspect}" }
+
               if event.node_deleted? 
                 logger.debug { "#{follow_node} was deleted, voting, #{@data.inspect}" }
                 vote! 
@@ -329,11 +300,15 @@ module ZK
         end
 
         def fire_winning_callbacks!
-          safe_call(*@winner_callbacks)
+          @cb_mutex.synchronize do
+            safe_call(*@winner_callbacks)
+          end
         end
 
         def fire_losing_callbacks!
-          safe_call(*@loser_callbacks)
+          @cb_mutex.synchronize do
+            safe_call(*@loser_callbacks)
+          end
         end
     end
 
@@ -372,13 +347,17 @@ module ZK
             the_king_is_dead if event.node_deleted?
           end
 
-          the_king_is_dead unless leader_acked?(true)
+          @zk.defer do
+            the_king_is_dead unless leader_acked?(true)
+          end
 
           @creation_sub ||= @zk.watcher.register(leader_ack_path) do |event|
             long_live_the_king if event.node_created?
           end
 
-          long_live_the_king if leader_acked?(true)
+          @zk.defer do
+            long_live_the_king if leader_acked?(true)
+          end
         end
       end
 
