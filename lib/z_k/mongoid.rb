@@ -20,7 +20,6 @@ module ZK
         @@zk_lock_pool = pool 
       end
 
-
       # Provides a re-entrant zookeeper-based lock of a record.
       #
       # This also makes it possible to detect if the record has been locked before
@@ -81,11 +80,15 @@ module ZK
       # raises MustBeExclusivelyLockedException if we're not currently inside a
       # lock (optionally with +name+)
       def assert_locked_for_update!(name=nil)
-        raise MustBeExclusivelyLockedException unless locked_for_update?(name)
+        raise ZK::Exceptions::MustBeExclusivelyLockedException unless locked_for_update?(name)
       end
 
       def locked_for_update?(name=nil) #:nodoc:
         zk_lock_registry.include?(zk_lock_name(name))
+      end
+
+      def zk_lock_name(name=nil) #:nodoc:
+        @zk_lock_name ||= [self.class.to_s, self.id.to_s, name].compact.join('-')
       end
 
       protected
@@ -103,19 +106,18 @@ module ZK
           zk_lock_registry.delete(zk_lock_name(name))
         end
 
-        def zk_lock_name(name=nil)
-          @zk_lock_name ||= [self.class.to_s, self.id.to_s, name].compact.join('-')
-        end
-
         def zk_with_lock(name=nil)
-          zk_add_path_lock(name)
           zk_lock_pool.with_lock(zk_lock_name(name)) do
-            logger.debug { "acquired #{zk_lock_name(name).inspect}" }
-            yield
+            zk_add_path_lock(name)
+
+            begin
+              logger.debug { "acquired #{zk_lock_name(name).inspect}" }
+              yield
+            ensure
+              logger.debug { "releasing #{zk_lock_name(name).inspect}" }
+              zk_remove_path_lock(name)
+            end
           end
-        ensure
-          logger.debug { "releasing #{zk_lock_name(name).inspect}" }
-          zk_remove_path_lock(name)
         end
 
         def zk_lock_pool

@@ -812,9 +812,9 @@ module ZK
 #     end
     #:startdoc:
 
-    # register a block to be called on connection, when the client has
-    # connected (syncronously if connected? is true, or on a watcher thread if
-    # we haven't connected yet). 
+    # Register a block to be called on connection, when the client has
+    # connected. The block will *always* be called asynchronously (on a
+    # background thread).
     # 
     # the block will be called with no arguments
     #
@@ -823,7 +823,7 @@ module ZK
     #
     def on_connected(&block)
       watcher.register_state_handler(:connected, &block).tap do
-        block.call if connected?
+        defer { block.call } if connected?
       end
     end
 
@@ -834,7 +834,7 @@ module ZK
     #
     def on_connecting(&block)
       watcher.register_state_handler(:connecting, &block).tap do
-        block.call if connected?
+        defer { block.call } if connecting?
       end
     end
 
@@ -845,7 +845,7 @@ module ZK
     # NOTE: need to come up with a way to test this
     def on_expired_session(&block)
       watcher.register_state_handler(:expired_session, &block).tap do
-        block.call if expired_session?
+        defer { block.call } if expired_session?
       end
     end
 

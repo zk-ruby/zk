@@ -32,7 +32,7 @@ class ::Thread
   # join with thread until given block is true, the thread joins successfully, 
   # or timeout seconds have passed
   #
-  def join_until(timeout=10)
+  def join_until(timeout=2)
     time_to_stop = Time.now + timeout
 
     until yield
