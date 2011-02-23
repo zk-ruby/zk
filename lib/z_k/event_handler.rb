@@ -5,6 +5,7 @@ module ZK
   # you never really need to initialize this yourself
   class EventHandler
     include org.apache.zookeeper.Watcher if defined?(JRUBY_VERSION)
+    include ZK::Logging
 
 
     # @private
@@ -33,6 +34,7 @@ module ZK
     # @see ZooKeeper::WatcherEvent
     # @see ZooKeeper::EventHandlerSubscription
     def register(path, &block)
+      logger.debug { "EventHandler#register path=#{path.inspect}" }
       EventHandlerSubscription.new(self, path, block).tap do |subscription|
         @callbacks[path] << subscription
       end
@@ -78,8 +80,8 @@ module ZK
 
     # called from the client-registered callback when an event fires
     def process(event) #:nodoc:
-#       $stderr.puts "EventHandler#process: #{event.inspect}"
       @callbacks.synchronize do
+        logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }
         event.zk = @zk
 
         if event.node_event?

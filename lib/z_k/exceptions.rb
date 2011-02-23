@@ -93,6 +93,9 @@ module ZK
 
     # raised when assert_locked_for_update! is called and no exclusive lock is held
     class MustBeExclusivelyLockedException < ZKError; end
+
+    # raised when assert_locked_for_share! is called and no shared lock is held
+    class MustBeShareLockedException < ZKError; end
   end
 end
 

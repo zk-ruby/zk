@@ -5,11 +5,16 @@ require 'benchmark'
 
 ZK_TEST_PORT = 2181
 
-ZK.logger = Logger.new(File.join(ZK::ZK_ROOT, 'test.log')).tap { |log| log.level = Logger::DEBUG }
+LOG_FILE = File.open(File.join(ZK::ZK_ROOT, 'test.log'), 'a').tap { |f| f.sync = true }
+
+ZK.logger = Logger.new(LOG_FILE).tap { |log| log.level = Logger::DEBUG }
+#Zookeeper.logger = ZK.logger
 
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
 Dir[File.expand_path("../support/**/*.rb", __FILE__)].each {|f| require f}
+
+$stderr.sync = true
 
 RSpec.configure do |config|
 end

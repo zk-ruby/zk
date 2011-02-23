@@ -8,14 +8,17 @@ describe 'ZK::Client#locker' do
   before(:each) do
     @zk = ZK.new("localhost:#{ZK_TEST_PORT}")
     @zk2 = ZK.new("localhost:#{ZK_TEST_PORT}")
-    wait_until{ @zk.connected? && @zk2.connected? }
+    @zk3 = ZK.new("localhost:#{ZK_TEST_PORT}")
+    @connections = [@zk, @zk2, @zk3]
+    wait_until { @connections.all? { |c| c.connected? } }
     @path_to_lock = "/lock_tester"
   end
 
   after(:each) do
     @zk.close!
     @zk2.close!
-    wait_until{ !@zk.connected? && !@zk2.connected? }
+    @zk3.close!
+    wait_until{ @connections.all? { |c| !c.connected? } } 
   end
 
   it "should be able to acquire the lock if no one else is locking it" do
@@ -75,7 +78,8 @@ describe ZK::Locker do
   before do
     @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => :default)
     @zk2 = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => :default)
-    @connections = [@zk, @zk2]
+    @zk3 = ZK.new("localhost:#{ZK_TEST_PORT}")
+    @connections = [@zk, @zk2, @zk3]
 
     wait_until{ @connections.all? {|c| c.connected?} }
 
@@ -194,11 +198,8 @@ describe ZK::Locker do
 
         it %[should acquire the second lock even if a read lock is added after] do
           pending "need to mock this out, too difficult to do live"
-
-#           @read_lock_path = @zk.create('/_zklocking/shlock/read', '', :mode => :ephemeral_sequential)
-#           @ex_locker.unlock!.should be_true
-#           @ex_locker2.lock!.should be_true
         end
+
       end
 
       describe 'blocking' do
@@ -229,6 +230,195 @@ describe ZK::Locker do
           ary.length.should == 1
           @ex_locker.should be_locked
         end
+      end
+    end
+  end   # WriteLocker
+
+  describe 'read/write interaction' do
+    before do
+      @sh_lock = ZK::Locker.shared_locker(@zk, @path)
+      @ex_lock = ZK::Locker.exclusive_locker(@zk2, @path)
+    end
+
+    describe 'shared lock acquired first' do
+      it %[should block exclusive locks from acquiring until released] do
+        q1 = Queue.new
+        q2 = Queue.new
+
+        th1 = Thread.new do
+          @sh_lock.with_lock do
+            q1.enq(:got_lock)
+            Thread.current[:got_lock] = true
+            q2.pop
+          end
+        end
+
+        th2 = Thread.new do
+          q1.pop # wait for th1 to get the shared lock
+
+          Thread.current[:acquiring_lock] = true
+
+          @ex_lock.with_lock do
+            Thread.current[:got_lock] = true
+          end
+        end
+
+        th1.join_until { th1[:got_lock] }
+        th1[:got_lock].should be_true
+
+        th2.join_until { th2[:acquiring_lock] }
+        th2[:acquiring_lock].should be_true
+
+        q2.num_waiting.should > 0
+        q2.enq(:release)
+
+        th1.join_until { q2.size == 0 }
+        q2.size.should == 0
+
+        th1.join(2).should == th1
+
+        th2.join_until { th2[:got_lock] }
+        th2[:got_lock].should be_true
+
+        th2.join(2).should == th2
+      end
+    end
+
+    describe 'exclusive lock acquired first' do
+      it %[should block shared lock from acquiring until released] do
+        # same test as above but with the thread's locks switched, 
+        # th1 is the exclusive locker
+
+        q1 = Queue.new
+        q2 = Queue.new
+
+        th1 = Thread.new do
+          @ex_lock.with_lock do
+            q1.enq(:got_lock)
+            Thread.current[:got_lock] = true
+            q2.pop
+          end
+        end
+
+        th2 = Thread.new do
+          q1.pop # wait for th1 to get the shared lock
+
+          Thread.current[:acquiring_lock] = true
+
+          @sh_lock.with_lock do
+            Thread.current[:got_lock] = true
+          end
+        end
+
+        th1.join_until { th1[:got_lock] }
+        th1[:got_lock].should be_true
+
+        th2.join_until { th2[:acquiring_lock] }
+        th2[:acquiring_lock].should be_true
+
+        q2.num_waiting.should > 0
+        q2.enq(:release)
+
+        th1.join_until { q2.size == 0 }
+        q2.size.should == 0
+
+        th1.join(2).should == th1
+
+        th2.join_until { th2[:got_lock] }
+        th2[:got_lock].should be_true
+
+        th2.join(2).should == th2
+      end
+    end
+
+    describe 'shared-exclusive-shared' do
+      before do
+        @zk3.should_not be_nil
+        @sh_lock2 = ZK::Locker.shared_locker(@zk3, @path) 
+      end
+
+      it %[should act something like a queue] do
+        @th1 = QueueyThread.new do
+          @sh_lock.with_lock do
+            tc = Thread.current
+            2.times { tc.output << :got_lock }
+            tc[:got_lock] = true
+            tc.input.pop
+          end
+        end
+
+        @th1.join_until { @th1[:got_lock] }
+        @th1[:got_lock].should be_true
+
+        @th2 = QueueyThread.new do
+          @th1.output.pop  # wait for @th1 to get lock
+
+          tc = Thread.current
+          tc[:acquiring_lock] = true
+          tc.output << :about_to_block
+
+          @ex_lock.with_lock do
+            tc[:got_lock] = true
+            tc.input.pop
+          end
+        end
+
+        @th3 = QueueyThread.new do
+          tc = Thread.current
+          tc[:acquiring_lock] = true
+          tc.input.pop
+
+          @sh_lock2.with_lock do
+            tc.output << :got_lock
+            tc[:got_lock] = true
+            tc.input.pop
+          end
+        end
+
+        @th2.run
+        wait_until { @ex_lock.waiting? }
+        @ex_lock.should be_waiting
+        
+        # let thread 3 know it should try to acquire the lock
+        @th3.input << :continue
+        @th3.run
+
+        wait_until { @sh_lock2.waiting? }
+        debugger
+        @sh_lock2.should be_waiting
+
+        # neither exclusive nor sh2 should have gotten a lock
+        @th2.output.size.should be_zero
+        @th3.output.size.should be_zero
+
+        # release the first shared lock
+        @th1.input << :release
+        @th1.join(2).should == @th1
+
+        # exclusive lock should be acquired
+        @th2.join_until { @th2[:got_lock] }
+        @th2[:got_lock].should be_true
+
+        # wait until @th2 is ready for signaling
+        @th2.join_until { @th2.input.num_waiting > 0 }
+        @th2.input.num_waiting.should > 0
+
+        # ensure the the second shared lock has not been acquired
+        @th3.output.size.should be_zero
+
+        # join the second lock
+        @th2.input << :release
+        @th2.join(2).should == @th2
+
+        logger.debug { "@sh_lock2.lock_path: #{@sh_lock2.lock_path}, exists? #{@zk.exists?(@sh_lock2.lock_path).inspect}" }
+
+        # now the second shared lock should be acquired
+        @th3.join_until { @th3[:got_lock] }
+        @th3[:got_lock].should be_true
+
+        @th3.output.size.should > 0
+        @th3.input << :release
+        @th3.join(2).should == @th3
       end
     end
   end

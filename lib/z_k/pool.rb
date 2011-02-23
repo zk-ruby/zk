@@ -29,6 +29,8 @@ module ZK
           return unless open?
           @state = :closing
 
+          debugger if @pool.size != @connections.length
+
           @checkin_cond.wait_until { @pool.size == @connections.length }
 
           @pool.clear
@@ -80,9 +82,9 @@ module ZK
       end
 
       #prefer this method if you can (keeps connection checked out)
-      def with_lock(path, &block)
+      def with_lock(name, opts={}, &block)
         with_connection do |connection|
-          connection.locker(path).with_lock(&block)
+          connection.with_lock(name, opts, &block)
         end
       end
 

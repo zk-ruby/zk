@@ -10,6 +10,8 @@ module ZK
     # this class assumes the availability of a 'logger' method in the mixee
     #
     module Locking
+      VALID_MODES = [:exclusive, :shared].freeze
+
       @@zk_lock_pool = nil unless defined?(@@zk_lock_pool)
 
       def self.zk_lock_pool
@@ -71,9 +73,18 @@ module ZK
       #
       def lock_for_update(name=nil)
         if locked_for_update?(name)
+          logger.debug { "we are locked for update, yield to the block" }
           yield
         else
-          zk_with_lock(name) { yield }
+          zk_with_lock(:mode => :exclusive, :name => name) { yield }
+        end
+      end
+
+      def with_shared_lock(name=nil)
+        if locked_for_share?(name)
+          yield
+        else
+          zk_with_lock(:mode => :shared, :name => name) { yield }
         end
       end
 
@@ -83,45 +94,77 @@ module ZK
         raise ZK::Exceptions::MustBeExclusivelyLockedException unless locked_for_update?(name)
       end
 
+      # raises MustBeShareLockedException if we're not currently inside a shared lock
+      # (optionally with +name+)
+      def assert_locked_for_share!(name=nil)
+        raise ZK::Exceptions::MustBeShareLockedException unless locked_for_share?(name)
+      end
+
       def locked_for_update?(name=nil) #:nodoc:
-        zk_lock_registry.include?(zk_lock_name(name))
+        zk_mongoid_lock_registry[:exclusive].include?(zk_lock_name(name))
+      end
+
+      def locked_for_share?(name=nil) #:nodoc:
+        zk_mongoid_lock_registry[:shared].include?(zk_lock_name(name))
       end
 
       def zk_lock_name(name=nil) #:nodoc:
-        @zk_lock_name ||= [self.class.to_s, self.id.to_s, name].compact.join('-')
+        [self.class.to_s, self.id.to_s, name].compact.join('-')
       end
 
       protected
-        def zk_lock_registry
-          Thread.current[:_zk_mongoid_lock_registry] ||= Set.new
+        def zk_mongoid_lock_registry
+          Thread.current.zk_mongoid_lock_registry ||= { :shared => Set.new, :exclusive => Set.new }
         end
 
-        def zk_add_path_lock(name=nil)
-          logger.debug { "adding #{zk_lock_name(name).inspect} to lock registry" }
-          self.zk_lock_registry << zk_lock_name(name)
+        def zk_add_path_lock(opts={})
+          mode, name = opts.values_at(:mode, :name)
+
+          raise ArgumentError, "You must specify a :mode option" unless mode
+
+          zk_assert_valid_mode!(mode)
+
+          logger.debug { "adding #{zk_lock_name(name).inspect} to #{mode} lock registry" }
+
+          self.zk_mongoid_lock_registry[mode] << zk_lock_name(name)
         end
 
-        def zk_remove_path_lock(name=nil)
-          logger.debug { "removing #{zk_lock_name.inspect} from lock registry" }
-          zk_lock_registry.delete(zk_lock_name(name))
+        def zk_remove_path_lock(opts={})
+          mode, name = opts.values_at(:mode, :name)
+
+          raise ArgumentError, "You must specify a :mode option" unless mode
+
+          zk_assert_valid_mode!(mode)
+
+          logger.debug { "removing #{zk_lock_name(name).inspect} from #{mode} lock registry" }
+
+          zk_mongoid_lock_registry[mode].delete(zk_lock_name(name))
         end
 
-        def zk_with_lock(name=nil)
-          zk_lock_pool.with_lock(zk_lock_name(name)) do
-            zk_add_path_lock(name)
+        def zk_with_lock(opts={})
+          mode, name = opts.values_at(:mode, :name)
+
+          zk_assert_valid_mode!(mode)
+
+          zk_lock_pool.with_lock(zk_lock_name(name), :mode => mode) do
+            zk_add_path_lock(opts)
 
             begin
               logger.debug { "acquired #{zk_lock_name(name).inspect}" }
               yield
             ensure
               logger.debug { "releasing #{zk_lock_name(name).inspect}" }
-              zk_remove_path_lock(name)
+              zk_remove_path_lock(opts)
             end
           end
         end
 
         def zk_lock_pool
           @zk_lock_pool ||= ::ZK::Mongoid::Locking.zk_lock_pool
+        end
+
+        def zk_assert_valid_mode!(mode)
+          raise ArgumentError, "#{mode.inspect} is not a valid mode value" unless VALID_MODES.include?(mode)
         end
     end
   end

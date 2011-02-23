@@ -27,12 +27,16 @@ module ZK
     end
 
     class LockerBase
+      include ZK::Logging
+
       attr_accessor :zk #:nodoc:
 
       # our absolute lock node path
       #
       # ex. '/_zklocking/foobar/__blah/lock000000007'
       attr_reader :lock_path #;nodoc:
+
+      attr_reader :root_lock_path #:nodoc:
 
       def self.digit_from_lock_path(path) #:nodoc:
         path[/0*(\d+)$/, 1].to_i
@@ -43,6 +47,8 @@ module ZK
         @root_lock_node = root_lock_node
         @path = name
         @locked = false
+        @waiting = false
+        @root_lock_path = "#{@root_lock_node}/#{@path.gsub("/", "__")}"
       end
       
       # block caller until lock is aquired, then yield
@@ -63,10 +69,6 @@ module ZK
         lock_path and File.basename(lock_path)
       end
 
-      def root_lock_path #:nodoc:
-        @root_lock_path ||= "#{@root_lock_node}/#{@path.gsub("/", "__")}"
-      end
-
       def locked?
         false|@locked
       end
@@ -79,7 +81,19 @@ module ZK
         end
       end
 
+      # returns true if this locker is waiting to acquire lock 
+      def waiting? #:nodoc:
+        false|@waiting
+      end
+
       protected 
+        def in_waiting_status
+          w, @waiting = @waiting, true
+          yield
+        ensure
+          @waiting = w
+        end
+
         def digit_from(path)
           self.class.digit_from_lock_path(path)
         end
@@ -95,7 +109,7 @@ module ZK
         end
 
         def create_root_path!
-          @zk.mkdir_p(root_lock_path)
+          @zk.mkdir_p(@root_lock_path)
         end
 
         # prefix is the string that will appear in front of the sequence num,
@@ -121,7 +135,9 @@ module ZK
         if got_read_lock?      
           @locked = true
         elsif blocking
-          block_until_read_lock!
+          in_waiting_status do
+            block_until_read_lock!
+          end
         else
           # we didn't get the lock, and we're not gonna wait around for it, so
           # clean up after ourselves
@@ -173,7 +189,9 @@ module ZK
         # TODO: make this generic, can either block or non-block
         def block_until_read_lock!
           begin
-            @zk.block_until_node_deleted(File.join(root_lock_path, next_lowest_write_lock_name))
+            path = [root_lock_path, next_lowest_write_lock_name].join('/')
+            logger.debug { "SharedLocker#block_until_read_lock! path=#{path.inspect}" }
+            @zk.block_until_node_deleted(path)
           rescue NoWriteLockFoundException
             # next_lowest_write_lock_name may raise NoWriteLockFoundException,
             # which means we should not block as we have the lock (there is nothing to wait for)
@@ -192,7 +210,9 @@ module ZK
         if got_write_lock?
           @locked = true
         elsif blocking
-          block_until_write_lock!
+          in_waiting_status do
+            block_until_write_lock!
+          end
         else
           cleanup_lock_path!
           false
@@ -217,7 +237,9 @@ module ZK
 
         def block_until_write_lock!
           begin
-            @zk.block_until_node_deleted(File.join(root_lock_path, next_lowest_node))
+            path = [root_lock_path, next_lowest_node].join('/')
+            logger.debug { "SharedLocker#block_until_write_lock! path=#{path.inspect}" }
+            @zk.block_until_node_deleted(path)
           rescue WeAreTheLowestLockNumberException
           end
 

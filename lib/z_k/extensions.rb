@@ -132,3 +132,13 @@ class ::Exception
   end
 end
 
+class ::Thread
+  def zk_mongoid_lock_registry
+    self[:_zk_mongoid_lock_registry]
+  end
+
+  def zk_mongoid_lock_registry=(obj)
+    self[:_zk_mongoid_lock_registry] = obj
+  end
+end
+

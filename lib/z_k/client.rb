@@ -706,9 +706,9 @@ module ZK
 
       node_deletion_cb = lambda do |event|
         if event.node_deleted?
-          queue << :locked
+          queue.enq(:deleted) 
         else
-          queue << :locked unless exists?(abs_node_path, :watch => true)
+          queue.enq(:deleted) unless exists?(abs_node_path, :watch => true)
         end
       end
 
@@ -726,7 +726,7 @@ module ZK
 
     # creates a new locker based on the name you send in
     #
-    # see ZK::Locker
+    # see ZK::Locker::ExclusiveLocker
     #
     # returns a ZK::Locker::ExclusiveLocker instance using this Client and provided
     # lock name
@@ -743,8 +743,29 @@ module ZK
       Locker.exclusive_locker(self, name)
     end
 
+    # create a new shared locking instance based on the name given
+    #
+    # returns a ZK::Locker::SharedLocker instance using this Client and provided
+    # lock name
+    #
+    # ==== Arguments
+    # * <tt>name</tt> name of the lock you wish to use
+    #
+    # ==== Examples
+    #
+    #   zk.shared_locker("blah")
+    #   # => #<ZK::Locker::SharedLocker:0x102034cf8 ...>
+    #
+    def shared_locker(name)
+      Locker.shared_locker(self, name)
+    end
+
     # Convenience method for acquiring a lock then executing a code block. This
     # will block the caller until the lock is acquired.
+    #
+    # ==== Arguments
+    # * <tt>name</tt>: the name of the lock to use
+    # * <tt>:mode</tt>: either :shared or :exclusive, defaults to :exclusive
     #
     # ==== Examples
     #
@@ -752,8 +773,16 @@ module ZK
     #     # this code is executed while holding the lock
     #   end
     #
-    def with_lock(path, &b)
-      locker(path).with_lock(&b)
+    def with_lock(name, opts={}, &b)
+      mode = opts[:mode] || :exclusive
+
+      raise ArgumentError, ":mode option must be either :shared or :exclusive, not #{mode.inspect}" unless [:shared, :exclusive].include?(mode)
+
+      if mode == :shared
+        shared_locker(name).with_lock(&b)
+      else
+        locker(name).with_lock(&b)
+      end
     end
 
     # Convenience method for constructing a ZK::Election::Candidate object using this 
