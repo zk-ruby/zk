@@ -79,6 +79,7 @@ module ZK
           zk_with_lock(:mode => :exclusive, :name => name) { yield }
         end
       end
+      alias :with_exclusive_lock :lock_for_update
 
       def with_shared_lock(name=nil)
         if locked_for_share?(name)

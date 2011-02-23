@@ -312,6 +312,19 @@ describe ZK::Mongoid::Locking do
     end
   end
 
+  describe :assert_locked_for_share! do
+    it %[should raise MustBeShareLockedException if the current thread does not hold a shared lock] do
+      lambda { @doc.assert_locked_for_share! }.should raise_error(ZK::Exceptions::MustBeShareLockedException)
+    end
+
+    it %[should not raise an exception if the current thread holds a shared lock] do
+      lambda do
+        @doc.with_shared_lock do
+          @doc.assert_locked_for_share!
+        end
+      end.should_not raise_error
+    end
+  end
 end
 
 
