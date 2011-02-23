@@ -1,3 +1,6 @@
+require 'rubygems'
+require 'bundler/setup'
+
 $LOAD_PATH.unshift(File.expand_path('../../lib', __FILE__))
 
 require 'zk'
@@ -16,7 +19,22 @@ Dir[File.expand_path("../support/**/*.rb", __FILE__)].each {|f| require f}
 
 $stderr.sync = true
 
+# COMMENT THESE LINES FOR REMOTE DEBUGGING
+require 'ruby-debug'
+
 RSpec.configure do |config|
+#   config.before(:all) do
+#     unless $did_debug
+#       $did_debug = true
+#       $stderr.puts "debugger started? is #{Debugger.started?.inspect}"
+
+#       Debugger.wait_connection = true
+#       $stderr.puts "run 'rdebug -c -p #{Debugger::PORT}'"
+#       Debugger.start_remote
+
+#       config.debug = true
+#     end
+#   end
 end
 
 def logger

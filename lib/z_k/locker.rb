@@ -115,13 +115,16 @@ module ZK
         # prefix is the string that will appear in front of the sequence num,
         # defaults to 'lock'
         def create_lock_path!(prefix='lock')
-          create_root_path!
           @lock_path = @zk.create("#{root_lock_path}/#{prefix}", "", :mode => :ephemeral_sequential)
+          logger.debug { "got lock path #{@lock_path}" }
+          @lock_path
         rescue Exceptions::NoNode
+          create_root_path!
           retry
         end
 
         def cleanup_lock_path!
+          logger.debug { "removing lock path #{@lock_path}" }
           @zk.delete(@lock_path)
           @zk.delete(root_lock_path) rescue Exceptions::NotEmpty
         end
@@ -176,7 +179,7 @@ module ZK
 
         not_found = lambda { raise NoWriteLockFoundException }
 
-        ary[0..my_idx].reverse.find(not_found) { |n| n =~ /^write/ }
+        ary[0..my_idx].reverse.find(not_found) { |n| n =~ /^#{EXCLUSIVE_LOCK_PREFIX}/ }
       end
 
       def got_read_lock? #:nodoc:

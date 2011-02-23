@@ -93,7 +93,7 @@ describe ZK::Locker do
   end
 
 
-  describe :ReadLocker do
+  describe :SharedLocker do
     before do
       @shared_locker  = ZK::Locker.shared_locker(@zk, @path)
       @shared_locker2 = ZK::Locker.shared_locker(@zk2, @path)
@@ -120,7 +120,7 @@ describe ZK::Locker do
       describe 'non-blocking failure' do
         before do
           @zk.mkdir_p(@root_lock_path)
-          @write_lock_path = @zk.create('/_zklocking/shlock/write', '', :mode => :ephemeral_sequential)
+          @write_lock_path = @zk.create("#{@root_lock_path}/#{ZK::Locker::EXCLUSIVE_LOCK_PREFIX}", '', :mode => :ephemeral_sequential)
           @rval = @shared_locker.lock!
         end
 
@@ -140,7 +140,7 @@ describe ZK::Locker do
       describe 'blocking success' do
         before do
           @zk.mkdir_p(@root_lock_path)
-          @write_lock_path = @zk.create('/_zklocking/shlock/write', '', :mode => :ephemeral_sequential)
+          @write_lock_path = @zk.create("#{@root_lock_path}/#{ZK::Locker::EXCLUSIVE_LOCK_PREFIX}", '', :mode => :ephemeral_sequential)
           $stderr.sync = true
         end
 
@@ -168,9 +168,9 @@ describe ZK::Locker do
         end
       end
     end
-  end   # ReadLocker
+  end   # SharedLocker
 
-  describe :WriteLocker do
+  describe :ExclusiveLocker do
     before do
       @ex_locker = ZK::Locker.exclusive_locker(@zk, @path)
       @ex_locker2 = ZK::Locker.exclusive_locker(@zk2, @path)
@@ -195,11 +195,6 @@ describe ZK::Locker do
           @ex_locker.unlock!.should be_true
           @ex_locker2.lock!.should be_true
         end
-
-        it %[should acquire the second lock even if a read lock is added after] do
-          pending "need to mock this out, too difficult to do live"
-        end
-
       end
 
       describe 'blocking' do
@@ -338,87 +333,52 @@ describe ZK::Locker do
       end
 
       it %[should act something like a queue] do
-        @th1 = QueueyThread.new do
-          @sh_lock.with_lock do
-            tc = Thread.current
-            2.times { tc.output << :got_lock }
-            tc[:got_lock] = true
-            tc.input.pop
+        @array = []
+
+        @sh_lock.lock!.should be_true
+        @sh_lock.should be_locked
+
+        ex_th = Thread.new do
+          begin
+            @ex_lock.lock!(true)  # blocking lock
+            Thread.current[:got_lock] = true
+            @array << :ex_lock
+          ensure
+            @ex_lock.unlock!
           end
         end
 
-        @th1.join_until { @th1[:got_lock] }
-        @th1[:got_lock].should be_true
-
-        @th2 = QueueyThread.new do
-          @th1.output.pop  # wait for @th1 to get lock
-
-          tc = Thread.current
-          tc[:acquiring_lock] = true
-          tc.output << :about_to_block
-
-          @ex_lock.with_lock do
-            tc[:got_lock] = true
-            tc.input.pop
-          end
-        end
-
-        @th3 = QueueyThread.new do
-          tc = Thread.current
-          tc[:acquiring_lock] = true
-          tc.input.pop
-
-          @sh_lock2.with_lock do
-            tc.output << :got_lock
-            tc[:got_lock] = true
-            tc.input.pop
-          end
-        end
-
-        @th2.run
-        wait_until { @ex_lock.waiting? }
+        ex_th.join_until { @ex_lock.waiting? }
         @ex_lock.should be_waiting
-        
-        # let thread 3 know it should try to acquire the lock
-        @th3.input << :continue
-        @th3.run
+        @ex_lock.should_not be_locked
 
-        wait_until { @sh_lock2.waiting? }
-        debugger
+        # this is the important one, does the second shared lock get blocked by
+        # the exclusive lock
+        @sh_lock2.lock!.should_not be_true
+
+        sh2_th = Thread.new do
+          begin
+            @sh_lock2.lock!(true)
+            Thread.current[:got_lock] = true
+            @array << :sh_lock2
+          ensure
+            @sh_lock2.unlock!
+          end
+        end
+
+        sh2_th.join_until { @sh_lock2.waiting? }
         @sh_lock2.should be_waiting
 
-        # neither exclusive nor sh2 should have gotten a lock
-        @th2.output.size.should be_zero
-        @th3.output.size.should be_zero
+        @sh_lock.unlock!.should be_true
 
-        # release the first shared lock
-        @th1.input << :release
-        @th1.join(2).should == @th1
+        ex_th.join_until { ex_th[:got_lock] }
+        ex_th[:got_lock].should be_true
 
-        # exclusive lock should be acquired
-        @th2.join_until { @th2[:got_lock] }
-        @th2[:got_lock].should be_true
+        sh2_th.join_until { sh2_th[:got_lock] }
+        sh2_th[:got_lock].should be_true
 
-        # wait until @th2 is ready for signaling
-        @th2.join_until { @th2.input.num_waiting > 0 }
-        @th2.input.num_waiting.should > 0
-
-        # ensure the the second shared lock has not been acquired
-        @th3.output.size.should be_zero
-
-        # join the second lock
-        @th2.input << :release
-        @th2.join(2).should == @th2
-
-        logger.debug { "@sh_lock2.lock_path: #{@sh_lock2.lock_path}, exists? #{@zk.exists?(@sh_lock2.lock_path).inspect}" }
-
-        # now the second shared lock should be acquired
-        @th3.join_until { @th3[:got_lock] }
-        @th3[:got_lock].should be_true
-
-        @th3.output.size.should > 0
-        @th3.input << :release
-        @th3.join(2).should == @th3
+        @array.length.should == 2
+        @array.should == [:ex_lock, :sh_lock2]
       end
     end
   end

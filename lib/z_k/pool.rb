@@ -11,27 +11,45 @@ module ZK
 
       # has close_all! been called on this ConnectionPool ?
       def closed?
-        synchronize { @state == :closed }
+        @state == :closed
       end
 
+      # is the pool shutting down?
       def closing?
-        synchronize { @state == :closing }
+        @state == :closing
       end
 
+      # is the pool initialized and in normal operation?
       def open?
-        synchronize { @state == :open }
+        @state == :open
+      end
+
+      # has the pool entered the take-no-prisoners connection closing part of shutdown?
+      def forced?
+        @state == :forced
       end
 
       # close all the connections on the pool
       # @param optional Boolean graceful allow the checked out connections to come back first?
-      def close_all!(graceful=false)
+      def close_all!
         synchronize do 
           return unless open?
           @state = :closing
 
-          debugger if @pool.size != @connections.length
+#           debugger if @pool.size != @connections.length
 
-          @checkin_cond.wait_until { @pool.size == @connections.length }
+          @checkin_cond.wait_until { (@pool.size == @connections.length) or closed? }
+
+          force_close!
+        end
+      end
+
+      # calls close! on all connection objects, whether or not they're back in the pool
+      # this is DANGEROUS!
+      def force_close! #:nodoc:
+        synchronize do
+          return if (closed? or forced?)
+          @state = :forced
 
           @pool.clear
 
@@ -40,6 +58,9 @@ module ZK
           end
 
           @state = :closed
+
+          # free any waiting 
+          @checkin_cond.broadcast
         end
       end
 
@@ -54,24 +75,6 @@ module ZK
         yield cnx
       ensure
         checkin(cnx)
-      end
-
-      def checkout(blocking=true) #:nodoc:
-        assert_open!
-
-        # api change
-        raise ArgumentError, "checkout does not take a block" if block_given?
-
-        @pool.pop(!blocking)
-      rescue ThreadError
-        false
-      end
-
-      def checkin(connection) #:nodoc:
-        synchronize do
-          @pool.push(connection)
-          @checkin_cond.signal
-        end
       end
 
       #lock lives on past the connection checkout
@@ -104,6 +107,10 @@ module ZK
         @connections
       end
 
+      def pool_state #:nodoc:
+        @state
+      end
+
       protected
         def synchronize
           @connections.synchronize { yield }
@@ -123,32 +130,7 @@ module ZK
             end
           end
         end
-
     end # Base
-
-    # create a connection pool useful for multithreaded applications
-    # @example
-    #   pool = ZK::Pool::Simple.new("localhost:2181", 10)
-    #   pool.checkout do |zk|
-    #     zk.create("/mynew_path")
-    class Simple < Base
-
-      # initialize a connection pool using the same optons as ZK.new
-      # @param String host the same arguments as ZK.new
-      # @param Integer number_of_connections the number of connections to put in the pool
-      # @param optional Hash opts Options to pass on to each connection
-      # @return ZK::ClientPool
-      def initialize(host, number_of_connections=10, opts = {})
-        super()
-        @connection_args = opts
-
-        @number_of_connections = number_of_connections
-        @host = host
-        @pool = ::Queue.new
-
-        populate_pool!(@number_of_connections)
-      end
-    end # Simple
 
     # like a Simple pool but has high/low watermarks, and can grow dynamically as needed
     class Bounded < Base
@@ -182,12 +164,12 @@ module ZK
       # returns the current number of allocated clients in the pool (not
       # available clients)
       def size
-        synchronize { @connections.length }
+        @connections.length
       end
 
       # clients available for checkout (at time of call)
       def available_size
-        synchronize { @pool.length }
+        @pool.length
       end
 
       def checkin(connection)
@@ -203,6 +185,7 @@ module ZK
       end
 
       def checkout(blocking=true) 
+        raise ArgumentError, "checkout does not take a block, use .with_connection" if block_given?
         synchronize do
           while true
             assert_open!
@@ -215,7 +198,7 @@ module ZK
               @pool.unshift(cnx)
               next
             elsif blocking
-              @checkin_cond.wait_while { @pool.empty? }
+              @checkin_cond.wait_while { @pool.empty? and open? }
               next
             else
               return false
@@ -233,6 +216,30 @@ module ZK
           ZK.new(@host, @connection_timeout, @connection_args)
         end
     end # Bounded
+
+    # create a connection pool useful for multithreaded applications
+    #
+    # Will spin up +number_of_connections+ at creation time and remain fixed at
+    # that number for the life of the pool.
+    #
+    # ==== Example
+    #   pool = ZK::Pool::Simple.new("localhost:2181", 10)
+    #   pool.checkout do |zk|
+    #     zk.create("/mynew_path")
+    #   end
+    class Simple < Bounded
+      # initialize a connection pool using the same optons as ZK.new
+      # @param String host the same arguments as ZK.new
+      # @param Integer number_of_connections the number of connections to put in the pool
+      # @param optional Hash opts Options to pass on to each connection
+      # @return ZK::ClientPool
+      def initialize(host, number_of_connections=10, opts = {})
+        opts = opts.dup
+        opts[:max_clients] = opts[:min_clients] = number_of_connections.to_i
+
+        super(host, opts)
+      end
+    end # Simple
   end   # Pool
 end     # ZK
 

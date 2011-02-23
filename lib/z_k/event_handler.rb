@@ -81,7 +81,7 @@ module ZK
     # called from the client-registered callback when an event fires
     def process(event) #:nodoc:
       @callbacks.synchronize do
-        logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }
+        logger.debug { "EventHandler#process dispatching event: #{event.inspect}" } unless event.type == -1
         event.zk = @zk
 
         if event.node_event?

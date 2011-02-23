@@ -15,7 +15,17 @@ describe ZK::Pool do
 
     after do
       report_realtime("close_all!") do
-        @connection_pool.close_all! unless @connection_pool.closed?
+        unless @connection_pool.closed?
+          th = Thread.new do
+            @connection_pool.close_all!
+          end
+
+          unless th.join(5) == th
+            logger.warn { "Forcing pool closed!" }
+            @connection_pool.force_close!
+            th.join(5).should == th
+          end
+        end
       end
 
       report_realtime("closing") do
@@ -70,7 +80,10 @@ describe ZK::Pool do
 
         release_q << :ok_let_go
 
+        open_th.join(2).should == open_th
+
         wait_until(2) { @connection_pool.closed? }
+        $stderr.puts "@connection_pool.pool_state: #{@connection_pool.pool_state.inspect}"
         @connection_pool.should be_closed
 
         lambda do
@@ -80,9 +93,30 @@ describe ZK::Pool do
       end
     end
 
-    it "should allow watchers still" do
-#       pending "No idea why this is busted"
+    describe :force_close! do
+      it %[should raise PoolIsShuttingDownException in a thread blocked waiting for a connection] do
+        @cnx = []
 
+        until @connection_pool.available_size <= 0
+          @cnx << @connection_pool.checkout
+        end
+
+        @cnx.length.should_not be_zero
+        
+        th = Thread.new do
+          @connection_pool.checkout(true)
+        end
+
+        th.join_until { @connection_pool.count_waiters > 0 }
+        @connection_pool.count_waiters.should > 0
+
+        @connection_pool.force_close!
+
+        lambda { th.join(2) }.should raise_error(ZK::Exceptions::PoolIsShuttingDownException)
+      end
+    end
+
+    it "should allow watchers still" do
       @callback_called = false
 
       @path = '/_testWatch'

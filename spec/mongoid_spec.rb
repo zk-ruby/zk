@@ -11,7 +11,16 @@ describe ZK::Mongoid::Locking do
   end
 
   after do
-    ZK::Mongoid::Locking.zk_lock_pool.close_all!
+    th = Thread.new do
+      ZK::Mongoid::Locking.zk_lock_pool.close_all!
+    end
+
+    unless th.join(5) == th
+      logger.warn { "Forcing pool closed!" }
+      ZK::Mongoid::Locking.zk_lock_pool.force_close!
+      th.join(5).should == th
+    end
+
     ZK::Mongoid::Locking.zk_lock_pool = nil
   end
 
