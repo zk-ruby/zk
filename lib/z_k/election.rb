@@ -55,7 +55,6 @@ module ZK
 
     DEFAULT_OPTS = {
       :root_election_node => ROOT_NODE,
-      :follow => :next_node,
     }.freeze
  
     class Base
@@ -138,18 +137,6 @@ module ZK
         end
       end
 
-
-      # waits for the leader_ack path to be created
-      def wait_for_leader_ack #:nodoc:
-        queue = Queue.new
-
-        logger.debug { "wait_for_leader_ack, #{leader_ack_path} did not exist, waiting for creation" }
-        queue.pop # wait for callback
-        logger.debug { "wait_for_leader_ack, got notification, returning" }
-      ensure
-        creation_sub.unregister if creation_sub
-      end
-
       protected
         def create_root_path!
           @zk.mkdir_p(root_vote_path)
@@ -186,15 +173,10 @@ module ZK
         super(client, name, opts)
         opts = DEFAULT_OPTS.merge(opts)
 
-        @leader = nil 
-        @data   = opts[:data] || ''
-
-        unless VALID_FOLLOW_OPTIONS.include?(opts[:follow])
-          raise ArgumentError, "Invalid :follow value: #{opts[:follow].inspect}"
-        end
-
-        @follow = opts[:follow]
-        
+        @leader     = nil 
+        @data       = opts[:data] || ''
+        @vote_path  = nil
+       
         @winner_callbacks = []
         @loser_callbacks = []
 
@@ -291,16 +273,7 @@ module ZK
           on_leader_ack do
             fire_losing_callbacks!
 
-            follow_node =
-              case @follow
-              when :leader
-                # watch the ack path, that way we get notified if the master goes away
-                leader_ack_path
-              when :next_node
-                # we watch the next-lowest ballot, not the ack path, that way we only get
-                # notified if we need to become the leader
-                File.join(root_vote_path, ballots[our_idx - 1])
-              end
+            follow_node = File.join(root_vote_path, ballots[our_idx - 1])
 
             logger.info { "ZK: following #{follow_node} for changes, #{@data.inspect}" }
 
