@@ -1,17 +1,19 @@
 require File.join(File.dirname(__FILE__), %w[spec_helper])
 
 describe ZK do
+  before do
+    @cnx_str = "localhost:#{ZK_TEST_PORT}"
+    @zk = ZK.new(@cnx_str)
 
-  before(:each) do
-    @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => :default)
     @path = "/_testWatch"
     wait_until { @zk.connected? }
   end
 
-  after(:each) do
-    @zk.delete(@path) rescue ZK::Exceptions::NoNode
+  after do
     @zk.close!
     wait_until { !@zk.connected? }
+
+    ZK.open(@cnx_str) { |zk| zk.rm_rf(@path) }
   end
 
   it "should call back to path registers" do
@@ -32,23 +34,67 @@ describe ZK do
     callback_called.should be_true
   end
 
-#   it %[should allow the block to renew the watch] do
-#     @count = 0
+  it %[should only deliver an event once to each watcher registered for exists?] do
+    events = []
 
-#     @zk.watcher.register(@path) do |event|
-#       @count += 1
-#       event.renew_watch!
-#     end
+    sub = @zk.watcher.register(@path) do |ev|
+      logger.debug "got event #{ev}"
+      events << ev
+    end
 
-#     @zk.exists?(@path, :watch => true).should be_false
-#     @zk.create(@path, "", :mode => :ephemeral).should == @path
+    2.times do
+      @zk.exists?(@path, :watch => true).should_not be_true
+    end
 
-#     wait_until(2) { @count > 0 }
-#     @count.should == 1
+    @zk.create(@path, '', :mode => :ephemeral)
 
-#     @zk.delete(@path)
+    wait_until { events.length >= 2 }
+    events.length.should == 1
+  end
 
-#     wait_until(2) { @count > 1 }
-#     @count.should == 2
-#   end
+  it %[should only deliver an event once to each watcher registered for get] do
+    events = []
+
+    @zk.create(@path, 'one', :mode => :ephemeral)
+
+    sub = @zk.watcher.register(@path) do |ev|
+      logger.debug "got event #{ev}"
+      events << ev
+    end
+
+    2.times do
+      data, stat = @zk.get(@path, :watch => true)
+      data.should == 'one'
+    end
+
+    @zk.set(@path, 'two')
+
+    wait_until { events.length >= 2 }
+    events.length.should == 1
+  end
+
+
+  it %[should only deliver an event once to each watcher registered for children] do
+    events = []
+
+    @zk.create(@path, '')
+
+    sub = @zk.watcher.register(@path) do |ev|
+      logger.debug "got event #{ev}"
+      events << ev
+    end
+
+    2.times do
+      children = @zk.children(@path, :watch => true)
+      children.should be_empty
+    end
+
+    @zk.create("#{@path}/pfx", '', :mode => :ephemeral_sequential)
+
+    wait_until { events.length >= 2 }
+    events.length.should == 1
+  end
+
+
+
 end

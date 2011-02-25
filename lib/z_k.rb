@@ -6,6 +6,7 @@ require 'zookeeper'
 require 'forwardable'
 require 'thread'
 require 'monitor'
+require 'set'
 
 require 'z_k/logging'
 require 'z_k/exceptions'

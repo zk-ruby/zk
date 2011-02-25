@@ -7,10 +7,16 @@ module ZK
     include org.apache.zookeeper.Watcher if defined?(JRUBY_VERSION)
     include ZK::Logging
 
+    VALID_WATCH_TYPES = [:data, :child].freeze
 
-    # @private
-    # :nodoc:
-    attr_accessor :zk
+    ZOOKEEPER_WATCH_TYPE_MAP = {
+      Zookeeper::ZOO_CREATED_EVENT => :data,
+      Zookeeper::ZOO_DELETED_EVENT => :data,
+      Zookeeper::ZOO_CHANGED_EVENT => :data,
+      Zookeeper::ZOO_CHILD_EVENT   => :child,
+    }.freeze
+
+    attr_accessor :zk  # :nodoc:
 
     # @private
     # :nodoc:
@@ -18,8 +24,11 @@ module ZK
       @zk = zookeeper_client
       @callbacks = Hash.new { |h,k| h[k] = [] }
 
-      # allow for synchronization on shutdown
-      @callbacks.extend(MonitorMixin)
+      @mutex = Monitor.new
+
+      @outstanding_watches = VALID_WATCH_TYPES.inject({}) do |h,k|
+        h.tap { |x| x[k] = Set.new }
+      end
     end
 
     # register a path with the handler
@@ -36,7 +45,7 @@ module ZK
     def register(path, &block)
       logger.debug { "EventHandler#register path=#{path.inspect}" }
       EventHandlerSubscription.new(self, path, block).tap do |subscription|
-        @callbacks[path] << subscription
+        synchronize { @callbacks[path] << subscription }
       end
     end
     alias :subscribe :register
@@ -68,43 +77,97 @@ module ZK
         subscription = args[1]
       else
         path, index = args[0..1]
-        @callbacks[path][index] = nil
+        synchronize { @callbacks[path][index] = nil }
         return
       end
-      ary = @callbacks[subscription.path]
-      if index = ary.index(subscription)
-        ary[index] = nil
+
+      synchronize do
+        ary = @callbacks[subscription.path]
+
+        idx = ary.index(subscription) and ary.delete_at(idx)
       end
+
+      nil
     end
     alias :unsubscribe :unregister
 
     # called from the client-registered callback when an event fires
     def process(event) #:nodoc:
-      @callbacks.synchronize do
-        logger.debug { "EventHandler#process dispatching event: #{event.inspect}" } unless event.type == -1
-        event.zk = @zk
+      logger.debug { "EventHandler#process dispatching event: #{event.inspect}" } unless event.type == -1
+      event.zk = @zk
 
+      cb_key = 
         if event.node_event?
-          @callbacks[event.path].each do |callback|
-            callback.call(event) if callback.respond_to?(:call)
-          end
+          event.path
         elsif event.state_event?
-          @callbacks[state_key(event.state)].each do |callback|
-            callback.call(event) if callback.respond_to?(:call)
+          state_key(event.state)
+        else
+          raise ZKError, "don't know how to process event: #{event.inspect}"
+        end
+
+      cb_ary = synchronize do 
+        if event.node_event?
+          if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
+            logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
+            
+            # we recieved a watch event for this path, now we allow code to set new watchers
+            @outstanding_watches[watch_type].delete(event.path)
           end
         end
+
+        @callbacks[cb_key].dup
       end
+
+      cb_ary.compact!
+
+      safe_call(cb_ary, event)
     end
 
     # used during shutdown to clear registered listeners
     def clear! #:nodoc:
-      @callbacks.synchronize do
+      synchronize do
         @callbacks.clear
         nil
       end
     end
 
+    def synchronize #:nodoc:
+      @mutex.synchronize { yield }
+    end
+
+    def get_default_watcher_block
+      lambda do |hash|
+        watcher_callback.tap do |cb|
+          cb.call(hash)
+        end
+      end
+    end
+
+    # implements not only setting up the watcher callback, but deduplicating 
+    # event delivery. Keep track of how many :watch => true calls vs. how many
+    # active watchers we have by path and child/data type.
+    def setup_watcher(watch_type, opts)
+      return unless opts.delete(:watch)
+
+      synchronize do
+        set = @outstanding_watches.fetch(watch_type)
+        path = opts[:path]
+
+        if set.add?(path)
+          # this path has no outstanding watchers, let it do its thing
+          opts[:watcher] = watcher_callback 
+        else
+          # outstanding watch for path and data pair already exists, so ignore
+          logger.debug { "outstanding watch request for path #{path.inspect} and watcher type #{watch_type.inspect}, not re-registering" }
+        end
+      end
+    end
+
     protected
+      def watcher_callback
+        ZookeeperCallbacks::WatcherCallback.create { |event| process(event) }
+      end
+
       def state_key(arg)
         int = 
           case arg
@@ -119,6 +182,17 @@ module ZK
         "state_#{int}"
       rescue NameError
         raise ArgumentError, "#{arg} is not a valid zookeeper state"
+      end
+
+      def safe_call(callbacks, *args)
+        callbacks.each do |cb|
+          begin
+            cb.call(*args) if cb.respond_to?(:call)
+          rescue Exception => e
+            logger.error { "Error caught in user supplied callback" }
+            logger.error { e.to_std_format }
+          end
+        end
       end
   end
 end

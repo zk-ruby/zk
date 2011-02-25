@@ -59,7 +59,8 @@ module ZK
  
     class Base
      include Logging
-      attr_reader :zk, :vote_path, :root_election_node
+
+     attr_reader :zk, :vote_path, :root_election_node
 
       def initialize(client, name, opts={})
         @zk = client
@@ -148,6 +149,7 @@ module ZK
 
         def digit(path)
           path[/\d+$/].to_i
+
         end
 
         def safe_call(*callbacks)

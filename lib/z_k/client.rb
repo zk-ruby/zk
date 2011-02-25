@@ -37,7 +37,7 @@ module ZK
     #
     def initialize(host, opts={})
       @event_handler = EventHandler.new(self)
-      @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, get_default_watcher_block)
+      @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, @event_handler.get_default_watcher_block)
       @threadpool = Threadpool.new
     end
 
@@ -311,7 +311,7 @@ module ZK
     def get(path, opts={})
       h = { :path => path }.merge(opts)
 
-      setup_watcher(h)
+      setup_watcher(:data, h)
 
       rv = check_rc(@cnx.get(h))
 
@@ -416,7 +416,7 @@ module ZK
     def stat(path, opts={})
       h = { :path => path }.merge(opts)
 
-      setup_watcher(h)
+      setup_watcher(:data, h)
 
       rv = @cnx.stat(h)
 
@@ -559,7 +559,7 @@ module ZK
     def children(path, opts={})
       h = { :path => path }.merge(opts)
 
-      setup_watcher(h)
+      setup_watcher(:child, h)
 
       rv = check_rc(@cnx.get_children(h))
       opts[:callback] ? nil : rv[:children]
@@ -887,28 +887,16 @@ module ZK
         false
       end
 
-      def get_default_watcher_block
-        lambda do |hash|
-          watcher_callback.tap do |cb|
-            cb.call(hash)
-          end
-        end
-      end
-
-      def setup_watcher(opts)
-        opts[:watcher] = watcher_callback if opts.delete(:watch)
-      end
-
-      def watcher_callback
-        ZookeeperCallbacks::WatcherCallback.create { |event| @event_handler.process(event) }
-      end
-
       def check_rc(hash)
         hash.tap do |h|
           if code = h[:rc]
             raise Exceptions::KeeperException.by_code(code) unless code == Zookeeper::ZOK
           end
         end
+      end
+
+      def setup_watcher(watch_type, opts)
+        @event_handler.setup_watcher(watch_type, opts)
       end
   end
 end
