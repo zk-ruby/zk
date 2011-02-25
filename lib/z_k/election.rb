@@ -184,12 +184,12 @@ module ZK
       end
 
       def leader?
-        @mutex.synchronize { false|@leader }
+        false|@leader
       end
 
       # true if leader has been determined at least once (used in tests)
       def voted? #:nodoc:
-        @mutex.synchronize { !@leader.nil? }
+        !@leader.nil?
       end
       
       # When we win the election, we will call the procs registered using this
