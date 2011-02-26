@@ -84,18 +84,22 @@ describe ZK::Election do
           @obama_won = @obama_lost = @palin_won = @palin_lost = nil
 
           @obama.on_winning_election do 
+            logger.debug { "obama on_winning_election fired" }
             @obama_won = true
           end
 
           @obama.on_losing_election do
+            logger.debug { "obama on_losing_election fired" }
             @obama_lost = true
           end
 
           @palin.on_winning_election do
+            logger.debug { "palin on_winning_election fired" }
             @palin_won = true
           end
 
           @palin.on_losing_election do
+            logger.debug { "palin on_losing_election fired" }
             @palin_lost = true
           end
           
@@ -142,16 +146,20 @@ describe ZK::Election do
           end
 
           it %[should take over as leader when the current leader goes away] do
-            @zk.close!
+            @obama.zk.close!
             wait_until { @palin_won }
 
             @palin_won.should be_true # god forbid
+
+            wait_until { @zk2.exists?(@palin.leader_ack_path) }
+
             @zk2.exists?(@palin.leader_ack_path).should be_true
+
             @zk2.get(@palin.leader_ack_path).first.should == @data2
           end
 
           it %[should remain leader if the original leader comes back] do
-            @zk.close!
+            @obama.zk.close!
             wait_until { @palin_won }
 
             zk = ZK.new('localhost:2181')
@@ -271,7 +279,7 @@ describe ZK::Election do
 
           @observer.leader_alive.should be_true
           @zk.close!
-          wait_until { !@zk.connected? && @palin.leader? }
+          wait_until { !@zk.connected? && @palin.leader? && @palin.leader_acked? }
         end
 
         it %[should be palin who is leader] do

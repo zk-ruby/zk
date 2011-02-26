@@ -102,13 +102,13 @@ module ZK
       locks = []
       children.each do |path|
         lock = @zk.locker("#{full_queue_path}/#{path}")
-        lock.lock!
+        lock.lock!    # XXX(slyphon): should this be a blocking lock?
         locks << lock
       end
       children.each do |path|
-        @zk.delete("#{full_queue_path}/#{path}")
+        @zk.delete("#{full_queue_path}/#{path}") rescue ZK::Exceptions::NoNode
       end
-      @zk.delete(full_queue_path)
+      @zk.delete(full_queue_path) rescue ZK::Exceptions::NoNode
       locks.each do |lock|
         lock.unlock!
       end

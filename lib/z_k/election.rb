@@ -105,7 +105,8 @@ module ZK
       # role. The given block will *always* be called on a background thread. 
       def on_leader_ack(&block)
         creation_sub = @zk.watcher.register(leader_ack_path) do |event|
-          if event.node_created?
+          case event.type
+          when Zookeeper::ZOO_CREATED_EVENT, Zookeeper::ZOO_CHANGED_EVENT
             begin
               logger.debug { "in #{leader_ack_path} watcher, got creation event, notifying" }
               block.call
@@ -182,7 +183,7 @@ module ZK
         @winner_callbacks = []
         @loser_callbacks = []
 
-        @current_leader_watch_sub = nil # the subscription for leader acknowledgement changes
+        @next_node_ballot_sub = nil # the subscription for next-node failure
       end
 
       def leader?
@@ -221,6 +222,7 @@ module ZK
       # +data+ will be placed in the znode representing our vote
       def vote!
         @mutex.synchronize do
+          clear_next_node_ballot_sub!
           cast_ballot!(@data) unless @vote_path
           check_election_results!
         end
@@ -260,12 +262,6 @@ module ZK
         def handle_winning_election
           @leader = true  
           fire_winning_callbacks!
-
-          if @current_leader_watch_sub
-            @current_leader_watch_sub.unsubscribe 
-            @current_leader_watch_sub = nil
-          end
-
           acknowledge_win!
         end
 
@@ -275,20 +271,20 @@ module ZK
           on_leader_ack do
             fire_losing_callbacks!
 
-            follow_node = File.join(root_vote_path, ballots[our_idx - 1])
+            next_ballot = File.join(root_vote_path, ballots[our_idx - 1])
 
-            logger.info { "ZK: following #{follow_node} for changes, #{@data.inspect}" }
+            logger.info { "ZK: following #{next_ballot} for changes, #{@data.inspect}" }
 
-            @current_leader_watch_sub ||= @zk.watcher.register(follow_node) do |event| 
+            @next_node_ballot_sub ||= @zk.watcher.register(next_ballot) do |event| 
               if event.node_deleted? 
-                logger.debug { "#{follow_node} was deleted, voting, #{@data.inspect}" }
+                logger.debug { "#{next_ballot} was deleted, voting, #{@data.inspect}" }
                 vote! 
               else
                 # this takes care of the race condition where the leader ballot would
                 # have been deleted before we could re-register to receive updates
                 # if zk.stat returns false, it means the path was deleted
-                unless @zk.stat(event.path, :watch => true).exists?
-                  logger.debug { "#{follow_node} was deleted (detected on re-watch), voting, #{@data.inspect}" }
+                unless @zk.exists?(next_ballot, :watch => true)
+                  logger.debug { "#{next_ballot} was deleted (detected on re-watch), voting, #{@data.inspect}" }
                   vote! 
                 end
               end
@@ -296,10 +292,17 @@ module ZK
 
             # this catches a possible race condition, where the leader has died before
             # our callback has fired. In this case, retry and do this procedure again
-            unless @zk.stat(follow_node, :watch => true).exists?
-              logger.debug { "the node #{follow_node} did not exist, retrying, #{@data.inspect}" }
-              check_election_results!
+            unless @zk.stat(next_ballot, :watch => true).exists?
+              logger.debug { "#{@data.inspect}: the node #{next_ballot} did not exist, retrying" }
+              vote!
             end
+          end
+        end
+
+        def clear_next_node_ballot_sub!
+          if @next_node_ballot_sub
+            @next_node_ballot_sub.unsubscribe 
+            @next_node_ballot_sub = nil
           end
         end
 
@@ -343,17 +346,28 @@ module ZK
           return if @observing 
           @observing = true
 
-          @deletion_sub ||= @zk.watcher.register(leader_ack_path) do |event|
-            the_king_is_dead if event.node_deleted?
+          @leader_ack_sub ||= @zk.watcher.register(leader_ack_path) do |event|
+            if event.node_deleted?
+              the_king_is_dead 
+            elsif event.node_created?
+              long_live_the_king
+            else
+              acked = leader_acked?(true) 
+
+              # If the current state of the system is not what we think it should be
+              # a transition has occurred and we should fire our callbacks
+              if (acked and !@leader_alive)
+                long_live_the_king 
+              elsif (!acked and @leader_alive)
+                the_king_is_dead
+              else
+                # things are how we think they should be, so just wait for the
+                # watch to fire
+              end
+            end
           end
 
-          the_king_is_dead unless leader_acked?(true)
-
-          @creation_sub ||= @zk.watcher.register(leader_ack_path) do |event|
-            long_live_the_king if event.node_created?
-          end
-
-          long_live_the_king if leader_acked?(true)
+          leader_acked?(true) ? long_live_the_king : the_king_is_dead
         end
       end
 

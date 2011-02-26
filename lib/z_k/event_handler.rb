@@ -144,9 +144,11 @@ module ZK
     end
 
     # implements not only setting up the watcher callback, but deduplicating 
-    # event delivery. Keep track of how many :watch => true calls vs. how many
-    # active watchers we have by path and child/data type.
-    def setup_watcher(watch_type, opts)
+    # event delivery. Keeps track of in-flight watcher-type+path requests and
+    # doesn't re-register the watcher with the server until a response has been
+    # fired. This prevents one event delivery to *every* callback per :watch => true
+    # argument.
+    def setup_watcher!(watch_type, opts)
       return unless opts.delete(:watch)
 
       synchronize do

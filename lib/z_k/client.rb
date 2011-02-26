@@ -311,7 +311,7 @@ module ZK
     def get(path, opts={})
       h = { :path => path }.merge(opts)
 
-      setup_watcher(:data, h)
+      setup_watcher!(:data, h)
 
       rv = check_rc(@cnx.get(h))
 
@@ -416,7 +416,7 @@ module ZK
     def stat(path, opts={})
       h = { :path => path }.merge(opts)
 
-      setup_watcher(:data, h)
+      setup_watcher!(:data, h)
 
       rv = @cnx.stat(h)
 
@@ -559,7 +559,7 @@ module ZK
     def children(path, opts={})
       h = { :path => path }.merge(opts)
 
-      setup_watcher(:child, h)
+      setup_watcher!(:child, h)
 
       rv = check_rc(@cnx.get_children(h))
       opts[:callback] ? nil : rv[:children]
@@ -834,13 +834,6 @@ module ZK
       end
     end
 
-    #:stopdoc:
-    # the state of the underlying connection
-#     def state #:nodoc:
-#       @cnx.state
-#     end
-    #:startdoc:
-
     # Register a block to be called on connection, when the client has
     # connected. The block will *always* be called asynchronously (on a
     # background thread).
@@ -895,8 +888,8 @@ module ZK
         end
       end
 
-      def setup_watcher(watch_type, opts)
-        @event_handler.setup_watcher(watch_type, opts)
+      def setup_watcher!(watch_type, opts)
+        @event_handler.setup_watcher!(watch_type, opts)
       end
   end
 end
