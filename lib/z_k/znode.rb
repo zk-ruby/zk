@@ -20,8 +20,9 @@ module ZK
       # the path of this znode
       attr_reader :path
 
-      # the data containted at this node
-      attr_accessor :data
+      # the raw data as a string (possibly containing binary data) containted
+      # at this node
+      attr_accessor :raw_data
 
       # what mode should this znode be created as? 
       # should be :persistent or :ephemeral
@@ -32,6 +33,15 @@ module ZK
       # the current stat object for the Znode at +path+
       # will be +nil+ if this node is new 
       attr_reader :stat
+
+      # create a new Znode object and immediately attempt to persist it. 
+      #
+      def self.create(zk, path, opts={})
+        node = new(zk, path)
+        node.mode = opts.delete(:mode) || :persistent
+        node.save
+        node
+      end
 
       def initialize(zk, path)
         @zk = zk
@@ -55,8 +65,8 @@ module ZK
       end
 
       def reload(watch=false)
+        @raw_data, @stat = zk.get(path, :watch => watch)
         @new_record = false
-        @data, @stat = zk.get(path, :watch => watch)
         self
       end
 
@@ -67,7 +77,27 @@ module ZK
       end
 
       def exists?(watch=false)
-        zk.exists?(path, opts, :watch => watch)
+        zk.exists?(path, :watch => watch)
+      end
+
+      # returns the children of this node as Znode instances
+      #
+      # ==== Arguments
+      # * <tt>:eager</tt>: eagerly load children, defaults to false. If true
+      #   each child will have its +reload+ method called, otherwise only the 
+      #   children will only have thier paths set.
+      # * <tt>:watch</tt>: enables the watch for children of this node. 
+      #
+      def children(opts={})
+        eager = opts.delete(:eager)
+
+        ary = zk.children(path, opts)
+
+        ary.map do |base| 
+          chld = self.class.new(zk, File.join(path, base))
+          chld.reload if eager
+          chld
+        end
       end
 
       # Saves this node at path. If the path already exists, will throw a 
@@ -108,8 +138,15 @@ module ZK
 
       # register a block to be called with a WatcherCallback event. a
       # convenience around registering an event handler. returns EventHandlerSubscription
-      def on_change(&block)
+      def register(&block)
         zk.register(path, &block)
+      end
+
+      # obtains an exclusive lock based on the path for this znode and yields to the block
+      #
+      # see ZK::Client#with_lock for valid options
+      def with_lock(opts={})
+        zk.with_lock(path, opts) { yield }
       end
 
       protected
@@ -118,11 +155,12 @@ module ZK
         end
 
         def create
-          zk.create(path, data, :mode => mode)
+          # we set path here in case we're creating a sequential node
+          @path = zk.create(path, raw_data, :mode => mode)
         end
 
         def update
-          zk.set(path, data, :version => stat.version)
+          @stat = zk.set(path, raw_data, :version => stat.version)
         end
     end
   end
