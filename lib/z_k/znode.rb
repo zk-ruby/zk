@@ -11,11 +11,15 @@ module ZK
   # been changed behind your back
   #
   module Znode
+
+    # When a node is loaded, we apply a simple heuristic to determine if it's a
+    # sequential node (as there's no way of knowing except based on the name) so if the 
+    # basename of the node matches <tt>/\d{10}\Z/</tt>, we set sequential? to
+    # true. ephemeral? is based off of the stat object.
+    #
     class Base
       VALID_MODES = [:ephemeral, :persistent, :persistent_sequential, :ephemeral_sequential].freeze
-
-      # this node's ZK::Client or ZK::Pool instance
-      attr_reader :zk
+      EPHEMERAL_MODES = [:ephemeral, :ephemeral_sequential].freeze
 
       # the path of this znode
       attr_reader :path
@@ -32,12 +36,23 @@ module ZK
 
       # the current stat object for the Znode at +path+
       # will be +nil+ if this node is new 
-      attr_reader :stat
+      attr_reader :stat #:nodoc:
+      
+
+      # Should be set to a ZK::Pool instance. this will be used by all instances of Base
+      # to talk to zookeeper
+      def self.zk_pool
+        @zk_pool
+      end
+
+      def self.zk_pool=(zkp)
+        @zk_pool = zkp
+      end
 
       # create a new Znode object and immediately attempt to persist it. 
       #
-      def self.create(zk, path, opts={})
-        new(zk, path).tap do |node|
+      def self.create(path, raw_data='', opts={})
+        new(path).tap do |node|
           node.raw_data = opts[:raw_data] || ''
           node.mode     = opts.delete(:mode) || :persistent
           node.save
@@ -45,17 +60,18 @@ module ZK
       end
 
       # instantiates a Znode at path and calls #reload on it to load the data and current stat
-      def self.load(zk, path)
-        new(zk, path).reload
+      def self.load(path)
+        new(path).reload
       end
 
-      def initialize(zk, path)
-        @zk = zk
-        @path = path
-        @stat = @data = nil
+      def initialize(path)
+        @path       = path
         @new_record = true
-        @destroyed = false
-        @mode = :persistent
+        @destroyed  = false
+        @mode       = :persistent
+        @stat = @data = nil
+
+        @ephemeral = @sequential = false
       end
 
       def new_record?
@@ -70,9 +86,23 @@ module ZK
         !(new_record? || destroyed?)
       end
 
+      def ephemeral?
+        EPHEMERAL_MODES.include?(@mode)
+      end
+
       def reload(watch=false)
         @raw_data, @stat = zk.get(path, :watch => watch)
         @new_record = false
+
+        # only set mode if it was not set by user, as we're guessing a bit at
+        # the 'sequential' aspect
+        @mode ||= 
+          if @stat.ephemeral_owner
+            sequential_path? ? :ephemeral_sequential : :ephemeral
+          else
+            sequential_path? ? :persistent_sequential : :persistent
+          end
+
         self
       end
 
@@ -97,9 +127,7 @@ module ZK
       def children(opts={})
         eager = opts.delete(:eager)
 
-        ary = zk.children(path, opts)
-
-        ary.map do |base| 
+        zk.children(path, opts).map do |base| 
           chld = self.class.new(zk, File.join(path, base))
           chld.reload if eager
           chld
@@ -129,6 +157,8 @@ module ZK
 
       # creation mode for this object
       def mode=(v)
+        raise ArgumentError, "#{v.inspect} is not a valid mode" unless VALID_MODES.include?(v) 
+
         @mode = v.to_sym
       end
 
@@ -143,7 +173,7 @@ module ZK
         if @parent
           @parent.reload if reload
         else
-          @parent = self.class.load(zk, path)
+          @parent = self.class.load(dirname)
         end
       end
 
@@ -174,7 +204,16 @@ module ZK
         "#<#{self.class}:#{self.object_id} @path=#{path.inspect} ...>"
       end
 
+      def version #:nodoc:
+        (@stat and @stat.version) or 0
+      end
+
+
       protected
+        def sequential_path?
+          false|(basename =~ /\d{10}\Z/)
+        end
+
         def create_or_update
           new_record? ? create : update
         end
@@ -185,7 +224,11 @@ module ZK
         end
 
         def update
-          @stat = zk.set(path, raw_data, :version => stat.version)
+          @stat = zk.set(path, raw_data, :version => version)
+        end
+        
+        def zk
+          self.class.zk_pool
         end
     end
   end
