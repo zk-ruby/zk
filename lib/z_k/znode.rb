@@ -91,7 +91,7 @@ module ZK
       end
 
       def reload(watch=false)
-        @raw_data, @stat = zk.get(path, :watch => watch)
+        self.raw_data, @stat = zk.get(path, :watch => watch)
         @new_record = false
 
         # only set mode if it was not set by user, as we're guessing a bit at
