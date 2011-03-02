@@ -37,10 +37,16 @@ module ZK
       # create a new Znode object and immediately attempt to persist it. 
       #
       def self.create(zk, path, opts={})
-        node = new(zk, path)
-        node.mode = opts.delete(:mode) || :persistent
-        node.save
-        node
+        new(zk, path).tap do |node|
+          node.raw_data = opts[:raw_data] || ''
+          node.mode     = opts.delete(:mode) || :persistent
+          node.save
+        end
+      end
+
+      # instantiates a Znode at path and calls #reload on it to load the data and current stat
+      def self.load(zk, path)
+        new(zk, path).reload
       end
 
       def initialize(zk, path)
@@ -126,6 +132,21 @@ module ZK
         @mode = v.to_sym
       end
 
+      # the parent of this node, returns nil if path is '/'
+      #
+      # ==== Arguments
+      # * +reload+: if true, reloads the parent object
+      #
+      def parent(reload=false)
+        return nil if path == '/'
+
+        if @parent
+          @parent.reload if reload
+        else
+          @parent = self.class.load(zk, path)
+        end
+      end
+
       # the path-leading-up-to-this-node
       def dirname
         @dirname ||= File.dirname(path)
@@ -147,6 +168,10 @@ module ZK
       # see ZK::Client#with_lock for valid options
       def with_lock(opts={})
         zk.with_lock(path, opts) { yield }
+      end
+
+      def inspect
+        "#<#{self.class}:#{self.object_id} @path=#{path.inspect} ...>"
       end
 
       protected
