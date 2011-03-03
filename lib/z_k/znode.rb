@@ -53,9 +53,17 @@ module ZK
       #
       def self.create(path, raw_data='', opts={})
         new(path).tap do |node|
-          node.raw_data = opts[:raw_data] || ''
-          node.mode     = opts.delete(:mode) || :persistent
+          raw_data = opts[:raw_data] and node.raw_data = raw_data
+
+          node.mode = opts.delete(:mode) || :persistent
           node.save
+        end
+      end
+
+      # throws a ZnodeNotSaved exception if the created node was not saved
+      def self.create!(path, raw_data='', opts={})
+        create(path, raw_data, opts).tap do |node|
+          raise ZnodeNotSaved if node.new_record?
         end
       end
 
