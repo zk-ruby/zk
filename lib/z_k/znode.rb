@@ -134,25 +134,23 @@ module ZK
         end
       end
 
-      # Saves this node at path. If the path already exists, will throw a 
-      # ZK::Exceptions::NodeExists error
+      # Saves this node at path
       #
-      # If this is not a new_record? and there is a version mismatch, this
-      # method will throw a ZK::Exception::BadVersion error.
+      # Raises ZnodeNotSaved if the save failed
       #
       def save!
-        zk.mkdir_p(dirname)
-        create_or_update
-        @new_record = false
-        nil
+        save or raise ZK::Exceptions::ZnodeNotSaved
       end
 
       # like save! but won't throw ZK::Exceptions::NodeExists, but instead will
       # return false
       def save
-        save!
-      rescue ZK::Exceptions::NodeExists
+        create_or_update
+        true
+      rescue ZK::Exceptions::NodeExists, ZK::Exceptions::NoNode
         false
+      rescue ZK::Exceptions::BadVersion => e
+        raise ZK::Exceptions::StaleObjectError, e.message, caller
       end
 
       # creation mode for this object
@@ -215,7 +213,9 @@ module ZK
         end
 
         def create_or_update
+          zk.mkdir_p(dirname)
           new_record? ? create : update
+          @new_record = false
         end
 
         def create
