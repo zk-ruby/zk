@@ -51,18 +51,15 @@ module ZK
 
       # create a new Znode object and immediately attempt to persist it. 
       #
-      def self.create(path, raw_data='', opts={})
-        new(path).tap do |node|
-          raw_data = opts[:raw_data] and node.raw_data = raw_data
-
-          node.mode = opts.delete(:mode) || :persistent
+      def self.create(path, opts={})
+        new(path, opts).tap do |node|
           node.save
         end
       end
 
       # throws a ZnodeNotSaved exception if the created node was not saved
-      def self.create!(path, raw_data='', opts={})
-        create(path, raw_data, opts).tap do |node|
+      def self.create!(path, opts={})
+        create(path, opts).tap do |node|
           raise ZnodeNotSaved if node.new_record?
         end
       end
@@ -72,14 +69,16 @@ module ZK
         new(path).reload
       end
 
-      def initialize(path)
+      def initialize(path, opts={})
+        @stat = @raw_data = nil
+
         @path       = path
         @new_record = true
         @destroyed  = false
-        @mode       = :persistent
-        @stat = @data = nil
 
-        @ephemeral = @sequential = false
+        self.mode   = opts[:mode] || :persistent
+
+        d = opts[:raw_data] and self.raw_data = d
       end
 
       def new_record?
@@ -155,7 +154,8 @@ module ZK
       def save
         create_or_update
         true
-      rescue ZK::Exceptions::NodeExists, ZK::Exceptions::NoNode
+      rescue ZK::Exceptions::NodeExists, ZK::Exceptions::NoNode => e
+        logger.debug { e.to_std_format }
         false
       rescue ZK::Exceptions::BadVersion => e
         raise ZK::Exceptions::StaleObjectError, e.message, caller

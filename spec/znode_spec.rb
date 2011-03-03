@@ -164,7 +164,7 @@ describe ZK::Znode do
       describe 'create' do
         describe %[when path doesn't exist] do
           before do
-            @znode = ZK::Znode::Base.create(@path, '', :mode => :ephemeral)
+            @znode = ZK::Znode::Base.create(@path, :raw_data => '', :mode => :ephemeral)
           end
 
           it %[should be at version 0] do
