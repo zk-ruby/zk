@@ -51,22 +51,22 @@ module ZK
 
       # create a new Znode object and immediately attempt to persist it. 
       #
-      def self.create(path, opts={})
-        new(path, opts).tap do |node|
+      def self.create(*args, &block)
+        new(*args, &block).tap do |node|
           node.save
         end
       end
 
       # throws a ZnodeNotSaved exception if the created node was not saved
-      def self.create!(path, opts={})
-        create(path, opts).tap do |node|
+      def self.create!(*args, &block)
+        create(*args, &block).tap do |node|
           raise ZnodeNotSaved if node.new_record?
         end
       end
 
       # instantiates a Znode at path and calls #reload on it to load the data and current stat
-      def self.load(path)
-        new(path).reload
+      def self.load(*args)
+        new(*args).reload
       end
 
       def initialize(path, opts={})
