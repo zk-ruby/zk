@@ -30,11 +30,10 @@ module ZK
     # register a path with the handler
     # your block will be called with all events on that path.
     #
-    #
     # aliased as #subscribe
     #
     # opts:
-    # * <tt>:types</tt>: either a Symbol or Array of Symbols indicating what
+    # * <tt>:events</tt>: either a Symbol or Array of Symbols indicating what
     #   type of event this callback should handle. If not given, the block
     #   will be called for all events. The valid types are: 
     #   <tt>[:created, :deleted, :changed, :child, :all]</tt>. :all is the
@@ -120,7 +119,9 @@ module ZK
           end
         end
 
-        @callbacks[cb_key].fetch(event_action) { @callbacks[cb_key][:all] }.dup
+        h = @callbacks[cb_key]
+
+        h.fetch(event_action, h[:all]).dup
       end
 
       cb_ary.compact!
@@ -176,7 +177,7 @@ module ZK
       end
 
       def extract_watch_types(opts)
-        types = Array(opts[:types] || :all).map { |n| n.to_sym }
+        types = Array(opts[:events] || :all).map { |n| n.to_sym }
 
         invalid_args = (types - VALID_REGISTER_TYPES)
         raise ArgumentError, "Invalid register :type arguments: #{invalid_args.inspect}" unless invalid_args.empty?
