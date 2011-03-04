@@ -57,10 +57,22 @@ module ZK
         end
       end
 
+      def self.load_or_create(*args, &block)
+        self.load(*args, &block)
+      rescue ZK::Exception::NoNode
+        self.create(*args, &block)
+      end
+
+      def self.load_or_create!(*args, &block)
+        self.load(*args, &block)
+      rescue ZK::Exception::NoNode
+        self.create!(*args, &block)
+      end
+
       # throws a ZnodeNotSaved exception if the created node was not saved
       def self.create!(*args, &block)
         create(*args, &block).tap do |node|
-          raise ZnodeNotSaved if node.new_record?
+          raise ZK::Exceptions::ZnodeNotSaved if node.new_record?
         end
       end
 
