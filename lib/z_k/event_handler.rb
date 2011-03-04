@@ -37,7 +37,9 @@ module ZK
     #   type of event this callback should handle. If not given, the block
     #   will be called for all events. The valid types are: 
     #   <tt>[:created, :deleted, :changed, :child, :all]</tt>. :all is the
-    #   default
+    #   default. The present tense variants <tt>[:create, :delete, :change]</tt> may
+    #   also be used, as can <tt>:children</tt>
+    #
     #
     # @param [String] path the path you want to listen to
     # @param [Block] block the block to execute when a watch event happpens
@@ -176,8 +178,19 @@ module ZK
         ZookeeperCallbacks::WatcherCallback.create { |event| process(event) }
       end
 
+      unless defined?(EVENT_NAME_ALIASES)
+        EVENT_NAME_ALIASES = Hash.new { |h,k| k }
+
+        EVENT_NAME_ALIASES.merge!({
+          :create   => :created,
+          :delete   => :deleted,
+          :children => :child,
+          :change   => :changed,
+        })
+      end
+
       def extract_watch_types(opts)
-        types = Array(opts[:events] || :all).map { |n| n.to_sym }
+        types = Array(opts[:events] || :all).map { |n| EVENT_NAME_ALIASES[n] }  # convert aliases to real event names
 
         invalid_args = (types - VALID_REGISTER_TYPES)
         raise ArgumentError, "Invalid register :type arguments: #{invalid_args.inspect}" unless invalid_args.empty?

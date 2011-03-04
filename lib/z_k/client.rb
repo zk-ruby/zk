@@ -871,6 +871,12 @@ module ZK
       end
     end
 
+    # registers a znode watcher on +path+ for events listed. see EventHandler#register
+    # for details on what +events+ can be
+    def on(path, *events, &block)
+      watcher.register(path, :events => events, &block)
+    end
+
     protected
       def wrap_state_closed_error
         yield

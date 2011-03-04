@@ -95,6 +95,45 @@ describe ZK do
     events.length.should == 1
   end
 
+  describe :event_types do
+    lambda do
+      @events, @subs = Hash.new {|h,k| h[k] = []}, []
 
+      @event_names = [:create, :delete, :change, :children]
 
+      @event_names.each do |ev_name|
+        @zk.on(@path, ev_name) do |ev|
+          @events[ev_name] << ev
+        end
+      end
+
+      @zk.exists?(@path, :watch => true)
+
+      @zk.create(@path, '', :mode => :persistent)
+      @zk.create("#{@path}/child", '', :mode => :ephemeral)
+      @zk.set(@path, 'changed')
+      @zk.rm_rf(@path)
+
+      wait_until!(5) do
+        @event_names.all? { |ev_name| !@events[ev_name].empty? }
+      end
+    end
+
+    
+    describe :deleted do
+      before do
+        @event = nil
+
+        @zk.create(@path, '', :mode => :ephemeral)
+
+        @zk.on(@path, :deleted) do |ev|
+          @event = ev
+        end
+
+        @zk.exists?(@path, :watch => true).should be_true
+      end
+    end
+   
+
+  end
 end

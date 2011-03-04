@@ -51,6 +51,12 @@ def wait_until(timeout=2)
   end
 end
 
+# like wait_until, but asserts that the block should be true by the time the timeout runs out
+def wait_until!(timeout=2, &block)
+  wait_until(timeout, &block)
+  block.call.should be_true
+end
+
 class ::Thread
   # join with thread until given block is true, the thread joins successfully, 
   # or timeout seconds have passed

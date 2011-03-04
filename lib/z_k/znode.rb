@@ -195,8 +195,8 @@ module ZK
 
       # register a block to be called with a WatcherCallback event. a
       # convenience around registering an event handler. returns EventHandlerSubscription
-      def register(&block)
-        zk.register(path, &block)
+      def register(opts={}, &block)
+        zk.register(path, opts, &block)
       end
 
       # obtains an exclusive lock based on the path for this znode and yields to the block
@@ -215,34 +215,27 @@ module ZK
       end
 
       # register a block to be called when a ZOO_CHANGED_EVENT is fired
-      def on_changed
-        register do |event|
-          yield event if event.node_changed?
-        end
+      def on_changed(&block)
+        register(:events => :changed, &block)
       end
 
       # register a block to be called if the children of this node change
-      def on_child
-        register do |event|
-          yield event if event.node_child?
-        end
+      def on_child(&block)
+        register(:events => :child, &block)
       end
 
       # register a block to be called if this node is deleted
-      def on_deleted
-        register do |event|
-          yield event if event.node_deleted?
-        end
+      def on_deleted(&block)
+        register(:events => :deleted, &block)
       end
 
       # register a block to be called if this node is created
-      def on_created
-        register do |event|
-          yield event if event.node_created?
-        end
+      def on_created(&block)
+        register(:events => :created, &block)
       end
 
-
+      #--
+      # on dancer! on prancer! etc. etc.
 
       protected
         def sequential_path?
