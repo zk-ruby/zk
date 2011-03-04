@@ -3,12 +3,10 @@ module ZK
   # to events.
   # @see ZooKeeperEventHandler#subscribe
   class EventHandlerSubscription
-    attr_accessor :event_handler, :path, :callback
-
-    # @private
-    # :nodoc:
-    def initialize(event_handler, path, callback)
-      @event_handler, @path, @callback = event_handler, path, callback
+    attr_accessor :event_handler, :path, :callback, :types
+    
+    def initialize(event_handler, path, callback, types) # :nodoc:
+      @event_handler, @path, @callback, @types = event_handler, path, callback, types
     end
 
     # unsubscribe from the path or state you were watching
