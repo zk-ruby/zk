@@ -65,7 +65,7 @@ module ZK
 
       def self.load_or_create!(*args, &block)
         self.load(*args, &block)
-      rescue ZK::Exception::NoNode
+      rescue ZK::Exceptions::NoNode
         self.create!(*args, &block)
       end
 
