@@ -7,45 +7,59 @@ module ZK
     include org.apache.zookeeper.Watcher if defined?(JRUBY_VERSION)
     include ZK::Logging
 
-    VALID_WATCH_TYPES = [:data, :child].freeze
+    #:stopdoc:
 
-    ZOOKEEPER_WATCH_TYPE_MAP = {
-      Zookeeper::ZOO_CREATED_EVENT => :data,
-      Zookeeper::ZOO_DELETED_EVENT => :data,
-      Zookeeper::ZOO_CHANGED_EVENT => :data,
-      Zookeeper::ZOO_CHILD_EVENT   => :child,
-    }.freeze
+    OUTSTANDING_WATCH_TYPES = [:data, :child].freeze
+    VALID_REGISTER_TYPES = (WATCH_SYM_TO_INT.keys + [:all]).freeze
 
-    attr_accessor :zk  # :nodoc:
+    attr_accessor :zk
 
-    # @private
-    # :nodoc:
-    def initialize(zookeeper_client)
+    #:startdoc:
+
+    def initialize(zookeeper_client) #:nodoc:
       @zk = zookeeper_client
-      @callbacks = Hash.new { |h,k| h[k] = [] }
+      @callbacks = Hash.new { |h,path| h[path] = Hash.new { |m,typ| m[typ] = [] } }
 
       @mutex = Monitor.new
 
-      @outstanding_watches = VALID_WATCH_TYPES.inject({}) do |h,k|
+      @outstanding_watches = OUTSTANDING_WATCH_TYPES.inject({}) do |h,k|
         h.tap { |x| x[k] = Set.new }
       end
     end
 
     # register a path with the handler
     # your block will be called with all events on that path.
+    #
+    #
     # aliased as #subscribe
+    #
+    # opts:
+    # * <tt>:types</tt>: either a Symbol or Array of Symbols indicating what
+    #   type of event this callback should handle. If not given, the block
+    #   will be called for all events. The valid types are: 
+    #   <tt>[:created, :deleted, :changed, :child, :all]</tt>. :all is the
+    #   default
+    #
     # @param [String] path the path you want to listen to
     # @param [Block] block the block to execute when a watch event happpens
+    #
     # @yield [connection, event] We will call your block with the connection the
     #   watch event occured on and the event object
+    #
     # @return [ZooKeeper::EventHandlerSubscription] the subscription object
     #   you can use to to unsubscribe from an event
-    # @see ZooKeeper::WatcherEvent
-    # @see ZooKeeper::EventHandlerSubscription
-    def register(path, &block)
-      logger.debug { "EventHandler#register path=#{path.inspect}" }
-      EventHandlerSubscription.new(self, path, block).tap do |subscription|
-        synchronize { @callbacks[path] << subscription }
+    #
+    def register(path, opts={}, &block)
+      types = extract_watch_types(opts)
+
+      logger.debug { "EventHandler#register path=#{path.inspect} types=#{types.inspect}" }
+
+      EventHandlerSubscription.new(self, path, block, types).tap do |subscription|
+        synchronize do 
+          types.each do |t|
+            @callbacks[path][t] << subscription
+          end
+        end
       end
     end
     alias :subscribe :register
@@ -55,7 +69,7 @@ module ZK
     # @param [Block] block the block to execute on state changes
     # @yield [connection, event] yields your block with
     def register_state_handler(state, &block)
-      register(state_key(state), &block)
+      register(state_key(state), :types => :session, &block)
     end
 
     # @deprecated use #unsubscribe on the subscription object
@@ -68,23 +82,11 @@ module ZK
       end
     end
 
-    # @deprecated use #unsubscribe on the subscription object
-    # @see ZooKeeper::EventHandlerSubscription#unsubscribe
-    def unregister(*args)
-      if args.first.is_a?(EventHandlerSubscription)
-        subscription = args.first
-      elsif args.first.is_a?(String) and args[1].is_a?(EventHandlerSubscription)
-        subscription = args[1]
-      else
-        path, index = args[0..1]
-        synchronize { @callbacks[path][index] = nil }
-        return
-      end
-
+    def unregister(subscription) #:nodoc:
       synchronize do
-        ary = @callbacks[subscription.path]
-
-        idx = ary.index(subscription) and ary.delete_at(idx)
+        subscription.types.each do |type|
+          @callbacks[subscription.path][type].delete(subscription)
+        end
       end
 
       nil
@@ -105,9 +107,12 @@ module ZK
           raise ZKError, "don't know how to process event: #{event.inspect}"
         end
 
+      event_action = WATCH_INT_TO_SYM[event.type]
+
       cb_ary = synchronize do 
         if event.node_event?
-          if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
+          if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type] # this is :child or :data
+
             logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
             
             # we recieved a watch event for this path, now we allow code to set new watchers
@@ -115,7 +120,7 @@ module ZK
           end
         end
 
-        @callbacks[cb_key].dup
+        @callbacks[cb_key].fetch(event_action) { @callbacks[cb_key][:all] }.dup
       end
 
       cb_ary.compact!
@@ -168,6 +173,15 @@ module ZK
     protected
       def watcher_callback
         ZookeeperCallbacks::WatcherCallback.create { |event| process(event) }
+      end
+
+      def extract_watch_types(opts)
+        types = Array(opts[:types] || :all).map { |n| n.to_sym }
+
+        invalid_args = (types - VALID_REGISTER_TYPES)
+        raise ArgumentError, "Invalid register :type arguments: #{invalid_args.inspect}" unless invalid_args.empty?
+
+        types
       end
 
       def state_key(arg)

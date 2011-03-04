@@ -27,7 +27,7 @@ describe ZK do
       event.path.should == @path
     end
 
-    @zk.exists?(@path, :watch => true)
+    @zk.exists?(@path, :watch => true).should be_false
     @zk.create(@path, "", :mode => :ephemeral)
 
     wait_until(5) { locker.synchronize { callback_called } }

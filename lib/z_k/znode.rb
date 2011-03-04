@@ -214,6 +214,35 @@ module ZK
         (@stat and @stat.version) or 0
       end
 
+      # register a block to be called when a ZOO_CHANGED_EVENT is fired
+      def on_changed
+        register do |event|
+          yield event if event.node_changed?
+        end
+      end
+
+      # register a block to be called if the children of this node change
+      def on_child
+        register do |event|
+          yield event if event.node_child?
+        end
+      end
+
+      # register a block to be called if this node is deleted
+      def on_deleted
+        register do |event|
+          yield event if event.node_deleted?
+        end
+      end
+
+      # register a block to be called if this node is created
+      def on_created
+        register do |event|
+          yield event if event.node_created?
+        end
+      end
+
+
 
       protected
         def sequential_path?
