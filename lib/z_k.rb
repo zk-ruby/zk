@@ -8,30 +8,6 @@ require 'thread'
 require 'monitor'
 require 'set'
 
-module ZK
-  ZK_ROOT = File.expand_path('../..', __FILE__)
-
-  KILL_TOKEN = :__kill_token__ #:nodoc:
-
-  ZOOKEEPER_WATCH_TYPE_MAP = {
-    Zookeeper::ZOO_CREATED_EVENT => :data,
-    Zookeeper::ZOO_DELETED_EVENT => :data,
-    Zookeeper::ZOO_CHANGED_EVENT => :data,
-    Zookeeper::ZOO_CHILD_EVENT   => :child,
-  }.freeze
-
-  WATCH_INT_TO_SYM = {
-    Zookeeper::ZOO_CREATED_EVENT      => :created,
-    Zookeeper::ZOO_DELETED_EVENT      => :deleted,
-    Zookeeper::ZOO_CHANGED_EVENT      => :changed,
-    Zookeeper::ZOO_CHILD_EVENT        => :child,
-    Zookeeper::ZOO_SESSION_EVENT      => :session,
-    Zookeeper::ZOO_NOTWATCHING_EVENT  => :not_watching,
-  }.freeze
-
-  WATCH_SYM_TO_INT = WATCH_INT_TO_SYM.invert.freeze
-end
-
 require 'z_k/logging'
 require 'z_k/exceptions'
 require 'z_k/threadpool'
@@ -48,6 +24,11 @@ require 'z_k/client'
 require 'z_k/pool'
 
 module ZK
+  ZK_ROOT = File.expand_path('../..', __FILE__)
+
+  KILL_TOKEN = :__kill_token__ #:nodoc:
+
+
   # The logger used by the ZK library. uses a Logger to +/dev/null+ by default
   #
   def self.logger
