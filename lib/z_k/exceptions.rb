@@ -102,6 +102,9 @@ module ZK
     # raised when a Znode fails to save
     class ZnodeNotSaved < ZnodeException; end
 
+    # raised when a Znode doesn't exist 
+    class ZnodeNotFound < ZnodeException; end
+
     # raised when Znode's version is wrong
     class StaleObjectError < ZnodeException; end
   end

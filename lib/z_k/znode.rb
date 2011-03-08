@@ -11,13 +11,14 @@ module ZK
   # been changed behind your back
   #
   module Znode
-
     # When a node is loaded, we apply a simple heuristic to determine if it's a
     # sequential node (as there's no way of knowing except based on the name) so if the 
     # basename of the node matches <tt>/\d{10}\Z/</tt>, we set sequential? to
     # true. ephemeral? is based off of the stat object.
     #
     class Base
+      include ZK::Exceptions
+
       VALID_MODES = [:ephemeral, :persistent, :persistent_sequential, :ephemeral_sequential].freeze
       EPHEMERAL_MODES = [:ephemeral, :ephemeral_sequential].freeze
 
@@ -59,26 +60,40 @@ module ZK
 
       def self.load_or_create(*args, &block)
         self.load(*args, &block)
-      rescue ZK::Exception::NoNode
+      rescue NoNode
         self.create(*args, &block)
       end
 
       def self.load_or_create!(*args, &block)
         self.load(*args, &block)
-      rescue ZK::Exceptions::NoNode
+      rescue NoNode
         self.create!(*args, &block)
       end
 
       # throws a ZnodeNotSaved exception if the created node was not saved
       def self.create!(*args, &block)
         create(*args, &block).tap do |node|
-          raise ZK::Exceptions::ZnodeNotSaved if node.new_record?
+          raise ZnodeNotSaved if node.new_record?
         end
       end
 
       # instantiates a Znode at path and calls #reload on it to load the data and current stat
       def self.load(*args)
         new(*args).reload
+      end
+
+      # find all children under path and load them
+      # returns an empty array if the path doesn't exist
+      #
+      # if +watch+ is true, sets a watch on the znode at +path+ that will
+      # receive events related to children of +path+
+      #
+      def self.find_all(path, watch=false)
+        zk_pool.children(path, :watch => watch).map do |base|
+          self.load("#{path}/#{base}")
+        end
+      rescue NoNode
+        []
       end
 
       def initialize(path, opts={})
@@ -126,9 +141,19 @@ module ZK
       end
 
       def delete
-        zk.delete(path) if persisted?
+        delete!
+      rescue ZnodeNotFound
+        false
+      end
+
+      def delete!
+        return false unless persisted?
+        zk.delete(path)
         @destroyed = true
         freeze
+        self
+      rescue NoNode
+        raise ZnodeNotFound, nil, caller
       end
 
       def exists?(watch=false)
@@ -158,7 +183,7 @@ module ZK
       # Raises ZnodeNotSaved if the save failed
       #
       def save!
-        save or raise ZK::Exceptions::ZnodeNotSaved
+        save or raise ZnodeNotSaved
       end
 
       # like save! but won't throw ZK::Exceptions::NodeExists, but instead will
@@ -166,11 +191,11 @@ module ZK
       def save
         create_or_update
         true
-      rescue ZK::Exceptions::NodeExists, ZK::Exceptions::NoNode => e
+      rescue NodeExists, NoNode => e
         logger.debug { e.to_std_format }
         false
-      rescue ZK::Exceptions::BadVersion => e
-        raise ZK::Exceptions::StaleObjectError, e.message, caller
+      rescue BadVersion => e
+        raise StaleObjectError, e.message, caller
       end
 
       # creation mode for this object

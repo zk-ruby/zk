@@ -99,11 +99,63 @@ describe ZK::Znode do
             @znode.should be_destroyed
           end
 
-          it %[should raise a TypeError if a second delete is attempted] do
-            lambda { @znode.delete }.should raise_error(TypeError)
+          it %[should not raise an error if a second delete is attempted] do
+            lambda { @znode.delete }.should_not raise_error
+          end
+        end
+
+        describe 'when the node has been deleted by someone else' do
+          before do
+            @znode.save!
+            @znode.should be_persisted
+            @zk_pool.delete(@path)
+            lambda { @rval = @znode.delete }.should_not raise_error
+          end
+
+          it %[should return false] do
+            @rval.should be_false
           end
         end
       end
+
+      describe 'delete!' do
+        describe 'when znode is persisted' do
+          before do
+            @znode.save!
+            @znode.should be_persisted
+            @znode.delete!
+          end
+
+          it %[should delete the znode from zookeeper] do
+            @zk_pool.exists?(@path).should be_false
+          end
+
+          it %[should freeze the znode] do
+            @znode.should be_frozen
+          end
+
+          it %[should be destroyed] do
+            @znode.should be_destroyed
+          end
+
+          it %[should not raise an error if a second delete is attempted] do
+            lambda { @znode.delete }.should_not raise_error
+          end
+        end
+
+        describe 'when the node has been deleted by someone else' do
+          before do
+            @znode.save!
+            @znode.should be_persisted
+            @zk_pool.delete(@path)
+          end
+
+          it %[should raise ZnodeNotFound exception] do
+            lambda { @znode.delete! }.should raise_error(ZK::Exceptions::ZnodeNotFound)
+          end
+        end
+      end
+
 
       describe 'parent' do
         describe 'when not at root' do
