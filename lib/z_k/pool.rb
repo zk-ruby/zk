@@ -120,16 +120,6 @@ module ZK
           raise Exceptions::PoolIsShuttingDownException unless open? 
         end
 
-        def populate_pool!(num_cnx)
-          synchronize do
-            num_cnx.times do
-              connection = ZK.new(@host, @connection_args)
-              @connections << connection
-              checkin(connection)
-              @state = :open
-            end
-          end
-        end
     end # Base
 
     # like a Simple pool but has high/low watermarks, and can grow dynamically as needed
@@ -158,7 +148,10 @@ module ZK
         # for compatibility w/ ClientPool we'll use @connections for synchronization
         @pool = []            # currently available connections
 
-        populate_pool!(@min_clients)
+        synchronize do
+          populate_pool!(@min_clients)
+          @state = :open
+        end
       end
 
       # returns the current number of allocated clients in the pool (not
@@ -208,12 +201,25 @@ module ZK
       end
 
       protected
+        def populate_pool!(num_cnx)
+          synchronize do
+            num_cnx.times do
+              cnx = create_connection
+              @connections << cnx
+              checkin(cnx)
+            end
+          end
+        end
+
         def can_grow_pool?
           synchronize { @connections.size < @max_clients }
         end
 
         def create_connection
-          ZK.new(@host, @connection_timeout, @connection_args)
+          ZK.new(@host, @connection_timeout, @connection_args).tap do |cnx|
+            # wait until we are connected before returning
+            sleep(0.1) until cnx.connected?
+          end
         end
     end # Bounded
 

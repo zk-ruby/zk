@@ -97,8 +97,8 @@ module ZK
 
     # reopen the underlying connection
     # returns state of connection after operation
-    def reopen(timeout=10, watcher=nil)
-      @cnx.reopen(timeout, watcher)
+    def reopen(timeout=10)
+      @cnx.reopen(timeout, @event_handler.get_default_watcher_block)
       @threadpool.start!  # restart the threadpool if previously stopped by close!
       state
     end
@@ -127,6 +127,13 @@ module ZK
       end
     end
 
+    # does a stat on '/', returns true or false 
+    def ping? #:nodoc:
+      false unless connected?
+      false|stat('/')
+    rescue ZK::Exceptions::KeeperException
+      false
+    end
 
     # Create a node with the given path. The node data will be the given data,
     # and node acl will be the given acl.  The path is returned.
