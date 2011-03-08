@@ -136,7 +136,7 @@ module ZK
     end
 
     def get_default_watcher_block
-      lambda do |hash|
+      @default_watcher_block ||= lambda do |hash|
         watcher_callback.tap do |cb|
           cb.call(hash)
         end
