@@ -172,7 +172,7 @@ module ZK
         eager = opts.delete(:eager)
 
         zk.children(path, opts).map do |base| 
-          chld = self.class.new(zk, File.join(path, base))
+          chld = self.class.new(File.join(path, base))
           chld.reload if eager
           chld
         end
