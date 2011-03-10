@@ -266,7 +266,7 @@ module ZK
         end
       end
 
-      rv = check_rc(@cnx.create(h))
+      rv = check_rc(@cnx.create(h), h)
 
       h[:callback] ? rv : rv[:path]
     end
@@ -320,7 +320,7 @@ module ZK
 
       setup_watcher!(:data, h)
 
-      rv = check_rc(@cnx.get(h))
+      rv = check_rc(@cnx.get(h), h)
 
       opts[:callback] ? rv : rv.values_at(:data, :stat)
     end
@@ -369,7 +369,7 @@ module ZK
     def set(path, data, opts={})
       h = { :path => path, :data => data }.merge(opts)
 
-      rv = check_rc(@cnx.set(h))
+      rv = check_rc(@cnx.set(h), h)
 
       opts[:callback] ? nil : rv[:stat]
     end
@@ -433,7 +433,7 @@ module ZK
       when Zookeeper::ZOK, Zookeeper::ZNONODE
         rv[:stat]
       else
-        check_rc(rv) # throws the appropriate error
+        check_rc(rv, h) # throws the appropriate error
       end
     end
 
@@ -511,7 +511,7 @@ module ZK
     #++
     def delete(path, opts={})
       h = { :path => path, :version => -1 }.merge(opts)
-      rv = check_rc(@cnx.delete(h))
+      rv = check_rc(@cnx.delete(h), h)
       nil
     end
 
@@ -568,7 +568,7 @@ module ZK
 
       setup_watcher!(:child, h)
 
-      rv = check_rc(@cnx.get_children(h))
+      rv = check_rc(@cnx.get_children(h), h)
       opts[:callback] ? nil : rv[:children]
     end
 
@@ -612,7 +612,7 @@ module ZK
     #++
     def get_acl(path, opts={})
       h = { :path => path }.merge(opts)
-      rv = check_rc(@cnx.get_acl(h))
+      rv = check_rc(@cnx.get_acl(h), h)
       opts[:callback] ? nil : rv.values_at(:children, :stat)
     end
 
@@ -642,7 +642,7 @@ module ZK
     #
     def set_acl(path, acls, opts={})
       h = { :path => path, :acl => acls }.merge(opts)
-      rv = check_rc(@cnx.set_acl(h))
+      rv = check_rc(@cnx.set_acl(h), h)
       opts[:callback] ? nil : rv[:stat]
     end
 
@@ -887,10 +887,11 @@ module ZK
         false
       end
 
-      def check_rc(hash)
+      def check_rc(hash, inputs=nil)
         hash.tap do |h|
           if code = h[:rc]
-            raise Exceptions::KeeperException.by_code(code) unless code == Zookeeper::ZOK
+            msg = inputs ? "inputs: #{inputs.inspect}" : nil
+            raise Exceptions::KeeperException.by_code(code), msg unless code == Zookeeper::ZOK
           end
         end
       end
