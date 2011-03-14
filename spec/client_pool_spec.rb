@@ -159,7 +159,7 @@ describe ZK::Pool do
     end
 
     after do
-      @connection_pool.close_all! unless @connection_pool.closed?
+      @connection_pool.force_close! unless @connection_pool.closed?
       @connection_pool.should be_closed
     end
 
@@ -170,14 +170,14 @@ describe ZK::Pool do
     end
 
     describe 'should grow to max_clients' do
-      before do
+#       before do
 #         require 'tracer'
 #         Tracer.on
-      end
+#       end
 
-      after do
+#       after do
 #         Tracer.off
-      end
+#       end
 
       it %[should grow if it can] do
         q1 = Queue.new

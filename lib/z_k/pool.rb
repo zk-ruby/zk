@@ -167,6 +167,8 @@ module ZK
 
       def checkin(connection)
         synchronize do
+          return if @pool.include?(connection)
+
           @pool.unshift(connection)
           @checkin_cond.signal
         end
@@ -186,9 +188,7 @@ module ZK
             if @pool.length > 0
               return @pool.shift
             elsif can_grow_pool?
-              cnx = create_connection
-              @connections << cnx
-              @pool.unshift(cnx)
+              add_connection!
               next
             elsif blocking
               @checkin_cond.wait_while { @pool.empty? and open? }
@@ -202,12 +202,19 @@ module ZK
 
       protected
         def populate_pool!(num_cnx)
+          num_cnx.times { add_connection! }
+        end
+
+        def add_connection!
           synchronize do
-            num_cnx.times do
-              cnx = create_connection
-              @connections << cnx
-              checkin(cnx)
+            cnx = create_connection
+            @connections << cnx 
+
+            cb = lambda do
+              synchronize { checkin(cnx) }
             end
+
+            cnx.on_connected(&cb)
           end
         end
 
@@ -216,10 +223,7 @@ module ZK
         end
 
         def create_connection
-          ZK.new(@host, @connection_timeout, @connection_args).tap do |cnx|
-            # wait until we are connected before returning
-            sleep(0.1) until cnx.connected?
-          end
+          ZK.new(@host, @connection_timeout, @connection_args)
         end
     end # Bounded
 
