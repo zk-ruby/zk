@@ -43,14 +43,17 @@ module ZK
   # config of 'localhost:2181' will be used. Otherwise all args will be passed
   # to ZK::Client#new
   #
-  def self.new(*args)
+  # if a block is given, it will be yielded the client *before* the connection
+  # is established, this is useful for registering connected-state handlers.
+  #
+  def self.new(*args, &block)
     # XXX: might need to do some param parsing here
    
     opts = args.pop if args.last.kind_of?(Hash)
     args = %w[localhost:2181] if args.empty?
 
     # ignore opts for now
-    Client.new(*args)
+    Client.new(*args, &block)
   end
 
   # Like new, yields a connection to the given block and closes it when the

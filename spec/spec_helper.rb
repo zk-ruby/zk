@@ -21,8 +21,12 @@ $stderr.sync = true
 
 # COMMENT THESE LINES FOR REMOTE DEBUGGING
 require 'ruby-debug'
+require 'flexmock'
 
 RSpec.configure do |config|
+  config.mock_with :flexmock
+  config.include(FlexMock::ArgumentTypes)
+
 #   config.before(:all) do
 #     unless $did_debug
 #       $did_debug = true
@@ -51,6 +55,16 @@ def wait_until(timeout=2)
   end
 end
 
+def wait_while(timeout=2)
+  time_to_stop = Time.now + timeout
+
+  while yield 
+    break if Time.now > time_to_stop
+    Thread.pass
+  end
+end
+
+
 class ::Thread
   # join with thread until given block is true, the thread joins successfully, 
   # or timeout seconds have passed
@@ -59,6 +73,15 @@ class ::Thread
     time_to_stop = Time.now + timeout
 
     until yield
+      break if Time.now > time_to_stop
+      break if join(0.1)
+    end
+  end
+  
+  def join_while(timeout=2)
+    time_to_stop = Time.now + timeout
+
+    while yield
       break if Time.now > time_to_stop
       break if join(0.1)
     end
