@@ -192,7 +192,7 @@ module ZK
         create_or_update
         true
       rescue NodeExists, NoNode => e
-        logger.debug { e.to_std_format }
+#         logger.debug { e.to_std_format }
         false
       rescue BadVersion => e
         raise StaleObjectError, e.message, caller
