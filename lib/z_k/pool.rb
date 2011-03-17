@@ -1,6 +1,8 @@
 module ZK
   module Pool
     class Base
+      attr_reader :connections #:nodoc:
+
       def initialize
         @state = :init
 
@@ -35,8 +37,6 @@ module ZK
         synchronize do 
           return unless open?
           @state = :closing
-
-#           debugger if @pool.size != @connections.length
 
           @checkin_cond.wait_until { (@pool.size == @connections.length) or closed? }
 
@@ -102,11 +102,6 @@ module ZK
         @pool.size
       end
 
-      # DANGER! test only, array of all connections
-      def connections #:nodoc:
-        @connections
-      end
-
       def pool_state #:nodoc:
         @state
       end
@@ -167,6 +162,8 @@ module ZK
 
       def checkin(connection)
         synchronize do
+          return if @pool.include?(connection)
+
           @pool.unshift(connection)
           @checkin_cond.signal
         end
@@ -184,11 +181,17 @@ module ZK
             assert_open!
 
             if @pool.length > 0
-              return @pool.shift
+              cnx = @pool.shift
+              
+              # if the cnx isn't connected? then remove it from the pool and go
+              # through the loop again. when the cnx's on_connected event fires, it
+              # will add the connection back into the pool
+              next unless cnx.connected?
+
+              # otherwise we return the cnx
+              return cnx
             elsif can_grow_pool?
-              cnx = create_connection
-              @connections << cnx
-              @pool.unshift(cnx)
+              add_connection!
               next
             elsif blocking
               @checkin_cond.wait_while { @pool.empty? and open? }
@@ -202,12 +205,15 @@ module ZK
 
       protected
         def populate_pool!(num_cnx)
+          num_cnx.times { add_connection! }
+        end
+
+        def add_connection!
           synchronize do
-            num_cnx.times do
-              cnx = create_connection
-              @connections << cnx
-              checkin(cnx)
-            end
+            cnx = create_connection
+            @connections << cnx 
+
+            cnx.on_connected { checkin(cnx) }
           end
         end
 
@@ -216,10 +222,7 @@ module ZK
         end
 
         def create_connection
-          ZK.new(@host, @connection_timeout, @connection_args).tap do |cnx|
-            # wait until we are connected before returning
-            sleep(0.1) until cnx.connected?
-          end
+          ZK.new(@host, @connection_timeout, @connection_args)
         end
     end # Bounded
 

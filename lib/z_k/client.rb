@@ -37,6 +37,7 @@ module ZK
     #
     def initialize(host, opts={})
       @event_handler = EventHandler.new(self)
+      yield self if block_given?
       @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, @event_handler.get_default_watcher_block)
       @threadpool = Threadpool.new
     end
@@ -105,21 +106,23 @@ module ZK
 
     # Returns true if the underlying connection is in the +connected+ state.
     def connected?
-      wrap_state_closed_error { @cnx.connected? }
+      wrap_state_closed_error { @cnx and @cnx.connected? }
     end
 
     # Returns true if the underlying connection is in the +associating+ state.
     def associating?
-      wrap_state_closed_error { @cnx.associating? }
+      wrap_state_closed_error { @cnx and @cnx.associating? }
     end
 
     # Returns true if the underlying connection is in the +connecting+ state.
     def connecting?
-      wrap_state_closed_error { @cnx.connecting? }
+      wrap_state_closed_error { @cnx and @cnx.connecting? }
     end
 
     # Returns true if the underlying connection is in the +expired_session+ state.
     def expired_session?
+      return nil unless @cnx
+
       if defined?(::JRUBY_VERSION)
         @cnx.state == Java::OrgApacheZookeeper::ZooKeeper::States::EXPIRED_SESSION
       else

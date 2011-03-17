@@ -51,6 +51,7 @@ module ZK
     alias :subscribe :register
 
     # registers a "state of the connection" handler
+    #
     # @param [String] state the state you want to register for
     # @param [Block] block the block to execute on state changes
     # @yield [connection, event] yields your block with
@@ -183,7 +184,7 @@ module ZK
 
         "state_#{int}"
       rescue NameError
-        raise ArgumentError, "#{arg} is not a valid zookeeper state"
+        raise ArgumentError, "#{arg} is not a valid zookeeper state", caller
       end
 
       def safe_call(callbacks, *args)
