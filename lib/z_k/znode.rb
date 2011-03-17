@@ -191,9 +191,6 @@ module ZK
       def save
         create_or_update
         true
-      rescue NodeExists, NoNode => e
-#         logger.debug { e.to_std_format }
-        false
       rescue BadVersion => e
         raise StaleObjectError, e.message, caller
       end
@@ -250,7 +247,6 @@ module ZK
       def version #:nodoc:
         (@stat and @stat.version) or 0
       end
-
 
       protected
         def sequential_path?

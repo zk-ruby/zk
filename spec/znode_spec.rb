@@ -1,21 +1,25 @@
 require File.expand_path('../spec_helper', __FILE__)
 
 describe ZK::Znode do
+  def cleanup!
+    ZK.open(@cnx_str) do |zk|
+      zk.rm_rf(@base_path)
+    end
+  end
+
   before do
     @cnx_str = 'localhost:2181'
-    @zk_pool = ZK.new(@cnx_str)
-
     @base_path = '/znodetest'
-    @zk_pool.mkdir_p(@base_path)
 
+    cleanup!
+
+    @zk_pool = ZK.new(@cnx_str)
+    @zk_pool.mkdir_p(@base_path)
   end
 
   after do
     @zk_pool.close!
-
-    ZK.open(@cnx_str) do |zk|
-      zk.rm_rf(@base_path)
-    end
+    cleanup!
   end
 
   describe :Base do
@@ -156,6 +160,19 @@ describe ZK::Znode do
         end
       end
 
+      describe 'save' do
+        describe 'ephemeral' do
+          before do
+            @znode.mode = :ephemeral
+            @znode.save!
+          end
+
+          it %[should create an ephemeral node] do
+            data, stat = @zk_pool.get(@znode.path)
+            stat.ephemeral_owner.should_not be_zero
+          end
+        end
+      end
 
       describe 'parent' do
         describe 'when not at root' do
