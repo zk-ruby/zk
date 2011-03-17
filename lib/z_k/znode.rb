@@ -103,7 +103,7 @@ module ZK
         @new_record = true
         @destroyed  = false
 
-        self.mode   = opts[:mode] || :persistent
+        self.mode   ||= opts.fetch(:mode, :persistent)
 
         d = opts[:raw_data] and self.raw_data = d
       end
