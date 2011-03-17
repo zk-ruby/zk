@@ -248,6 +248,15 @@ module ZK
         (@stat and @stat.version) or 0
       end
 
+      def create #:nodoc:
+        # we set path here in case we're creating a sequential node
+        @path = zk.create(path, raw_data, :mode => mode)
+      end
+
+      def update #:nodoc:
+        @stat = zk.set(path, raw_data, :version => version)
+      end
+
       protected
         def sequential_path?
           false|(basename =~ /\d{10}\Z/)
@@ -259,15 +268,7 @@ module ZK
           @new_record = false
         end
 
-        def create
-          # we set path here in case we're creating a sequential node
-          @path = zk.create(path, raw_data, :mode => mode)
-        end
-
-        def update
-          @stat = zk.set(path, raw_data, :version => version)
-        end
-        
+       
         def zk
           self.class.zk_pool
         end
