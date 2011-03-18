@@ -21,6 +21,7 @@ require 'z_k/election'
 require 'z_k/mongoid'
 require 'z_k/client'
 require 'z_k/pool'
+require 'z_k/find'
 
 module ZK
   ZK_ROOT = File.expand_path('../..', __FILE__)
@@ -69,5 +70,21 @@ module ZK
   def self.new_pool(host, opts={})
     ZK::Pool::Bounded.new(host, opts)
   end
+
+  # Eventually this will implement proper File.join-like behavior, but only
+  # using the '/' char for a separator. for right now, this simply delegates to
+  # File.join
+  #--
+  # like File.join but ignores $INPUT_RECORD_SEPARATOR (i.e. $/, which is
+  # platform dependent) and only uses the '/' character
+  def self.join(*paths)
+    File.join(*paths)
+  end
+
+  protected
+    def self.chomp_sep(str)
+      p = (p[0] == ?/ ) ? p[1..-1] : p
+      p = (p[-1] == ?/) ? p[0..-2] : p
+    end
 end
 

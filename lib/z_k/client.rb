@@ -649,8 +649,6 @@ module ZK
       opts[:callback] ? nil : rv[:stat]
     end
 
-      
-
     #--
     #
     # EXTENSIONS
@@ -703,6 +701,11 @@ module ZK
         rescue Exceptions::NoNode
         end
       end
+    end
+
+    # see ZK::Find for explanation
+    def find(*paths, &block)
+      ZK::Find.find(self, *paths, &block)
     end
 
     # will block the caller until +abs_node_path+ has been removed
