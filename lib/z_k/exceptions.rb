@@ -96,17 +96,6 @@ module ZK
 
     # raised when assert_locked_for_share! is called and no shared lock is held
     class MustBeShareLockedException < ZKError; end
-
-    class ZnodeException < ZKError; end
-
-    # raised when a Znode fails to save
-    class ZnodeNotSaved < ZnodeException; end
-
-    # raised when a Znode doesn't exist 
-    class ZnodeNotFound < ZnodeException; end
-
-    # raised when Znode's version is wrong
-    class StaleObjectError < ZnodeException; end
   end
 end
 

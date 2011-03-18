@@ -19,7 +19,6 @@ require 'z_k/locker'
 require 'z_k/extensions'
 require 'z_k/election'
 require 'z_k/mongoid'
-require 'z_k/znode'
 require 'z_k/client'
 require 'z_k/pool'
 

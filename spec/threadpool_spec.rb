@@ -33,7 +33,7 @@ describe ZK::Threadpool do
     end
 
     it %[should barf if the argument is not callable] do
-      bad_obj = mock(:not_callable)
+      bad_obj = flexmock(:not_callable)
       bad_obj.should_not respond_to(:call)
 
       lambda { @threadpool.defer(bad_obj) }.should raise_error(ArgumentError)
