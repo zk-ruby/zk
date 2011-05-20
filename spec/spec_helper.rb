@@ -20,7 +20,7 @@ Dir[File.expand_path("../support/**/*.rb", __FILE__)].each {|f| require f}
 $stderr.sync = true
 
 # COMMENT THESE LINES FOR REMOTE DEBUGGING
-require 'ruby-debug'
+# require 'ruby-debug'
 require 'flexmock'
 
 RSpec.configure do |config|
