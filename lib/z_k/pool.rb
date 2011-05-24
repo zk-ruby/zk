@@ -140,6 +140,8 @@ module ZK
         @max_clients = Integer(opts.delete(:max_clients))
         @connection_timeout = opts.delete(:timeout)
 
+        @count_waiters = 0
+
         # for compatibility w/ ClientPool we'll use @connections for synchronization
         @pool = []            # currently available connections
 
@@ -171,12 +173,12 @@ module ZK
 
       # number of threads waiting for connections
       def count_waiters #:nodoc:
-        @checkin_cond.count_waiters
+        @count_waiters
       end
 
       def checkout(blocking=true) 
         raise ArgumentError, "checkout does not take a block, use .with_connection" if block_given?
-        synchronize do
+        synchronize_with_waiter_count do
           while true
             assert_open!
 
@@ -204,6 +206,17 @@ module ZK
       end
 
       protected
+        def synchronize_with_waiter_count
+          synchronize do
+            begin
+              @count_waiters += 1 
+              yield
+            ensure
+              @count_waiters -= 1
+            end
+          end
+        end
+
         def populate_pool!(num_cnx)
           num_cnx.times { add_connection! }
         end

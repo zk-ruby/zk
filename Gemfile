@@ -5,6 +5,7 @@ source "http://localhost:50000"
 # Specify your gem's dependencies in zk.gemspec
 gemspec
 
-# gem 'ruby-debug'
+gem 'ruby-debug',   :platforms => [:mri_18, :jruby]
+gem 'ruby-debug19', :platforms => :mri_19
 
 # vim:ft=ruby

@@ -87,11 +87,12 @@ module ZK
 
     private
       def spawn_threadpool #:nodoc:
-        until @threadpool.size == @size.to_i
+        until @threadpool.size >= @size.to_i
           thread = Thread.new do
             while @running
               begin
                 op = @threadqueue.pop
+                $stderr.puts "thread #{Thread.current.inspect} got #{op.inspect}"
                 break if op == KILL_TOKEN
                 op.call
               rescue Exception => e

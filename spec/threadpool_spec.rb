@@ -61,7 +61,11 @@ describe ZK::Threadpool do
 
       @rval = nil
 
-      @threadpool.defer { @rval = true }
+      @threadpool.defer do 
+        $stderr.puts "block called!"
+        @rval = true
+      end
+
       wait_until(2) { @rval }
       @rval.should be_true
     end
