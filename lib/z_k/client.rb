@@ -149,33 +149,26 @@ module ZK
       false
     end
 
-    # Create a node with the given path. The node data will be the given data,
-    # and node acl will be the given acl.  The path is returned.
+    # Create a node with the given path. The node data will be the given data.
+    # The path is returned.
     # 
-    # The ephemeral argument specifies whether the created node will be
-    # ephemeral or not.
+    # If the ephemeral option is given, the znode creaed will be removed by the
+    # server automatically when the session associated with the creation of the
+    # node expires. Note that ephemeral nodes cannot have children.
     # 
-    # An ephemeral node will be removed by the server automatically when the
-    # session associated with the creation of the node expires.
+    # The sequence option, if true, will cause the server to create a sequential
+    # node. The actual path name of a sequential node will be the given path
+    # plus a suffix "_i" where i is the current sequential number of the node.
+    # Once such a node is created, the sequential number for the path will be
+    # incremented by one (i.e. the generated path will be unique across all
+    # clients).
     # 
-    # The sequence argument can also specify to create a sequential node. The
-    # actual path name of a sequential node will be the given path plus a
-    # suffix "_i" where i is the current sequential number of the node. Once
-    # such a node is created, the sequential number will be incremented by one.
+    # Note that since a different actual path is used for each invocation of
+    # creating sequential node with the same path argument, the call will never
+    # throw a NodeExists exception.
     # 
-    # If a node with the same actual path already exists in the ZooKeeper, a
-    # KeeperException with error code KeeperException::NodeExists will be
-    # thrown. Note that since a different actual path is used for each
-    # invocation of creating sequential node with the same path argument, the
-    # call will never throw a NodeExists KeeperException.
-    # 
-    # If the parent node does not exist in the ZooKeeper, a KeeperException
-    # with error code KeeperException::NoNode will be thrown.
-    # 
-    # An ephemeral node cannot have children. If the parent node of the given
-    # path is ephemeral, a KeeperException with error code
-    # KeeperException::NoChildrenForEphemerals will be thrown.
-    # 
+    # @todo clean up the verbiage around watchers
+    #
     # This operation, if successful, will trigger all the watches left on the
     # node of the given path by exists and get API calls, and the watches left
     # on the parent node by children API calls.
@@ -183,9 +176,6 @@ module ZK
     # If a node is created successfully, the ZooKeeper server will trigger the
     # watches on the path left by exists calls, and the watches on the parent
     # of the node by children calls.
-    #
-    # Called with a hash of arguments set.  Supports being executed
-    # asynchronousy by passing a callback object.
     #
     # @param [String] path absolute path of the znode
     # @param [String] data the data to create the znode with
@@ -195,47 +185,62 @@ module ZK
     #   ZookeeperACLs module in the zookeeper gem.
     #
     # @option opts [bool] :ephemeral (false) if true, the created node will be ephemeral
+    #
     # @option opts [bool] :sequence (false) if true, the created node will be sequential
     #
-    # ==== Arguments
-    # * <tt>:ephemeral</tt> -- defaults to false, if set to true the created node will be ephemeral
-    # * <tt>:sequence</tt> -- defaults to false, if set to true the created node will be sequential
-    # * <tt>:callback</tt> -- provide a AsyncCallback::StringCallback object or
-    #   Proc for an asynchronous call to occur
-    # * <tt>:context</tt> --  context object passed into callback method
-    # * <tt>:mode</tt> -- may be specified instead of :ephemeral and :sequence,
-    #   accepted values are <tt>[:ephemeral_sequential, :persistent_sequential,
-    #   :persistent, :ephemeral]</tt>
+    # @option opts [ZookeeperCallbacks::StringCallback] :callback (nil) provide a callback object
+    #   that will be called when the znode has been created
     # 
-    # ==== Examples
+    # @option opts [Object] :context (nil) an object passed to the +:callback+
+    #   given as the +context+ param
     #
-    # ===== create node, no data, persistent
+    # @option opts [:ephemeral_sequential, :persistent_sequential, :persistent, :ephemeral] :mode (nil)
+    #   may be specified instead of :ephemeral and :sequence options. If +:mode+ *and* either of
+    #   the +:ephermeral+ or +:sequential+ options are given, the +:mode+ option will win
+    #
+    # @raise [ZK::Exceptions::NodeExists] if a node with the same +path+ already exists
+    # 
+    # @raise [ZK::Exceptions::NoNode] if the parent node does not exist
+    # 
+    # @raise [ZK::Exceptions::NoChildrenForEphemerals] if the parent node of
+    #   the given path is ephemeral
+    #
+    # @return [String] the path created on the server
+    #
+    # @todo Document the asynchronous methods
+    #
+    # @example create node, no data, persistent
     #
     #   zk.create("/path")
     #   # => "/path"
     #
-    # ===== create node, ACL will default to ACL::OPEN_ACL_UNSAFE
+    # @example create node, ACL will default to ACL::OPEN_ACL_UNSAFE
     #
     #   zk.create("/path", "foo")
     #   # => "/path"
     #
-    # ===== create ephemeral node
+    # @example create ephemeral node
+    #
     #   zk.create("/path", :mode => :ephemeral)
     #   # => "/path"
     #
-    # ===== create sequential node
+    # @example create sequential node
+    #
     #   zk.create("/path", :mode => :persistent_sequence)
     #   # => "/path0"
     #
-    # ===== create ephemeral and sequential node
+    # @example create ephemeral and sequential node
+    #
     #   zk.create("/path", "foo", :mode => :ephemeral_sequence)
     #   # => "/path0"
     #
-    # ===== create a child path
+    # @example create a child path
+    #
     #   zk.create("/path/child", "bar")
     #   # => "/path/child"
     #
-    # ===== create a sequential child path
+    # @example create a sequential child path
+    #
     #   zk.create("/path/child", "bar", :mode => :ephemeral_sequence)
     #   # => "/path/child0"
     #
@@ -729,9 +734,12 @@ module ZK
 
     # will block the caller until +abs_node_path+ has been removed
     #
-    # NOTE: this is dangerous to use in callbacks! there is only one
-    # event-delivery thread, so if you use this method in a callback or
-    # watcher, you *will* deadlock!
+    # @private this method is of dubious value and may be removed in a later
+    #   version
+    #
+    # @note this is dangerous to use in callbacks! there is only one
+    #   event-delivery thread, so if you use this method in a callback or
+    #   watcher, you *will* deadlock!
     def block_until_node_deleted(abs_node_path)
       queue = Queue.new
       ev_sub = nil
