@@ -43,9 +43,44 @@ ZK provides:
 
 In addition to all of that, I would like to think that the public API the ZK::Client provides is more convenient to use for the common (synchronous) case.
 
-
 [recipes]: http://zookeeper.apache.org/doc/current/recipes.html
 [Mongoid]: http://mongoid.org/
 
+## Caveats
 
+ZK strives to be a complete, correct, and convenient way of interacting with ZooKeeper. There are a few weak points in the implementation:
+
+* _ACLS: HOW DO THEY WORK?!_  ACL support is mainly faith-based now. I have not had a need for ACLs, and the authors of the upstream [twitter/zookeeper][] code also don't seem to have much experience with them/use for them (purely my opinion, no offense intended). If you are using ACLs and you find bugs or have suggestions, I would much appreciate feedback or examples of how they *should* work so that support and tests can be added.
+
+* ZK::Client supports asynchronous calls of all basic methods (get, set, delete, etc.) however these versions are kind of inconvenient to use. There is a [branch][async-branch] for making improvements in this regard. This will be improved in the near-term as a related EventMachine-based project will be making use of these.
+
+* ZooKeeper "chroot" [connection syntax][chroot] _(search for "chroot" in page)_ is not currently working in the C drivers, and I don't have tests for the Java version. This hasn't been an incredibly high priority item, but support for this feature is intended.
+
+* I am currently in the process of cleaning up the API documentation and converting it to use [YARD][]. You can follow along on [this branch][dev/yard] which will be merged into master and released ASAP.
+
+[twitter/zookeeper]: https://github.com/twitter/zookeeper
+[async-branch]: https://github.com/slyphon/zk/tree/dev%2Fasync-conveniences
+[chroot]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkSessions
+[YARD]: http://yardoc.org/
+[dev/yard]: https://github.com/slyphon/zk/tree/dev%2Fyard
+
+## Dependencies
+
+* The [slyphon-zookeeper gem][szk-gem] ([repo][szk-repo], branch with Gemfile [here][szk-repo-bundler]), which adds JRuby compatibility and a full suite of tests to the excellent [twitter/zookeeper][] project. _(I'm hoping to get this merged upstream, but it's a large change and, you know, people have day jobs)_. 
+
+* For JRuby, the [slyphon-zookeeper\_jar gem][szk-jar-gem] ([repo][szk-jar-repo]), which just wraps the upstream zookeeper driver jar in a gem for easy installation
+
+[szk-gem]: https://rubygems.org/gems/slyphon-zookeeper
+[szk-repo]: https://github.com/slyphon/zookeeper/tree/dev/xplatform
+[szk-repo-bundler]: https://github.com/slyphon/zookeeper/tree/dev/gemfile/
+[szk-jar-gem]: https://rubygems.org/gems/slyphon-zookeeper_jar
+[szk-jar-repo]: https://github.com/slyphon/zookeeper_jar
+
+### Related Projects
+
+There are a few related projects that extend ZK.
+
+* [ZK::Znode][]: a simple ORM to provide ActiveModel semantics around znodes. While still in early development, may also be a useful example of how to use ZK.
+
+[ZK::Znode]: https://github.com/slyphon/zk-znode
 

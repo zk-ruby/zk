@@ -260,10 +260,9 @@ module ZK
     #   zk.create("/path/child", "bar", :mode => :ephemeral_sequence)
     #   # => "/path/child0"
     #
-
     def create(path, data='', opts={})
-      # TODO: document asynchronous callback
-      #
+
+
       # ===== create asynchronously with callback object
       #
       #   class StringCallback
@@ -341,24 +340,25 @@ module ZK
     # ===== get data and set watch on node
     #   zk.get("/path", :watch => true)
     #
-    #--
-    # ===== get data asynchronously
-    #
-    #   class DataCallback
-    #     def process_result(return_code, path, context, data, stat)
-    #       # do processing here
-    #     end
-    #   end
-    #
-    #   zk.get("/path") do |return_code, path, context, data, stat|
-    #     # do processing here
-    #   end
-    #  
-    #   callback = DataCallback.new
-    #   context = Object.new
-    #   zk.get("/path", :callback => callback, :context => context)
-    #++
+
     def get(path, opts={})
+    
+      # ===== get data asynchronously
+      #
+      #   class DataCallback
+      #     def process_result(return_code, path, context, data, stat)
+      #       # do processing here
+      #     end
+      #   end
+      #
+      #   zk.get("/path") do |return_code, path, context, data, stat|
+      #     # do processing here
+      #   end
+      #  
+      #   callback = DataCallback.new
+      #   context = Object.new
+      #   zk.get("/path", :callback => callback, :context => context)
+   
       h = { :path => path }.merge(opts)
 
       setup_watcher!(:data, h)
@@ -395,21 +395,20 @@ module ZK
     #   zk.set("/path", "foo")
     #   zk.set("/path", "foo", :version => 0)
     #
-    #--
-    # ===== set data asynchronously
-    #
-    #   class StatCallback
-    #     def process_result(return_code, path, context, stat)
-    #       # do processing here
-    #     end
-    #   end
-    #  
-    #   callback = StatCallback.new
-    #   context = Object.new
-    #
-    #   zk.set("/path", "foo", :callback => callback, :context => context)
-    #++
     def set(path, data, opts={})
+      # ===== set data asynchronously
+      #
+      #   class StatCallback
+      #     def process_result(return_code, path, context, stat)
+      #       # do processing here
+      #     end
+      #   end
+      #  
+      #   callback = StatCallback.new
+      #   context = Object.new
+      #
+      #   zk.set("/path", "foo", :callback => callback, :context => context)
+
       h = { :path => path, :data => data }.merge(opts)
 
       rv = check_rc(@cnx.set(h), h)
@@ -449,21 +448,21 @@ module ZK
     #   zk.stat("/non_existent_path")
     #   # => nil
     #
-    #--
-    # ===== exist node asynchronously
-    #
-    #   class StatCallback
-    #     def process_result(return_code, path, context, stat)
-    #       # do processing here
-    #     end
-    #   end
-    #  
-    #   callback = StatCallback.new
-    #   context = Object.new
-    #
-    #   zk.exists?("/path", :callback => callback, :context => context)
-    #++
     def stat(path, opts={})
+      # ===== exist node asynchronously
+      #
+      #   class StatCallback
+      #     def process_result(return_code, path, context, stat)
+      #       # do processing here
+      #     end
+      #   end
+      #  
+      #   callback = StatCallback.new
+      #   context = Object.new
+      #
+      #   zk.exists?("/path", :callback => callback, :context => context)
+
+
       h = { :path => path }.merge(opts)
 
       setup_watcher!(:data, h)
@@ -538,21 +537,21 @@ module ZK
     #   zk.delete("/path")
     #   zk.delete("/path", :version => 0)
     #
-    #--
-    # ===== delete node asynchronously
-    #
-    #   class VoidCallback
-    #     def process_result(return_code, path, context)
-    #       # do processing here
-    #     end
-    #   end
-    #  
-    #   callback = VoidCallback.new
-    #   context = Object.new
-    #
-    #   zk.delete(/path", :callback => callback, :context => context)
-    #++
     def delete(path, opts={})
+      # ===== delete node asynchronously
+      #
+      #   class VoidCallback
+      #     def process_result(return_code, path, context)
+      #       # do processing here
+      #     end
+      #   end
+      #  
+      #   callback = VoidCallback.new
+      #   context = Object.new
+      #
+      #   zk.delete(/path", :callback => callback, :context => context)
+
+
       h = { :path => path, :version => -1 }.merge(opts)
       rv = check_rc(@cnx.delete(h), h)
       nil
@@ -593,20 +592,21 @@ module ZK
     #   zk.children("/path", :watch => true)
     #   # => ["child0", "child1"]
     #
-    #--
-    # ===== get children asynchronously
-    #
-    #   class ChildrenCallback
-    #     def process_result(return_code, path, context, children)
-    #       # do processing here
-    #     end
-    #   end
-    #  
-    #   callback = ChildrenCallback.new
-    #   context = Object.new
-    #   zk.children("/path", :callback => callback, :context => context)
-    #++
+
     def children(path, opts={})
+      # ===== get children asynchronously
+      #
+      #   class ChildrenCallback
+      #     def process_result(return_code, path, context, children)
+      #       # do processing here
+      #     end
+      #   end
+      #  
+      #   callback = ChildrenCallback.new
+      #   context = Object.new
+      #   zk.children("/path", :callback => callback, :context => context)
+
+
       h = { :path => path }.merge(opts)
 
       setup_watcher!(:child, h)
@@ -640,20 +640,20 @@ module ZK
     #   stat = ZK::Stat.new
     #   zk.get_acl("/path", :stat => stat)
     #
-    #--
-    # ===== get acl asynchronously
-    #
-    #   class AclCallback
-    #     def processResult(return_code, path, context, acl, stat)
-    #       # do processing here
-    #     end
-    #   end
-    #  
-    #   callback = AclCallback.new
-    #   context = Object.new
-    #   zk.acls("/path", :callback => callback, :context => context)
-    #++
+
     def get_acl(path, opts={})
+      # ===== get acl asynchronously
+      #
+      #   class AclCallback
+      #     def processResult(return_code, path, context, acl, stat)
+      #       # do processing here
+      #     end
+      #   end
+      #  
+      #   callback = AclCallback.new
+      #   context = Object.new
+      #   zk.acls("/path", :callback => callback, :context => context)
+
       h = { :path => path }.merge(opts)
       rv = check_rc(@cnx.get_acl(h), h)
       opts[:callback] ? nil : rv.values_at(:children, :stat)
