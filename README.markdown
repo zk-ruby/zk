@@ -11,7 +11,7 @@ Development is sponsored by [Snapfish][] and has been generously released to the
 [MIT]: http://www.gnu.org/licenses/license-list.html#Expat "MIT (Expat) License"
 [Snapfish]: http://www.snapfish.com/ "Snapfish"
 
-## What is ZooKeeper Good for?
+## What is ZooKeeper good for?
 
 ZooKeeper is a multi-purpose tool that is designed to allow you to write code that coordinates many nodes in a cluster. It can be used as a directory service, a configuration database, and can provide cross-cluster [locking][], [leader election][], and [group membership][] (to name a few). It presents to the user what looks like a distributed file system, with a few important differences: every node can have children _and_ data, and there is a 1MB limit on data size for any given node. ZooKeeper provides atomic semantics and a simple API for manipulating data in the heirarchy.
 
@@ -25,4 +25,27 @@ ZooKeeper is also (relatively) easy to deploy in a [Highly Available][ha-config]
 [leader election]: http://zookeeper.apache.org/doc/current/recipes.html#sc_leaderElection
 [group membership]: http://zookeeper.apache.org/doc/current/recipes.html#sc_outOfTheBox
 [ha-config]: http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_CrossMachineRequirements "HA config"
+
+## What does ZK do that the zookeeper gem doesn't?
+
+The [zookeeper gem][] provides a low-level, cross platform library for interfacing with ZooKeeper. While it is full featured, it only handles the basic operations that the driver provides. ZK implements the majority of the [recipes][] in the ZooKeeper documentation, plus a number of other conveniences for a production environment. 
+
+ZK provides:
+
+* 	a robust lock implementation (both shared and exclusive locks)
+* 	an extension for the [Mongoid][] ORM to provide advisory locks on mongodb records
+* 	a leader election implementation with both "leader" and "observer" roles
+* 	a higher-level interface to the ZooKeeper callback/watcher mechanism than the [zookeeper gem][] provides
+* 	a simple threadpool implementation
+* 	a bounded, dynamically-growable (threadsafe) client pool implementation
+* 	a recursive Find class (like the Find module in ruby-core)
+* 	unix-like rm\_rf and mkdir\_p methods (useful for functional testing)
+
+In addition to all of that, I would like to think that the public API the ZK::Client provides is more convenient to use for the common (synchronous) case.
+
+
+[recipes]: http://zookeeper.apache.org/doc/current/recipes.html
+[Mongoid]: http://mongoid.org/
+
+
 
