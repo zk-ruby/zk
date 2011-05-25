@@ -2,19 +2,20 @@ module ZK
   # A ruby-friendly wrapper around the low-level zookeeper drivers. This is the
   # class that you will likely interact with the most. 
   #
+  # @todo: ACL support is pretty much unused currently. If anyone has suggestions,
+  #   hints, use-cases, examples, etc. by all means please file a bug.
+  #
   class Client
     extend Forwardable
 
     DEFAULT_TIMEOUT = 10
 
     attr_reader :event_handler
+    
+    # @private the wrapped connection object
+    attr_reader :cnx
 
-    attr_reader :cnx #:nodoc:
-
-    # for backwards compatibility
-    alias :watcher :event_handler #:nodoc:
-
-    #:stopdoc:
+    # @private
     STATE_SYM_MAP = {
       Zookeeper::ZOO_CLOSED_STATE           => :closed,
       Zookeeper::ZOO_EXPIRED_SESSION_STATE  => :expired_session,
@@ -23,7 +24,6 @@ module ZK
       Zookeeper::ZOO_CONNECTED_STATE        => :connected,
       Zookeeper::ZOO_ASSOCIATING_STATE      => :associating,
     }.freeze
-    #:startdoc:
 
     # Create a new client and connect to the zookeeper server. 
     #
@@ -40,6 +40,11 @@ module ZK
       yield self if block_given?
       @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, @event_handler.get_default_watcher_block)
       @threadpool = Threadpool.new
+    end
+
+    # @deprecated: for backwards compatibility only
+    def watcher
+      event_handler
     end
 
     # Queue an operation to be run on an internal threadpool. You may either
@@ -109,17 +114,20 @@ module ZK
       wrap_state_closed_error { @cnx and @cnx.connected? }
     end
 
-    # Returns true if the underlying connection is in the +associating+ state.
+    # is the underlying connection is in the +associating+ state?
+    # @return [bool]
     def associating?
       wrap_state_closed_error { @cnx and @cnx.associating? }
     end
 
-    # Returns true if the underlying connection is in the +connecting+ state.
+    # is the underlying connection is in the +connecting+ state?
+    # @return [bool]
     def connecting?
       wrap_state_closed_error { @cnx and @cnx.connecting? }
     end
 
-    # Returns true if the underlying connection is in the +expired_session+ state.
+    # is the underlying connection is in the +expired_session+ state?
+    # @return [bool]
     def expired_session?
       return nil unless @cnx
 
@@ -130,8 +138,11 @@ module ZK
       end
     end
 
-    # does a stat on '/', returns true or false 
-    def ping? #:nodoc:
+    # does a stat on '/', rescues all zookeeper-protocol exceptions
+    #
+    # @private intended for use in monitoring scripts
+    # @return [bool]
+    def ping?
       false unless connected?
       false|stat('/')
     rescue ZK::Exceptions::KeeperException
@@ -175,11 +186,18 @@ module ZK
     #
     # Called with a hash of arguments set.  Supports being executed
     # asynchronousy by passing a callback object.
+    #
+    # @param [String] path absolute path of the znode
+    # @param [String] data the data to create the znode with
     # 
+    # @option opts [Integer] :acl defaults to <tt>ZookeeperACLs::ZOO_OPEN_ACL_UNSAFE</tt>, 
+    #   otherwise the ACL for the node. Should be a +ZOO_*+ constant defined under the 
+    #   ZookeeperACLs module in the zookeeper gem.
+    #
+    # @option opts [bool] :ephemeral (false) if true, the created node will be ephemeral
+    # @option opts [bool] :sequence (false) if true, the created node will be sequential
+    #
     # ==== Arguments
-    # * <tt>path</tt> -- path of the node
-    # * <tt>data</tt> -- initial data for the node, defaults to an empty string
-    # * <tt>:acl</tt> -- defaults to <tt>ACL::OPEN_ACL_UNSAFE</tt>, otherwise the ACL for the node
     # * <tt>:ephemeral</tt> -- defaults to false, if set to true the created node will be ephemeral
     # * <tt>:sequence</tt> -- defaults to false, if set to true the created node will be sequential
     # * <tt>:callback</tt> -- provide a AsyncCallback::StringCallback object or
@@ -221,34 +239,35 @@ module ZK
     #   zk.create("/path/child", "bar", :mode => :ephemeral_sequence)
     #   # => "/path/child0"
     #
-    #--
-    # TODO: document asynchronous callback
-    #
-    # ===== create asynchronously with callback object
-    #
-    #   class StringCallback
-    #     def process_result(return_code, path, context, name)
-    #       # do processing here
-    #     end
-    #   end
-    #  
-    #   callback = StringCallback.new
-    #   context = Object.new
-    #
-    #   zk.create("/path", "foo", :callback => callback, :context => context)
-    #
-    # ===== create asynchronously with callback proc
-    #
-    #   callback = proc do |return_code, path, context, name|
-    #       # do processing here
-    #   end
-    #
-    #   context = Object.new
-    #
-    #   zk.create("/path", "foo", :callback => callback, :context => context)
-    #
-    #++
+
     def create(path, data='', opts={})
+      # TODO: document asynchronous callback
+      #
+      # ===== create asynchronously with callback object
+      #
+      #   class StringCallback
+      #     def process_result(return_code, path, context, name)
+      #       # do processing here
+      #     end
+      #   end
+      #  
+      #   callback = StringCallback.new
+      #   context = Object.new
+      #
+      #   zk.create("/path", "foo", :callback => callback, :context => context)
+      #
+      # ===== create asynchronously with callback proc
+      #
+      #   callback = proc do |return_code, path, context, name|
+      #       # do processing here
+      #   end
+      #
+      #   context = Object.new
+      #
+      #   zk.create("/path", "foo", :callback => callback, :context => context)
+      
+      
+
       h = { :path => path, :data => data, :ephemeral => false, :sequence => false }.merge(opts)
 
       if mode = h.delete(:mode)
