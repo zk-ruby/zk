@@ -95,6 +95,35 @@ describe ZK::Client do
         @a.should be_true
       end
     end
+  end # block_until_node_deleted
+
+  # much of this code is tested in the underlying library, and by the 
+  # recipe implementations. specs hare are to "fill in the gaps", mainly around
+  # async calls
+  describe :create do
+    describe :async do
+      describe 'with a proc as a callback' do
+        before do
+          @path = '/test/async_create'
+          @zk.exists?(@path).should_not be_true
+          @called_with = nil
+
+          @context = Object.new
+
+          @block = lambda do |*cb|
+            @called_with = cb
+          end
+        end
+
+        it %[should call the block with the generated Callback subclass] do
+          @zk.create(@path, '', :callback => @block, :context => @context)
+
+          wait_until(2) { !@called_with.nil? }
+
+          @called_with.should_not be_nil
+        end
+      end
+    end
   end
 end
 
