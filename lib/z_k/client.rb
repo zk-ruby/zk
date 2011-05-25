@@ -221,15 +221,26 @@ module ZK
     #
     # @example create ephemeral node
     #
-    #   zk.create("/path", :mode => :ephemeral)
+    #   zk.create("/path", '', :mode => :ephemeral)
     #   # => "/path"
     #
     # @example create sequential node
     #
+    #   zk.create("/path", '', :sequential => true)
+    #   # => "/path0"
+    #
+    #   # or you can also do:
+    #
     #   zk.create("/path", :mode => :persistent_sequence)
     #   # => "/path0"
     #
+    #
     # @example create ephemeral and sequential node
+    #
+    #   zk.create("/path", '', :sequential => true, :ephemeral => true)
+    #   # => "/path0"
+    #
+    #   # or you can also do:
     #
     #   zk.create("/path", "foo", :mode => :ephemeral_sequence)
     #   # => "/path0"
@@ -240,6 +251,11 @@ module ZK
     #   # => "/path/child"
     #
     # @example create a sequential child path
+    #
+    #   zk.create("/path/child", "bar", :sequential => true, :ephemeral => true)
+    #   # => "/path/child0"
+    #
+    #   # or you can also do:
     #
     #   zk.create("/path/child", "bar", :mode => :ephemeral_sequence)
     #   # => "/path/child0"
