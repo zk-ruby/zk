@@ -231,7 +231,7 @@ module ZK
     #
     #   # or you can also do:
     #
-    #   zk.create("/path", :mode => :persistent_sequence)
+    #   zk.create("/path", '', :mode => :persistent_sequence)
     #   # => "/path0"
     #
     #
@@ -260,34 +260,30 @@ module ZK
     #   zk.create("/path/child", "bar", :mode => :ephemeral_sequence)
     #   # => "/path/child0"
     #
+    # @hidden_example create asynchronously with callback object
+    #
+    #   class StringCallback
+    #     def process_result(return_code, path, context, name)
+    #       # do processing here
+    #     end
+    #   end
+    #  
+    #   callback = StringCallback.new
+    #   context = Object.new
+    #
+    #   zk.create("/path", "foo", :callback => callback, :context => context)
+    #
+    # @hidden_example create asynchronously with callback proc
+    #
+    #   callback = proc do |return_code, path, context, name|
+    #       # do processing here
+    #   end
+    #
+    #   context = Object.new
+    #
+    #   zk.create("/path", "foo", :callback => callback, :context => context)
+    #
     def create(path, data='', opts={})
-
-
-      # ===== create asynchronously with callback object
-      #
-      #   class StringCallback
-      #     def process_result(return_code, path, context, name)
-      #       # do processing here
-      #     end
-      #   end
-      #  
-      #   callback = StringCallback.new
-      #   context = Object.new
-      #
-      #   zk.create("/path", "foo", :callback => callback, :context => context)
-      #
-      # ===== create asynchronously with callback proc
-      #
-      #   callback = proc do |return_code, path, context, name|
-      #       # do processing here
-      #   end
-      #
-      #   context = Object.new
-      #
-      #   zk.create("/path", "foo", :callback => callback, :context => context)
-      
-      
-
       h = { :path => path, :data => data, :ephemeral => false, :sequence => false }.merge(opts)
 
       if mode = h.delete(:mode)
@@ -315,50 +311,59 @@ module ZK
 
     # Return the data and stat of the node of the given path.  
     # 
-    # If the watch is true and the call is successfull (no exception is
-    # thrown), a watch will be left on the node with the given path. The watch
+    # If +:watch+ is true and the call is successful (no exception is
+    # raised), registered watchers on the node will be 'armed'. The watch
     # will be triggered by a successful operation that sets data on the node,
     # or deletes the node. See +watcher+ for documentation on how to register
     # blocks to be called when a watch event is fired.
-    # 
-    # A KeeperException with error code KeeperException::NoNode will be thrown
-    # if no node with the given path exists.
+    #
+    # @todo fix references to Watcher documentation
     # 
     # Supports being executed asynchronousy by passing a callback object.
     # 
-    # ==== Arguments
-    # * <tt>path</tt> -- path of the node
-    # * <tt>:watch</tt> -- defaults to false, set to true if you need to watch this node
-    # * <tt>:callback</tt> -- provide a AsyncCallback::DataCallback object or
-    #   Proc for an asynchronous call to occur
-    # * <tt>:context</tt> --  context object passed into callback method
-    # 
-    # ==== Examples
-    # ===== get data for path
-    #   zk.get("/path")
-    #   
-    # ===== get data and set watch on node
-    #   zk.get("/path", :watch => true)
+    # @param [String] path absolute path of the znode
     #
-
+    # @option opts [bool] watch (false) set to true if you want your registered
+    #   callbacks for this node to be called on change
+    #
+    # @option opts [ZookeeperCallbacks::DataCallback] callback to make this call asynchronously
+    #
+    # @option opts [Object] context an object passed to the +:callback+
+    #   given as the +context+ param
+    #
+    # @returns [Array] a two-element array of ['node data', #<ZookeeperStat::Stat>]
+    #
+    # @raise [ZK::Exceptions::NoNode] if no node with the given path exists.
+    #
+    # @example get data for path
+    #
+    #   zk.get("/path")
+    #   # => ['this is the data', #<ZookeeperStat::Stat>]
+    #   
+    # @example get data and set watch on node
+    #
+    #   zk.get("/path", :watch => true)
+    #   # => ['this is the data', #<ZookeeperStat::Stat>]
+    #
+    # @hidden_example get data asynchronously
+    #
+    #   class DataCallback
+    #     def process_result(return_code, path, context, data, stat)
+    #       # do processing here
+    #     end
+    #   end
+    #
+    #   zk.get("/path") do |return_code, path, context, data, stat|
+    #     # do processing here
+    #   end
+    #  
+    #   callback = DataCallback.new
+    #   context = Object.new
+    #   zk.get("/path", :callback => callback, :context => context)
+    #
     def get(path, opts={})
     
-      # ===== get data asynchronously
-      #
-      #   class DataCallback
-      #     def process_result(return_code, path, context, data, stat)
-      #       # do processing here
-      #     end
-      #   end
-      #
-      #   zk.get("/path") do |return_code, path, context, data, stat|
-      #     # do processing here
-      #   end
-      #  
-      #   callback = DataCallback.new
-      #   context = Object.new
-      #   zk.get("/path", :callback => callback, :context => context)
-   
+  
       h = { :path => path }.merge(opts)
 
       setup_watcher!(:data, h)
@@ -919,8 +924,8 @@ module ZK
     # register a block to be called when our session has expired. This usually happens
     # due to a network partitioning event, and means that all callbacks and watches must
     # be re-registered with the server
-    #---
-    # NOTE: need to come up with a way to test this
+    #
+    # @todo need to come up with a way to test this
     def on_expired_session(&block)
       watcher.register_state_handler(:expired_session, &block).tap do
         defer { block.call } if expired_session?
