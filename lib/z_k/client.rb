@@ -375,29 +375,45 @@ module ZK
     
     # Set the data for the node of the given path if such a node exists and the
     # given version matches the version of the node (if the given version is
-    # -1, it matches any node's versions). Return the stat of the node.
+    # -1, it matches any node's versions). Passing the version allows you to
+    # perform optimistic locking, in that if someone changes the node's
+    # data "behind your back", your update will fail. Since #create does not
+    # return a ZookeeperStat::Stat object, you should be aware that nodes are
+    # created with version == 0.
     # 
     # This operation, if successful, will trigger all the watches on the node
-    # of the given path left by get_data calls.
+    # of the given path left by get calls.
     # 
-    # A KeeperException with error code KeeperException::NoNode will be thrown
-    # if no node with the given path exists. A KeeperException with error code
-    # KeeperException::BadVersion will be thrown if the given version does not
-    # match the node's version.  
+    # @raise [ZK::Exceptions::NoNode] raised if no node with the given path exists 
+    # 
+    # @raise [ZK::Exceptions::BadVersion] raised if the given version does not
+    #   match the node's version
     #
     # Called with a hash of arguments set.  Supports being executed
     # asynchronousy by passing a callback object.
+    #
+    # @param [String] path absolute path of the znode
+    #
+    # @param [String] data the data to be set on the znode. Note that setting
+    #   the data to the exact same value currently on the node still increments
+    #   the node's version and causes watches to be fired.
     # 
-    # ==== Arguments
-    # * <tt>:path</tt> -- path of the node
-    # * <tt>:data</tt> -- data to set
-    # * <tt>:version</tt> -- defaults to -1, otherwise set to the expected matching version
-    # * <tt>:callback</tt> -- provide a AsyncCallback::StatCallback object or
-    #   Proc for an asynchronous call to occur
-    # * <tt>:context</tt> --  context object passed into callback method
-    # 
-    # ==== Examples
+    # @option opts [Integer] version (-1) matches all versions of a node if the
+    #   default is used, otherwise acts as an assertion that the znode has the 
+    #   supplied version.
+    #   
+    # @option opts [ZookeeperCallbacks::StatCallback] will recieve the
+    #   ZookeeperStat::Stat object asynchronously
+    #
+    # @option opts [Object] context an object passed to the +:callback+
+    #   given as the +context+ param
+    #
+    # @example unconditionally set the data of "/path"
+    #
     #   zk.set("/path", "foo")
+    #
+    # @example set the data of "/path" only if the version is 0
+    #
     #   zk.set("/path", "foo", :version => 0)
     #
     def set(path, data, opts={})
