@@ -2,8 +2,8 @@ module ZK
   # A ruby-friendly wrapper around the low-level zookeeper drivers. This is the
   # class that you will likely interact with the most. 
   #
-  # @todo: ACL support is pretty much unused currently. If anyone has suggestions,
-  #   hints, use-cases, examples, etc. by all means please file a bug.
+  # @todo ACL support is pretty much unused currently. 
+  #   If anyone has suggestions, hints, use-cases, examples, etc. by all means please file a bug.
   #
   class Client
     extend Forwardable
@@ -323,15 +323,15 @@ module ZK
     # 
     # @param [String] path absolute path of the znode
     #
-    # @option opts [bool] watch (false) set to true if you want your registered
+    # @option opts [bool] :watch (false) set to true if you want your registered
     #   callbacks for this node to be called on change
     #
-    # @option opts [ZookeeperCallbacks::DataCallback] callback to make this call asynchronously
+    # @option opts [ZookeeperCallbacks::DataCallback] :callback to make this call asynchronously
     #
-    # @option opts [Object] context an object passed to the +:callback+
+    # @option opts [Object] :context an object passed to the +:callback+
     #   given as the +context+ param
     #
-    # @returns [Array] a two-element array of ['node data', #<ZookeeperStat::Stat>]
+    # @return [Array] a two-element array of ['node data', #<ZookeeperStat::Stat>]
     #
     # @raise [ZK::Exceptions::NoNode] if no node with the given path exists.
     #
@@ -398,14 +398,14 @@ module ZK
     #   the data to the exact same value currently on the node still increments
     #   the node's version and causes watches to be fired.
     # 
-    # @option opts [Integer] version (-1) matches all versions of a node if the
+    # @option opts [Integer] :version (-1) matches all versions of a node if the
     #   default is used, otherwise acts as an assertion that the znode has the 
     #   supplied version.
     #   
-    # @option opts [ZookeeperCallbacks::StatCallback] will recieve the
+    # @option opts [ZookeeperCallbacks::StatCallback] :callback will recieve the
     #   ZookeeperStat::Stat object asynchronously
     #
-    # @option opts [Object] context an object passed to the +:callback+
+    # @option opts [Object] :context an object passed to the +:callback+
     #   given as the +context+ param
     #
     # @example unconditionally set the data of "/path"
@@ -448,26 +448,34 @@ module ZK
     # Can be called with just the path, otherwise a hash with the arguments
     # set. Supports being executed asynchronousy by passing a callback object.
     # 
-    # ==== Arguments
-    # * <tt>path</tt> -- path of the node
-    # * <tt>:watch</tt> -- defaults to false, set to true if you need to watch
-    #   this node
-    # * <tt>:callback</tt> -- provide a AsyncCallback::StatCallback object or
-    #   Proc for an asynchronous call to occur
-    # * <tt>:context</tt> --  context object passed into callback method
+    # @param [String] path absolute path of the znode
+    #
+    # @option opts [bool] :watch (false) set to true if you want to enable
+    #   registered watches on this node
     # 
-    # ==== Examples
-    # ===== exists for path
-    #   zk.stat("/path")
+    # @option opts [ZookeeperCallbacks::StatCallback] :callback will recieve the
+    #   ZookeeperStat::Stat object asynchronously
+    #
+    # @option opts [Object] :context an object passed to the +:callback+
+    #   given as the +context+ param
+    #
+    # @return [ZookeeperStat::Stat] a stat object of the specified node
+    #
+    # @example get stat for for path
+    #   >> zk.stat("/path")
     #   # => ZK::Stat
     #
-    # ===== exists for path with watch set
-    #   zk.stat("/path", :watch => true)
+    # @example get stat for path and enable watchers
+    #   >> zk.stat("/path", :watch => true)
     #   # => ZK::Stat
     #
-    # ===== exists for non existent path
-    #   zk.stat("/non_existent_path")
-    #   # => nil
+    # @example exists for non existent path
+    #
+    #   >> stat = zk.stat("/non_existent_path")
+    #   # => #<ZookeeperStat::Stat:0x000001eb54 @exists=false>
+    #   >> stat.exists?
+    #   # => false
+    #
     #
     def stat(path, opts={})
       # ===== exist node asynchronously
@@ -502,15 +510,19 @@ module ZK
 
     # sugar around stat
     #
-    # ===== instead of 
+    # @example 
+    #   
+    #   # instead of:
+    #
     #   zk.stat('/path').exists?
     #   # => true
     #
-    # ===== you can do
+    #   # you can do:
+    #
     #   zk.exists?('/path')
     #   # => true
     #
-    # this only works for the synchronous version of stat. for async version,
+    # only works for the synchronous version of stat. for async version,
     # this method will act *exactly* like stat
     #
     def exists?(path, opts={})
@@ -528,16 +540,7 @@ module ZK
 
     # Delete the node with the given path. The call will succeed if such a node
     # exists, and the given version matches the node's version (if the given
-    # version is -1, it matches any node's versions).
-    # 
-    # A KeeperException with error code KeeperException::NoNode will be thrown
-    # if the nodes does not exist.
-    # 
-    # A KeeperException with error code KeeperException::BadVersion will be
-    # thrown if the given version does not match the node's version.
-    # 
-    # A KeeperException with error code KeeperException::NotEmpty will be
-    # thrown if the node has children.
+    # version is -1, it matches any node's versions), and the node has no children.
     # 
     # This operation, if successful, will trigger all the watches on the node
     # of the given path left by exists API calls, and the watches on the parent
@@ -545,18 +548,34 @@ module ZK
     #
     # Can be called with just the path, otherwise a hash with the arguments
     # set.  Supports being executed asynchronousy by passing a callback object.
+    #
+    # A KeeperException with error code KeeperException::NotEmpty will be
+    # thrown if the node has children.
+    #
+    # @raise [ZK::Exceptions::NoNode] raised if no node with the given path exists 
     # 
-    # ==== Arguments
-    # * <tt>path</tt> -- path of the node to be deleted
-    # * <tt>:version</tt> -- defaults to -1 (deletes any version), otherwise
-    #   set to the expected matching version
-    # * <tt>:callback</tt> -- provide a AsyncCallback::VoidCallback object or
-    #   Proc for an asynchronous call to occur
-    # * <tt>:context</tt> --  context object passed into callback method
+    # @raise [ZK::Exceptions::BadVersion] raised if the given version does not
+    #   match the node's version
+    #
+    # @raise [ZK::Exceptions::NotEmpty] raised if the node has children
     # 
-    # ==== Examples
+    # @param [String] path absolute path of the znode
+    #
+    # @option opts [Integer] :version (-1) matches all versions of a node if the
+    #   default is used, otherwise acts as an assertion that the znode has the 
+    #   supplied version.
+    #
+    # @option opts [ZookeeperCallbacks::VoidCallback] :callback will be called
+    #   asynchronously when the operation is complete
+    #
+    # @option opts [Object] :context an object passed to the +:callback+
+    #   given as the +context+ param
+    # 
+    # @example delete a node
     #   zk.delete("/path")
-    #   zk.delete("/path", :version => 0)
+    #
+    # @example delete a node with a specific version
+    #   zk.delete("/path", :version => 5)
     #
     def delete(path, opts={})
       # ===== delete node asynchronously
@@ -581,39 +600,40 @@ module ZK
     # Return the list of the children of the node of the given path.
     # 
     # If the watch is true and the call is successful (no exception is thrown),
-    # a watch will be left on the node with the given path. The watch will be
-    # triggered by a successful operation that deletes the node of the given
-    # path or creates/delete a child under the node. See +watcher+ for
-    # documentation on how to register blocks to be called when a watch event
-    # is fired.
+    # registered watchers of the children of the node will be enabled. The
+    # watch will be triggered by a successful operation that deletes the node
+    # of the given path or creates/delete a child under the node. See +watcher+
+    # for documentation on how to register blocks to be called when a watch
+    # event is fired.
     # 
-    # A KeeperException with error code KeeperException::NoNode will be thrown
-    # if no node with the given path exists.
+    # @raise [ZK::Exceptions::NoNode] if the node does not exist
     # 
-    # Can be called with just the path, otherwise a hash with the arguments
-    # set.  Supports being executed asynchronousy by passing a callback object.
+    # @param [String] path absolute path of the znode
+    #
+    # @option opts [bool] :watch (false) set to true if you want your registered
+    #   callbacks for this node to be called on change
+    #
+    # @option opts [ZookeeperCallbacks::StringsCallback] :callback to make this
+    #   call asynchronously
+    #
+    # @option opts [Object] :context an object passed to the +:callback+
+    #   given as the +context+ param
     # 
-    # ==== Arguments
-    # * <tt>path</tt> -- path of the node
-    # * <tt>:watch</tt> -- defaults to false, set to true if you need to watch
-    #   this node
-    # * <tt>:callback</tt> -- provide a AsyncCallback::ChildrenCallback object
-    #   or Proc for an asynchronous call to occur
-    # * <tt>:context</tt> --  context object passed into callback method
-    # 
-    # ==== Examples
-    # ===== get children for path
+    # @example get children for path
+    #
     #   zk.create("/path", :data => "foo")
-    #   zk.create("/path/child", :data => "child1", :sequence => true)
-    #   zk.create("/path/child", :data => "child2", :sequence => true)
+    #   zk.create("/path/child_0", :data => "child0")
+    #   zk.create("/path/child_1", :data => "child1")
     #   zk.children("/path")
-    #   # => ["child0", "child1"]
+    #   # => ["child_0", "child_1"]
     #
-    # ====== get children and set watch
+    # @example get children and set watch
+    #   
+    #   # same setup as above
+    #
     #   zk.children("/path", :watch => true)
-    #   # => ["child0", "child1"]
+    #   # => ["child_0", "child_1"]
     #
-
     def children(path, opts={})
       # ===== get children asynchronously
       #
@@ -637,31 +657,33 @@ module ZK
     end
 
     # Return the ACL and stat of the node of the given path.
-    # 
-    # A KeeperException with error code KeeperException::Code::NoNode will be
-    # thrown if no node with the given path exists.  
     #
-    # Can be called with just the path, otherwise a hash with the arguments
-    # set.  Supports being executed asynchronousy by passing a callback object.
+    # @todo this method is pretty much untested, YMMV
     # 
-    # ==== Arguments
-    # * <tt>path</tt> -- path of the node
-    # * <tt>:stat</tt> -- defaults to nil, provide a Stat object that will be
-    #   set with the Stat information of the node path (TODO: test this)
-    # * <tt>:callback</tt> -- provide a AsyncCallback::AclCallback object or
-    #   Proc for an asynchronous call to occur
-    # * <tt>:context</tt> --  context object passed into callback method
+    # @raise [ZK::Exceptions::NoNode] if the parent node does not exist
     # 
-    # ==== Examples
-    # ===== get acl
+    # @param [String] path absolute path of the znode
+    #
+    # @option opts [ZookeeperStat::Stat] (nil) provide a Stat object that will
+    #   be set with the Stat information of the node path
+    #
+    # @option opts [ZookeeperCallback::AclCallback] (nil) :callback for an
+    #   asynchronous call to occur
+    #
+    # @option opts [Object] :context (nil) an object passed to the +:callback+
+    #   given as the +context+ param
+    # 
+    # @example get acl
+    #
     #   zk.get_acl("/path")
     #   # => [ACL]
     #
-    # ===== get acl with stat
+    # @example get acl with stat
+    #
     #   stat = ZK::Stat.new
     #   zk.get_acl("/path", :stat => stat)
+    #   # => [ACL]
     #
-
     def get_acl(path, opts={})
       # ===== get acl asynchronously
       #
@@ -684,25 +706,26 @@ module ZK
     # given version matches the version of the node. Return the stat of the
     # node.
     # 
-    # A KeeperException with error code KeeperException::Code::NoNode will be
-    # thrown if no node with the given path exists.
-    # 
-    # A KeeperException with error code KeeperException::Code::BadVersion will
-    # be thrown if the given version does not match the node's version.
+    # @raise [ZK::Exceptions::NoNode] if the parent node does not exist
     #
-    # Called with a hash of arguments set.  Supports being executed
-    # asynchronousy by passing a callback object.
+    # @raise [ZK::Exceptions::BadVersion] raised if the given version does not
+    #   match the node's version
     # 
-    # ==== Arguments
-    # * <tt>path</tt> -- path of the node
-    # * <tt>:acl</tt> -- acl to set
-    # * <tt>:version</tt> -- defaults to -1, otherwise set to the expected matching version
-    # * <tt>:callback</tt> -- provide a AsyncCallback::StatCallback object or
-    #   Proc for an asynchronous call to occur
-    # * <tt>:context</tt> --  context object passed into callback method
+    # @param [String] path absolute path of the znode
+    #
+    # @param [ZookeeperACLs] acls the acls to set on the znode
     # 
-    # ==== Examples
-    # TBA - waiting on clarification of method use
+    # @option opts [Integer] :version (-1) matches all versions of a node if the
+    #   default is used, otherwise acts as an assertion that the znode has the 
+    #   supplied version.
+    #
+    # @option opts [ZookeeperCallbacks::VoidCallback] :callback will be called
+    #   asynchronously when the operation is complete
+    #
+    # @option opts [Object] :context an object passed to the +:callback+
+    #   given as the +context+ param
+    #
+    # @todo: TBA - waiting on clarification of method use
     #
     def set_acl(path, acls, opts={})
       h = { :path => path, :acl => acls }.merge(opts)
