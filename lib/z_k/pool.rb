@@ -6,11 +6,14 @@ module ZK
       def initialize
         @state = :init
 
-        @connections = []
-        @connections.extend(MonitorMixin)
-        @checkin_cond = @connections.new_cond
 
-        @on_connection_subscriptions = {}
+        @mutex  = Monitor.new
+        @checkin_cond = @mutex.new_cond
+        
+        @connections = []     # all connections we control
+        @pool = []            # currently available connections
+
+        @pool.extend(MonitorMixin)
       end
 
       # has close_all! been called on this ConnectionPool ?
@@ -36,7 +39,7 @@ module ZK
       # close all the connections on the pool
       # @param optional Boolean graceful allow the checked out connections to come back first?
       def close_all!
-        synchronize do 
+        @mutex.synchronize do 
           return unless open?
           @state = :closing
 
@@ -49,18 +52,13 @@ module ZK
       # calls close! on all connection objects, whether or not they're back in the pool
       # this is DANGEROUS!
       def force_close! #:nodoc:
-        synchronize do
+        @mutex.synchronize do
           return if (closed? or forced?)
           @state = :forced
 
           @pool.clear
 
           while cnx = @connections.shift
-            if sub = @on_connection_subscriptions.delete(cnx)
-              logger.debug { "unregistering on_connection subscription for cnx: #{cnx.object_id}" }
-              sub.unregister
-            end
-
             cnx.close!
           end
 
@@ -106,7 +104,7 @@ module ZK
       end
 
       def size #:nodoc:
-        @pool.size
+        @connection.synchronize { @pool.size }
       end
 
       def pool_state #:nodoc:
@@ -115,7 +113,7 @@ module ZK
 
       protected
         def synchronize
-          @connections.synchronize { yield }
+          @mutex.synchronize { yield }
         end
 
         def assert_open!
@@ -149,10 +147,7 @@ module ZK
 
         @count_waiters = 0
 
-        # for compatibility w/ ClientPool we'll use @connections for synchronization
-        @pool = []            # currently available connections
-
-        synchronize do
+        @mutex.synchronize do
           populate_pool!(@min_clients)
           @state = :open
         end
@@ -161,73 +156,84 @@ module ZK
       # returns the current number of allocated clients in the pool (not
       # available clients)
       def size
-        synchronize { @connections.length }
+        @mutex.synchronize { @connections.length }
       end
 
       # clients available for checkout (at time of call)
       def available_size
-        synchronize { @pool.length }
+        @mutex.synchronize { @pool.length }
       end
 
       def checkin(connection)
-        synchronize do
+        @mutex.synchronize do
           if @pool.include?(connection)
-            logger.debug { "Pool already contains connection: #{connection.inspect}" }
+            logger.debug { "Pool already contains connection: #{connection.object_id}, @connections.include? #{@connections.include?(connection).inspect}" }
             return
           end
 
           @pool << connection
+
           @checkin_cond.signal
         end
       end
 
       # number of threads waiting for connections
       def count_waiters #:nodoc:
-        synchronize { @count_waiters }
+        @mutex.synchronize { @count_waiters }
       end
 
       def checkout(blocking=true) 
         raise ArgumentError, "checkout does not take a block, use .with_connection" if block_given?
-        synchronize_with_waiter_count do
-          while true
-            assert_open!
+        @mutex.synchronize do
+          logger.debug { "Thread: #{Thread.current.object_id} entered checkout" }
+          begin
+            while true
+              assert_open!
 
-            if @pool.length > 0
-              cnx = @pool.shift
-              
-              # if the cnx isn't connected? then remove it from the pool and go
-              # through the loop again. when the cnx's on_connected event fires, it
-              # will add the connection back into the pool
-              unless cnx.connected?
-                logger.debug { "cnx: #{cnx.object_id} is not connected, removing from pool" }
-                # XXX: We should throw away the connection here XXX #
+              if @pool.length > 0
+                logger.debug { "@pool.size: #{@pool.size}" }
+                cnx = @pool.shift
+                logger.debug { "@pool.size: #{@pool.size}" }
+                
+                # If the cnx isn't connected? then remove it from the pool and dispose of it.
+                # Create a new connection and then iterate again. Given the
+                # asynchronous nature that connections are added to the pool,
+                # this is the only sane/safe way to do this
+                #
+                unless cnx.connected?
+                  logger.debug { "cnx: #{cnx.object_id} is not connected, disposing and adding new connection" }
+                  @connections.delete(cnx)
+                  cnx.close!
+                  next
+                end
+
+                logger.debug { "returning connection: #{cnx.object_id}" }
+                # otherwise we return the cnx
+                return cnx
+              elsif can_grow_pool?
+                add_connection!
                 next
+              elsif blocking
+                @checkin_cond.wait_while { @pool.empty? and open? }
+                next
+              else
+                return false
               end
-
-              logger.debug { "returning connection: #{cnx.object_id}" }
-              # otherwise we return the cnx
-              return cnx
-            elsif can_grow_pool?
-              add_connection!
-              next
-            elsif blocking
-              @checkin_cond.wait_while { @pool.empty? and open? }
-              next
-            else
-              return false
-            end
+            end # while 
+          ensure
+            logger.debug { "Thread: #{Thread.current.object_id} exitng checkout" }
           end
         end
       end
 
       # @private
       def can_grow_pool?
-        synchronize { @connections.size < @max_clients }
+        @mutex.synchronize { @connections.size < @max_clients }
       end
 
       protected
         def synchronize_with_waiter_count
-          synchronize do
+          @mutex.synchronize do
             begin
               @count_waiters += 1 
               yield
@@ -242,17 +248,16 @@ module ZK
         end
 
         def add_connection!
-          synchronize do
+          @mutex.synchronize do
             cnx = create_connection
             @connections << cnx 
             logger.debug { "added connection #{cnx.object_id}  to @connections" }
 
             sub = cnx.on_connected do 
+              sub.unsubscribe
               logger.debug { "on_connected called for cnx #{cnx.object_id}" }
               checkin(cnx)
             end
-
-            @on_connection_subscriptions[cnx] = sub
           end
         end
 

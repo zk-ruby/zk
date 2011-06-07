@@ -106,6 +106,8 @@ module ZK
           raise ZKError, "don't know how to process event: #{event.inspect}"
         end
 
+      logger.debug { "EventHandler#process: cb_key: #{cb_key}" }
+
       cb_ary = synchronize do 
         if event.node_event?
           if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
@@ -188,7 +190,7 @@ module ZK
       end
 
       def safe_call(callbacks, *args)
-        callbacks.each do |cb|
+        while cb = callbacks.shift
           begin
             cb.call(*args) if cb.respond_to?(:call)
           rescue Exception => e
