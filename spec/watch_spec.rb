@@ -100,18 +100,36 @@ describe ZK do
   end
 
   describe 'state watcher' do
-    before do
-      @event = nil
-      @cnx_str = "localhost:#{ZK_TEST_PORT}"
+    describe 'live-fire test' do
+      before do
+        @event = nil
+        @cnx_str = "localhost:#{ZK_TEST_PORT}"
 
-      @zk = ZK.new(@cnx_str) do |zk|
-        @cnx_reg = zk.on_connected { |event| @event = event }
+        @zk = ZK.new(@cnx_str) do |zk|
+          @cnx_reg = zk.on_connected { |event| @event = event }
+        end
+      end
+
+      it %[should fire the registered callback] do
+        wait_while { @event.nil? }
+        @event.should_not be_nil
       end
     end
 
-    it %[should fire the registered callback] do
-      wait_while { @event.nil? }
-      @event.should_not be_nil
+    describe 'registered listeners' do
+      before do
+        @event = flexmock(:event) do |m|
+          m.should_receive(:type).and_return(-1)
+          m.should_receive(:zk=).with(any())
+          m.should_receive(:node_event?).and_return(false)
+          m.should_receive(:state_event?).and_return(true)
+          m.should_receive(:state).and_return(ZookeeperConstants::ZOO_CONNECTED_STATE)
+        end
+      end
+
+      it %[should only fire the callback once] do
+        pending "not sure if this is the behavior we want"
+      end
     end
   end
 end

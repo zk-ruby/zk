@@ -261,8 +261,12 @@ describe ZK::Pool do
 
       describe 'disconnected client' do
         before do
+
+          mock_sub = flexmock(:subscription)
+
           flexmock(@cnx1) do |m|
-            m.should_receive(:connected?).and_return(false)
+            m.should_receive(:connected?).at_least.once.and_return(false)
+            m.should_receive(:on_connected).with(Proc).at_least.once.and_return(mock_sub)
           end
 
           @cnx2 = @connection_pool.checkout
@@ -272,17 +276,10 @@ describe ZK::Pool do
           @connection_pool.checkin(@cnx2)
         end
 
-        it %[should create a new client and return it] do
+        it %[should remove the disconnected client from the pool] do
           @cnx2.should_not be_nil
           @cnx2.should_not == @cnx1
-        end
-
-        it %[should remove the disconnected client from the pool] do
-          pending
           @connection_pool.available_size.should == 1
-        end
-
-        it %[should still have the original client in its array of all connections] do
           @connections.should include(@cnx1)
         end
 
