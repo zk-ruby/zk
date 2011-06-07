@@ -9,6 +9,8 @@ module ZK
         @connections = []
         @connections.extend(MonitorMixin)
         @checkin_cond = @connections.new_cond
+
+        @on_connection_subscriptions = {}
       end
 
       # has close_all! been called on this ConnectionPool ?
@@ -54,6 +56,11 @@ module ZK
           @pool.clear
 
           while cnx = @connections.shift
+            if sub = @on_connection_subscriptions.delete(cnx)
+              logger.debug { "unregistering on_connection subscription for cnx: #{cnx.object_id}" }
+              sub.unregister
+            end
+
             cnx.close!
           end
 
@@ -164,16 +171,19 @@ module ZK
 
       def checkin(connection)
         synchronize do
-          return if @pool.include?(connection)
+          if @pool.include?(connection)
+            logger.debug { "Pool already contains connection: #{connection.inspect}" }
+            return
+          end
 
-          @pool.unshift(connection)
+          @pool << connection
           @checkin_cond.signal
         end
       end
 
       # number of threads waiting for connections
       def count_waiters #:nodoc:
-        @count_waiters
+        synchronize { @count_waiters }
       end
 
       def checkout(blocking=true) 
@@ -188,8 +198,13 @@ module ZK
               # if the cnx isn't connected? then remove it from the pool and go
               # through the loop again. when the cnx's on_connected event fires, it
               # will add the connection back into the pool
-              next unless cnx.connected?
+              unless cnx.connected?
+                logger.debug { "cnx: #{cnx.object_id} is not connected, removing from pool" }
+                # XXX: We should throw away the connection here XXX #
+                next
+              end
 
+              logger.debug { "returning connection: #{cnx.object_id}" }
               # otherwise we return the cnx
               return cnx
             elsif can_grow_pool?
@@ -232,10 +247,12 @@ module ZK
             @connections << cnx 
             logger.debug { "added connection #{cnx.object_id}  to @connections" }
 
-            cnx.on_connected do 
-              logger.debug { "on connected called for cnx #{cnx.object_id}" }
+            sub = cnx.on_connected do 
+              logger.debug { "on_connected called for cnx #{cnx.object_id}" }
               checkin(cnx)
             end
+
+            @on_connection_subscriptions[cnx] = sub
           end
         end
 

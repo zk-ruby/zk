@@ -94,7 +94,7 @@ module ZK
 
     # called from the client-registered callback when an event fires
     def process(event) #:nodoc:
-      logger.debug { "EventHandler#process dispatching event: #{event.inspect}" } unless event.type == -1
+      logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
       event.zk = @zk
 
       cb_key = 

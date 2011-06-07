@@ -155,6 +155,7 @@ describe ZK::Pool do
       @max_clients = 2
       @connection_pool = ZK::Pool::Bounded.new("localhost:#{ZK_TEST_PORT}", :min_clients => @min_clients, :max_clients => @max_clients, :timeout => @timeout)
       @connection_pool.should be_open
+      wait_until(2) { @connection_pool.available_size > 0 }
     end
 
     after do
@@ -179,26 +180,21 @@ describe ZK::Pool do
 #       end
 
       it %[should grow if it can] do
-        th = Thread.new do
-          wait_until(2) { @connection_pool.available_size > 0 }
-          @connection_pool.available_size.should > 0
+        wait_until(2) { @connection_pool.available_size > 0 }
+        @connection_pool.available_size.should > 0
 
-          @connection_pool.size.should == 1
+        @connection_pool.size.should == 1
 
-          @cnx1 = @connection_pool.checkout
-          @cnx1.should_not be_false
+        @cnx1 = @connection_pool.checkout
+        @cnx1.should_not be_false
 
-          @connection_pool.can_grow_pool?.should be_true
+        @connection_pool.can_grow_pool?.should be_true
 
-          @cnx2 = @connection_pool.checkout
-          @cnx2.should_not be_false
-          @cnx2.should be_connected
+        @cnx2 = @connection_pool.checkout
+        @cnx2.should_not be_false
+        @cnx2.should be_connected
 
-          [@cnx1, @cnx2].each { |c| @connection_pool.checkin(c) }
-        end
-
-        
-        th.join
+        [@cnx1, @cnx2].each { |c| @connection_pool.checkin(c) }
       end
 
       it %[should not grow past max_clients and block] do
@@ -207,47 +203,51 @@ describe ZK::Pool do
 
         threads = []
 
-        2.times do
-          threads << Thread.new do
-            @connection_pool.with_connection do |cnx|
-              Thread.current[:cnx] = cnx
-              win_q.pop
-            end
-          end
-        end
+        @cnx1 = @connection_pool.checkout
+        @cnx1.should_not be_false
 
-        wait_until(2) { threads.all? { |th| th[:cnx] } }
-        threads.each { |th| th[:cnx].should_not be_nil }
+        @connection_pool.can_grow_pool?.should be_true
+
+        @cnx2 = @connection_pool.checkout
+        @cnx2.should_not be_false
+
+        @connection_pool.can_grow_pool?.should be_false
+
+        logger.debug { "spawning losing thread" }
 
         loser = Thread.new do
           @connection_pool.with_connection do |cnx|
             Thread.current[:cnx] = cnx
+            logger.debug { "Losing thread got connection" }
             lose_q.pop
           end
+          logger.debug { "losing thread exiting" }
         end
 
-        wait_until(2) { @connection_pool.count_waiters > 0 }
+        loser.join_until(5) { @connection_pool.count_waiters > 0 }
+
+        logger.debug { "count waiters: #{@connection_pool.count_waiters}" }
+
         @connection_pool.count_waiters.should == 1
 
         loser[:cnx].should be_nil
 
-        2.times { win_q.enq(:release) }
-
-        lambda { threads.each { |th| th.join(2).should == th } }.should_not raise_error
+        [@cnx1, @cnx2].each { |c| @connection_pool.checkin(c) }
 
         loser.join_until(2) { loser[:cnx] }
-
         loser[:cnx].should_not be_nil
 
         lose_q.enq(:release)
 
         lambda { loser.join(2).should == loser }.should_not raise_error
 
+        logger.debug { "joined losing thread" }
+
         @connection_pool.count_waiters.should be_zero
         @connection_pool.available_size.should == 2
         @connection_pool.size.should == 2
       end
-    end
+    end   # should grow to max_clients
 
     describe 'health checking' do
       before do
@@ -263,15 +263,11 @@ describe ZK::Pool do
             m.should_receive(:connected?).and_return(false)
           end
 
-          @cnx2 = nil
+          @cnx2 = @connection_pool.checkout
+        end
 
-          th = Thread.new do
-            @connection_pool.with_connection do |cnx|
-              @cnx2 = cnx
-            end
-          end
-
-          th.join_while { @cnx2.nil? }
+        after do
+          @connection_pool.checkin(@cnx2)
         end
 
         it %[should create a new client and return it] do
