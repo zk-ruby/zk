@@ -13,8 +13,8 @@ module ZK
         @pool = []            # currently available connections
 
         # this is required for 1.8.7 compatibility
-        @on_connection_subs = {}
-        @on_connection_subs.extend(MonitorMixin)
+        @on_connected_subs = {}
+        @on_connected_subs.extend(MonitorMixin)
       end
 
       # has close_all! been called on this ConnectionPool ?
@@ -192,19 +192,13 @@ module ZK
             if @pool.length > 0
               cnx = @pool.shift
               
-              # If the cnx isn't connected? then remove it from the pool and dispose of it.
-              # Create a new connection and then iterate again. Given the
-              # asynchronous nature that connections are added to the pool,
-              # this is the only sane/safe way to do this
-              #
+              # if the connection isn't connected, then set up an on_connection
+              # handler and try the next one in the pool
               unless cnx.connected?
-                logger.debug { "cnx: #{cnx.object_id} is not connected, disposing and adding new connection" }
-                @connections.delete(cnx)
-                cnx.close!
+                handle_checkin_on_connection(cnx)
                 next
               end
 
-#               logger.debug { "returning connection: #{cnx.object_id}" }
               # otherwise we return the cnx
               return cnx
             elsif can_grow_pool?
@@ -236,6 +230,12 @@ module ZK
             @connections << cnx 
             logger.debug { "added connection #{cnx.object_id}  to @connections" }
 
+            handle_checkin_on_connection(cnx)
+          end # synchronize
+        end
+
+        def handle_checkin_on_connection(cnx)
+          @mutex.synchronize do
             do_checkin = lambda do
               logger.debug { "on_connected called for cnx #{cnx.object_id}" }
               checkin(cnx)
@@ -245,25 +245,24 @@ module ZK
               do_checkin.call
               return
             else
-              @on_connection_subs.synchronize do
+              @on_connected_subs.synchronize do
 
                 sub = cnx.on_connected do 
                   # this synchronization is to prevent a race between setting up the subscription
-                  # and assigning it to the @on_connection_subs hash. It's possible that the callback
+                  # and assigning it to the @on_connected_subs hash. It's possible that the callback
                   # would fire before we had a chance to add the sub to the hash.
-                  @on_connection_subs.synchronize do
-                    if sub = @on_connection_subs.delete(cnx)
+                  @on_connected_subs.synchronize do
+                    if sub = @on_connected_subs.delete(cnx)
                       sub.unsubscribe
                       do_checkin.call
                     end
                   end
                 end
 
-                @on_connection_subs[cnx] = sub
+                @on_connected_subs[cnx] = sub
               end
             end
-
-          end # synchronize
+          end
         end
 
         def create_connection
