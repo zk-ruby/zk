@@ -58,6 +58,7 @@ module ZK
       # this block from further updates
       #
       def on_connected(&block)
+        # XXX: REFACTOR this! this defer call seems like more trouble than it's worth
         watcher.register_state_handler(:connected, &block).tap do
           defer { block.call } if connected?
         end

@@ -6,14 +6,15 @@ module ZK
       def initialize
         @state = :init
 
-
         @mutex  = Monitor.new
         @checkin_cond = @mutex.new_cond
         
         @connections = []     # all connections we control
         @pool = []            # currently available connections
 
-        @pool.extend(MonitorMixin)
+        # this is required for 1.8.7 compatibility
+        @on_connection_subs = {}
+        @on_connection_subs.extend(MonitorMixin)
       end
 
       # has close_all! been called on this ConnectionPool ?
@@ -253,12 +254,31 @@ module ZK
             @connections << cnx 
             logger.debug { "added connection #{cnx.object_id}  to @connections" }
 
-            sub = cnx.on_connected do 
-              sub.unsubscribe
+            do_checkin = lambda do
               logger.debug { "on_connected called for cnx #{cnx.object_id}" }
               checkin(cnx)
             end
-          end
+
+            if cnx.connected?
+              do_checkin.call
+              return
+            else
+              @on_connection_subs.synchronize do
+
+                sub = cnx.on_connected do 
+                  @on_connection_subs.synchronize do
+                    if sub = @on_connection_subs.delete(cnx)
+                      sub.unsubscribe
+                      do_checkin.call
+                    end
+                  end
+                end
+
+                @on_connection_subs[cnx] = sub
+              end
+            end
+
+          end # synchronize
         end
 
         def create_connection
