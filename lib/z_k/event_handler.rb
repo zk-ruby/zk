@@ -43,7 +43,7 @@ module ZK
     # @see ZooKeeper::WatcherEvent
     # @see ZooKeeper::EventHandlerSubscription
     def register(path, &block)
-      logger.debug { "EventHandler#register path=#{path.inspect}" }
+#       logger.debug { "EventHandler#register path=#{path.inspect}" }
       EventHandlerSubscription.new(self, path, block).tap do |subscription|
         synchronize { @callbacks[path] << subscription }
       end

@@ -1,0 +1,4 @@
+--color
+--require ./spec/support/logging_progress_bar_formatter.rb
+--format Motionbox::LoggingProgressBarFormatter
+

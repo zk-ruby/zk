@@ -92,7 +92,7 @@ module ZK
             while @running
               begin
                 op = @threadqueue.pop
-                $stderr.puts "thread #{Thread.current.inspect} got #{op.inspect}"
+#                 $stderr.puts "thread #{Thread.current.inspect} got #{op.inspect}"
                 break if op == KILL_TOKEN
                 op.call
               rescue Exception => e

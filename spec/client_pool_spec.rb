@@ -57,33 +57,32 @@ describe ZK::Pool do
         @about_to_block = false
 
         open_th = Thread.new do
-          @connection_pool.with_connection do |cnx|
-            @about_to_block = true
-            # wait for signal to release our connection
-            release_q.pop
-          end
+          @cnx = @connection_pool.checkout(true)
+          @about_to_block = true
+          # wait for signal to release our connection
+          release_q.pop
         end
 
-        wait_until(2) { @about_to_block }
+        wait_until(5) { @about_to_block }
         @about_to_block.should be_true
-
-        release_q.num_waiting.should == 1
 
         closing_th = Thread.new do
           @connection_pool.close_all!
         end
 
-        wait_until(2) { @connection_pool.closing? }
+        wait_until(5) { @connection_pool.closing? }
         @connection_pool.should be_closing
+        logger.debug { "connection pool is closing" }
 
         lambda { @connection_pool.with_connection { |c| } }.should raise_error(ZK::Exceptions::PoolIsShuttingDownException)
 
         release_q << :ok_let_go
 
-        open_th.join(2).should == open_th
+        open_th.join(5).should == open_th
 
-        wait_until(2) { @connection_pool.closed? }
+        wait_until(5) { @connection_pool.closed? }
         $stderr.puts "@connection_pool.pool_state: #{@connection_pool.pool_state.inspect}"
+
         @connection_pool.should be_closed
 
         lambda do
@@ -180,44 +179,26 @@ describe ZK::Pool do
 #       end
 
       it %[should grow if it can] do
-        q1 = Queue.new
+        th = Thread.new do
+          wait_until(2) { @connection_pool.available_size > 0 }
+          @connection_pool.available_size.should > 0
 
-        @connection_pool.size.should == 1
+          @connection_pool.size.should == 1
 
-        th1 = Thread.new do
-          @connection_pool.with_connection do |cnx|
-            Thread.current[:cnx] = cnx
-            q1.pop  # block here
-          end
+          @cnx1 = @connection_pool.checkout
+          @cnx1.should_not be_false
+
+          @connection_pool.can_grow_pool?.should be_true
+
+          @cnx2 = @connection_pool.checkout
+          @cnx2.should_not be_false
+          @cnx2.should be_connected
+
+          [@cnx1, @cnx2].each { |c| @connection_pool.checkin(c) }
         end
 
-        th1.join_until(2) { th1[:cnx] }
-        th1[:cnx].should_not be_nil
-
-        th2 = Thread.new do
-          @connection_pool.with_connection do |cnx|
-            Thread.current[:cnx] = cnx
-            q1.pop
-          end
-        end
-
-        th2.join_until(2) { th2[:cnx] }
-
-        th2[:cnx].should_not be_nil
-        th2[:cnx].should be_connected
-
-        @connection_pool.size.should == 2
-        @connection_pool.available_size.should be_zero
-
-        2.times { q1.enq(:release_cnx) }
-
-        lambda do
-          th1.join(1).should == th1
-          th2.join(1).should == th2
-        end.should_not raise_error
-
-        @connection_pool.size.should == 2
-        @connection_pool.available_size.should == 2
+        
+        th.join
       end
 
       it %[should not grow past max_clients and block] do

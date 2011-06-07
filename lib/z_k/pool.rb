@@ -154,12 +154,12 @@ module ZK
       # returns the current number of allocated clients in the pool (not
       # available clients)
       def size
-        @connections.length
+        synchronize { @connections.length }
       end
 
       # clients available for checkout (at time of call)
       def available_size
-        @pool.length
+        synchronize { @pool.length }
       end
 
       def checkin(connection)
@@ -205,6 +205,11 @@ module ZK
         end
       end
 
+      # @private
+      def can_grow_pool?
+        synchronize { @connections.size < @max_clients }
+      end
+
       protected
         def synchronize_with_waiter_count
           synchronize do
@@ -225,13 +230,13 @@ module ZK
           synchronize do
             cnx = create_connection
             @connections << cnx 
+            logger.debug { "added connection #{cnx.object_id}  to @connections" }
 
-            cnx.on_connected { checkin(cnx) }
+            cnx.on_connected do 
+              logger.debug { "on connected called for cnx #{cnx.object_id}" }
+              checkin(cnx)
+            end
           end
-        end
-
-        def can_grow_pool?
-          synchronize { @connections.size < @max_clients }
         end
 
         def create_connection
