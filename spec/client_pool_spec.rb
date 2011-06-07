@@ -261,6 +261,7 @@ describe ZK::Pool do
 
       describe 'disconnected client' do
         before do
+          pending
           flexmock(@cnx1) do |m|
             m.should_receive(:connected?).and_return(false)
           end
