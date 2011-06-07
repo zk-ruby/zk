@@ -186,44 +186,37 @@ module ZK
       def checkout(blocking=true) 
         raise ArgumentError, "checkout does not take a block, use .with_connection" if block_given?
         @mutex.synchronize do
-          logger.debug { "Thread: #{Thread.current.object_id} entered checkout" }
-          begin
-            while true
-              assert_open!
+          while true
+            assert_open!
 
-              if @pool.length > 0
-                logger.debug { "@pool.size: #{@pool.size}" }
-                cnx = @pool.shift
-                logger.debug { "@pool.size: #{@pool.size}" }
-                
-                # If the cnx isn't connected? then remove it from the pool and dispose of it.
-                # Create a new connection and then iterate again. Given the
-                # asynchronous nature that connections are added to the pool,
-                # this is the only sane/safe way to do this
-                #
-                unless cnx.connected?
-                  logger.debug { "cnx: #{cnx.object_id} is not connected, disposing and adding new connection" }
-                  @connections.delete(cnx)
-                  cnx.close!
-                  next
-                end
-
-                logger.debug { "returning connection: #{cnx.object_id}" }
-                # otherwise we return the cnx
-                return cnx
-              elsif can_grow_pool?
-                add_connection!
+            if @pool.length > 0
+              cnx = @pool.shift
+              
+              # If the cnx isn't connected? then remove it from the pool and dispose of it.
+              # Create a new connection and then iterate again. Given the
+              # asynchronous nature that connections are added to the pool,
+              # this is the only sane/safe way to do this
+              #
+              unless cnx.connected?
+                logger.debug { "cnx: #{cnx.object_id} is not connected, disposing and adding new connection" }
+                @connections.delete(cnx)
+                cnx.close!
                 next
-              elsif blocking
-                @checkin_cond.wait_while { @pool.empty? and open? }
-                next
-              else
-                return false
               end
-            end # while 
-          ensure
-            logger.debug { "Thread: #{Thread.current.object_id} exitng checkout" }
-          end
+
+#               logger.debug { "returning connection: #{cnx.object_id}" }
+              # otherwise we return the cnx
+              return cnx
+            elsif can_grow_pool?
+              add_connection!
+              next
+            elsif blocking
+              @checkin_cond.wait_while { @pool.empty? and open? }
+              next
+            else
+              return false
+            end
+          end # while 
         end
       end
 
@@ -233,17 +226,6 @@ module ZK
       end
 
       protected
-        def synchronize_with_waiter_count
-          @mutex.synchronize do
-            begin
-              @count_waiters += 1 
-              yield
-            ensure
-              @count_waiters -= 1
-            end
-          end
-        end
-
         def populate_pool!(num_cnx)
           num_cnx.times { add_connection! }
         end
@@ -266,6 +248,9 @@ module ZK
               @on_connection_subs.synchronize do
 
                 sub = cnx.on_connected do 
+                  # this synchronization is to prevent a race between setting up the subscription
+                  # and assigning it to the @on_connection_subs hash. It's possible that the callback
+                  # would fire before we had a chance to add the sub to the hash.
                   @on_connection_subs.synchronize do
                     if sub = @on_connection_subs.delete(cnx)
                       sub.unsubscribe
