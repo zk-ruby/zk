@@ -1,5 +1,4 @@
 require 'rubygems'
-require 'bundler/setup'
 
 require 'logger'
 require 'zookeeper'
@@ -26,7 +25,7 @@ require 'z_k/find'
 module ZK
   ZK_ROOT = File.expand_path('../..', __FILE__)
 
-  KILL_TOKEN = :__kill_token__ #:nodoc:
+  KILL_TOKEN = :__ZK_kILL_tOkEn__ #:nodoc:
 
 
   # The logger used by the ZK library. uses a Logger to +/dev/null+ by default
