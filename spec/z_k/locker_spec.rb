@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__), %w[spec_helper])
+require 'spec_helper'
 
 # this is a remnant of the old Locker class, but a good test of what's expected
 # from ZK::Client#locker

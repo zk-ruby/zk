@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__), %w[spec_helper])
+require 'spec_helper'
 
 describe ZK::Threadpool do
 
@@ -55,14 +55,13 @@ describe ZK::Threadpool do
   describe :start! do
     it %[should be able to start a threadpool that had previously been shutdown (reuse)] do
       @threadpool.shutdown
-      @threadpool.start!
+      @threadpool.start!.should be_true
 
       @threadpool.should be_running
 
       @rval = nil
 
       @threadpool.defer do 
-        $stderr.puts "block called!"
         @rval = true
       end
 

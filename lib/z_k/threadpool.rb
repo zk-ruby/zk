@@ -72,7 +72,9 @@ module ZK
         @threadqueue.clear
         @size.times { @threadqueue << KILL_TOKEN }
 
-        while th = @threadpool.shift
+        threads, @threadpool = @threadpool, []
+
+        while th = threads.shift
           begin
             th.join(timeout)
           rescue Exception => e
@@ -80,6 +82,8 @@ module ZK
             logger.error { e.to_std_format }
           end
         end
+
+        @threadqueue = ::Queue.new
       end
 
       nil
