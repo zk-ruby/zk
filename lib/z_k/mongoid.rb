@@ -5,7 +5,7 @@ module ZK
     #
     # Before use (in one of your Rails initializers, for example) you should
     # assign either a ZK::Client or ZK::Pool subclass to
-    # ZooKeeperLockMixin.zk_lock_pool.
+    # ZK::Mongoid::Locking.zk_lock_pool.
     #
     # this class assumes the availability of a 'logger' method in the mixee
     #

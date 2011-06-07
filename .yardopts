@@ -1,0 +1,8 @@
+--protected
+--no-private
+--tag hidden_example:Hidden
+--hide-tag hidden_example
+-
+LICENSE
+README.markdown
+
