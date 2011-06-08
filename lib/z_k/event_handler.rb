@@ -94,7 +94,7 @@ module ZK
 
     # called from the client-registered callback when an event fires
     def process(event) #:nodoc:
-      logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
+#       logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
       event.zk = @zk
 
       cb_key = 
@@ -106,12 +106,12 @@ module ZK
           raise ZKError, "don't know how to process event: #{event.inspect}"
         end
 
-      logger.debug { "EventHandler#process: cb_key: #{cb_key}" }
+#       logger.debug { "EventHandler#process: cb_key: #{cb_key}" }
 
       cb_ary = synchronize do 
         if event.node_event?
           if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
-            logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
+#             logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
             
             # we recieved a watch event for this path, now we allow code to set new watchers
             @outstanding_watches[watch_type].delete(event.path)
@@ -163,7 +163,7 @@ module ZK
           opts[:watcher] = watcher_callback 
         else
           # outstanding watch for path and data pair already exists, so ignore
-          logger.debug { "outstanding watch request for path #{path.inspect} and watcher type #{watch_type.inspect}, not re-registering" }
+#           logger.debug { "outstanding watch request for path #{path.inspect} and watcher type #{watch_type.inspect}, not re-registering" }
         end
       end
     end

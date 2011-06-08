@@ -262,10 +262,9 @@ describe ZK::Election do
       describe 'leadership transition' do
         before do
           @obama.vote!
-          @palin.vote!
-
           wait_until { @obama.leader? }
 
+          @palin.vote!
           @palin.should_not be_leader
 
           @got_life_event = @got_death_event = false

@@ -347,12 +347,15 @@ module ZK
           @observing = true
 
           @leader_ack_sub ||= @zk.watcher.register(leader_ack_path) do |event|
+            logger.debug { "leader_ack_callback, event.node_deleted? #{event.node_deleted?}, event.node_created? #{event.node_created?}" }
+
             if event.node_deleted?
               the_king_is_dead 
             elsif event.node_created?
               long_live_the_king
             else
               acked = leader_acked?(true) 
+
 
               # If the current state of the system is not what we think it should be
               # a transition has occurred and we should fire our callbacks
