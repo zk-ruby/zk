@@ -40,6 +40,10 @@ module ZK
         defined?(::JRUBY_VERSION) ? jruby_closed? : mri_closed?
       end
 
+      def inspect
+        "#<#{self.class.name}:#{object_id} ...>"
+      end
+
       private
         # @private
         def jruby_closed?

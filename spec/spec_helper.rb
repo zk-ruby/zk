@@ -89,6 +89,7 @@ class ::Thread
 end
 
 def report_realtime(what)
+  return yield
   t = Benchmark.realtime { yield }
   $stderr.puts "#{what}: %0.3f" % [t.to_f]
 end

@@ -81,7 +81,7 @@ describe ZK::Pool do
         open_th.join(5).should == open_th
 
         wait_until(5) { @connection_pool.closed? }
-        $stderr.puts "@connection_pool.pool_state: #{@connection_pool.pool_state.inspect}"
+#         $stderr.puts "@connection_pool.pool_state: #{@connection_pool.pool_state.inspect}"
 
         @connection_pool.should be_closed
 
@@ -125,21 +125,21 @@ describe ZK::Pool do
       end
 
       @connection_pool.with_connection do |zk|
-        $stderr.puts "registering callback"
+#         $stderr.puts "registering callback"
         zk.watcher.register(@path) do |event|
-          $stderr.puts "callback fired! event: #{event.inspect}"
+#           $stderr.puts "callback fired! event: #{event.inspect}"
 
           @callback_called = true
           event.path.should == @path
-          $stderr.puts "signaling other waiters"
+#           $stderr.puts "signaling other waiters"
         end
 
-        $stderr.puts "setting up watcher"
+#         $stderr.puts "setting up watcher"
         zk.exists?(@path, :watch => true).should be_false
       end
 
       @connection_pool.with_connection do |zk|
-        $stderr.puts "creating path"
+#         $stderr.puts "creating path"
         zk.create(@path, "", :mode => :ephemeral).should == @path
       end
 
@@ -147,7 +147,53 @@ describe ZK::Pool do
 
       @callback_called.should be_true
     end
-  end # Client
+
+    # These tests are seriously yucky, but they show that when a client is !connected?
+    # the pool behaves properly and will not return that client to the caller.
+    
+    describe 'health checking with disconnected client' do
+      before do
+        wait_until(2) { @connection_pool.available_size == 2 }
+        @connection_pool.available_size.should == 2
+
+        @connections = @connection_pool.connections
+        @connections.length.should == 2
+
+        @cnx1 = @connections.shift
+
+        mock_sub = flexmock(:subscription)
+
+        @mcnx1 = flexmock(@cnx1) do |m|
+          m.should_receive(:connected?).at_least.once.and_return(false)
+          m.should_receive(:on_connected).with(Proc).at_least.once.and_return(mock_sub)
+        end
+
+        @connections.unshift(@mcnx1)
+      end
+
+      after do
+        @connections.delete(@mcnx1)
+        @connections.unshift(@cnx1)
+        [@cnx1, @cnx2].each { |c| @connection_pool.checkin(c) }
+      end
+
+      it %[should remove the disconnected client from the pool] do
+        @connection_pool.available_size.should == 2
+
+        @cnx2 = @connection_pool.checkout
+        
+        # this is gross and relies on knowing internal state
+        @connection_pool.checkout(false).should be_false
+
+        @cnx2.should_not be_nil
+        @cnx2.should_not == @mcnx1
+
+        @connection_pool.available_size.should == 0
+        @connections.should include(@mcnx1)
+      end
+    end
+
+  end # Simple
 
   describe :Bounded do
     before do
@@ -251,57 +297,5 @@ describe ZK::Pool do
       end
     end   # should grow to max_clients
 
-    describe 'health checking' do
-      before do
-        @connections = @connection_pool.connections
-        @connections.length.should == 1
-
-        @cnx1 = @connections.first
-      end
-
-      describe 'disconnected client' do
-        before do
-
-          mock_sub = flexmock(:subscription)
-
-          flexmock(@cnx1) do |m|
-            m.should_receive(:connected?).at_least.once.and_return(false)
-            m.should_receive(:on_connected).with(Proc).at_least.once.and_return(mock_sub)
-          end
-
-          @cnx2 = @connection_pool.checkout
-        end
-
-        after do
-          @connection_pool.checkin(@cnx2)
-        end
-
-        it %[should remove the disconnected client from the pool] do
-          @cnx2.should_not be_nil
-          @cnx2.should_not == @cnx1
-          @connection_pool.available_size.should == 1
-          @connections.should include(@cnx1)
-        end
-
-        describe 'when connected event fires' do
-          before do
-            @event = flexmock(:event) do |m|
-              m.should_receive(:type).and_return(-1)
-              m.should_receive(:zk=).with(any())
-              m.should_receive(:node_event?).and_return(false)
-              m.should_receive(:state_event?).and_return(true)
-              m.should_receive(:state).and_return(ZookeeperConstants::ZOO_CONNECTED_STATE)
-            end
-
-            @cnx1.watcher.process(@event)
-          end
-
-          it %[should add the connection back into the pool] do
-            pending
-            @connection_pool.available_size.should == 2
-          end
-        end
-      end
-    end
   end
 end

@@ -195,6 +195,7 @@ module ZK
               # if the connection isn't connected, then set up an on_connection
               # handler and try the next one in the pool
               unless cnx.connected?
+                logger.debug { "connection #{cnx.object_id} is not connected" }
                 handle_checkin_on_connection(cnx)
                 next
               end
@@ -228,7 +229,6 @@ module ZK
           @mutex.synchronize do
             cnx = create_connection
             @connections << cnx 
-            logger.debug { "added connection #{cnx.object_id}  to @connections" }
 
             handle_checkin_on_connection(cnx)
           end # synchronize
@@ -237,7 +237,6 @@ module ZK
         def handle_checkin_on_connection(cnx)
           @mutex.synchronize do
             do_checkin = lambda do
-              logger.debug { "on_connected called for cnx #{cnx.object_id}" }
               checkin(cnx)
             end
 
