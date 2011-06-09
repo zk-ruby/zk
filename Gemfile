@@ -8,8 +8,9 @@ gemspec
 gem 'ruby-debug',   :platforms => [:mri_18, :jruby]
 gem 'ruby-debug19', :platforms => :mri_19
 
-# if `uname -s`.chomp == 'Linux'
-#   gem 'autotest-inotify', '~> 0.0.6'
-# end
+git 'git://github.com/slyphon/zookeeper.git', :branch => 'dev/em' do
+  gem 'zookeeper', '~> 0.1.7'
+end
+
 
 # vim:ft=ruby
