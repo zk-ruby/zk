@@ -19,7 +19,7 @@ module ZK
     }.freeze
 
     def self.new(*a, &b)
-      Base.new(*a, &b)
+      Threaded.new(*a, &b)
     end
   end
 end
@@ -28,4 +28,5 @@ require 'z_k/client/state_mixin'
 require 'z_k/client/unixisms'
 require 'z_k/client/conveniences'
 require 'z_k/client/base'
+require 'z_k/client/threaded'
 
