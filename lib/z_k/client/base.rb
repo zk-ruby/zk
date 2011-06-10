@@ -339,7 +339,7 @@ module ZK
 
         rv = check_rc(@cnx.set(h), h)
 
-        opts[:callback] ? nil : rv[:stat]
+        opts[:callback] ? rv : rv[:stat]
       end
 
       # Return the stat of the node of the given path. Return nil if the node
@@ -492,7 +492,7 @@ module ZK
         setup_watcher!(:child, h)
 
         rv = check_rc(@cnx.get_children(h), h)
-        opts[:callback] ? nil : rv[:children]
+        opts[:callback] ? rv : rv[:children]
       end
 
       # Delete the node with the given path. The call will succeed if such a node
@@ -551,7 +551,7 @@ module ZK
 
         h = { :path => path, :version => -1 }.merge(opts)
         rv = check_rc(@cnx.delete(h), h)
-        nil
+        opts[:callback] ? rv : nil
       end
 
       # Return the ACL and stat of the node of the given path.
@@ -597,7 +597,7 @@ module ZK
 
         h = { :path => path }.merge(opts)
         rv = check_rc(@cnx.get_acl(h), h)
-        opts[:callback] ? nil : rv.values_at(:children, :stat)
+        opts[:callback] ? rv : rv.values_at(:children, :stat)
       end
 
       # Set the ACL for the node of the given path if such a node exists and the
@@ -628,7 +628,7 @@ module ZK
       def set_acl(path, acls, opts={})
         h = { :path => path, :acl => acls }.merge(opts)
         rv = check_rc(@cnx.set_acl(h), h)
-        opts[:callback] ? nil : rv[:stat]
+        opts[:callback] ? rv : rv[:stat]
       end
 
       # @private
