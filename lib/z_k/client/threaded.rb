@@ -23,6 +23,13 @@ module ZK
         @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, @event_handler.get_default_watcher_block)
         @threadpool = Threadpool.new
       end
+
+      # closes the underlying connection and deregisters all callbacks
+      def close!
+        super
+        @threadpool.shutdown
+        nil
+      end
     end
   end
 end

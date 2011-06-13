@@ -48,12 +48,9 @@ module ZK
         state
       end
 
-      # closes the underlying connection and deregisters all callbacks
       def close!
-        @event_handler.clear!
+        event_handler.clear!
         wrap_state_closed_error { @cnx.close }
-        @threadpool.shutdown
-        nil
       end
 
       # Create a node with the given path. The node data will be the given data.
