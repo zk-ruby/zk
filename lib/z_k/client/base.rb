@@ -50,7 +50,7 @@ module ZK
 
       def close!
         event_handler.clear!
-        wrap_state_closed_error { @cnx.close }
+        wrap_state_closed_error { @cnx.close unless closed? }
       end
 
       # Create a node with the given path. The node data will be the given data.
