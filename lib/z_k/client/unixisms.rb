@@ -18,18 +18,10 @@ module ZK
       #--
       # TODO: write a non-recursive version of this. ruby doesn't have TCO, so
       # this could get expensive w/ psychotically long paths
-      def mkdir_p(path)
-        create(path, '', :mode => :persistent)
-      rescue Exceptions::NodeExists
-        return
-      rescue Exceptions::NoNode
-        if File.dirname(path) == '/'
-          # ok, we're screwed, blow up
-          raise KeeperException, "could not create '/', something is wrong", caller
+      def mkdir_p(paths)
+        Array(paths).flatten.map do |path|
+          _mkdir_p_single(path)
         end
-
-        mkdir_p(File.dirname(path))
-        retry
       end
 
       # recursively remove all children of path then remove path itself
@@ -45,6 +37,20 @@ module ZK
           rescue Exceptions::NoNode
           end
         end
+      end
+
+      def _mkdir_p_single(path)
+        create(path, '', :mode => :persistent)
+      rescue Exceptions::NodeExists
+        return path
+      rescue Exceptions::NoNode
+        if File.dirname(path) == '/'
+          # ok, we're screwed, blow up
+          raise KeeperException, "could not create '/', something is wrong", caller
+        end
+
+        _mkdir_p_single(File.dirname(path))
+        retry
       end
 
       # see ZK::Find for explanation
