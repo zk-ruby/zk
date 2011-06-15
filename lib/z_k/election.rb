@@ -1,4 +1,8 @@
 module ZK
+  # NOTE: this module should be considered experimental. there are several
+  # specs that have recently started failing under 1.9.2 (didn't fail under
+  # 1.8.7 or jruby 1.6) that need fixing. 
+  #
   # ==== Overview
   #
   # This module implements the "leader election" protocols described

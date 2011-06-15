@@ -31,11 +31,7 @@ module ZK
 
         # @private
         def mri_closed?
-          @cnx.state or false
-        rescue RuntimeError => e
-          # gah, lame error parsing here
-          raise e if (e.message != 'zookeeper handle is closed') and not defined?(::JRUBY_VERSION)
-          true
+          @cnx.closed?
         end
 
       public
@@ -50,7 +46,7 @@ module ZK
 
       def close!
         event_handler.clear!
-        wrap_state_closed_error { @cnx.close unless closed? }
+        wrap_state_closed_error { @cnx.close unless @cnx.closed? }
       end
 
       # Create a node with the given path. The node data will be the given data.
