@@ -41,10 +41,12 @@ ZK provides:
 * 	a recursive Find class (like the Find module in ruby-core)
 * 	unix-like rm\_rf and mkdir\_p methods (useful for functional testing)
 
-In addition to all of that, I would like to think that the public API the ZK::Client provides is more convenient to use for the common (synchronous) case.
+In addition to all of that, I would like to think that the public API the ZK::Client provides is more convenient to use for the common (synchronous) case. For use with [EventMachine][] there is [zk-eventmachine][] which provides a convenient API for writing evented code that uses the ZooKeeper server.
 
 [recipes]: http://zookeeper.apache.org/doc/current/recipes.html
 [Mongoid]: http://mongoid.org/
+[EventMachine]: https://github.com/eventmachine/eventmachine
+[zk-eventmachine]: https://github.com/slyphon/zk-eventmachine
 
 ## Caveats
 
@@ -52,11 +54,11 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 
 * _ACLS: HOW DO THEY WORK?!_  ACL support is mainly faith-based now. I have not had a need for ACLs, and the authors of the upstream [twitter/zookeeper][] code also don't seem to have much experience with them/use for them (purely my opinion, no offense intended). If you are using ACLs and you find bugs or have suggestions, I would much appreciate feedback or examples of how they *should* work so that support and tests can be added.
 
-* ZK::Client supports asynchronous calls of all basic methods (get, set, delete, etc.) however these versions are kind of inconvenient to use. There is a [branch][async-branch] for making improvements in this regard. This will be improved in the near-term as a related EventMachine-based project will be making use of these.
+* ZK::Client supports asynchronous calls of all basic methods (get, set, delete, etc.) however these versions are kind of inconvenient to use. For a fully evented stack, try [zk-eventmachine][], which is designed to be compatible and convenient to use in event-driven code.
 
 * ZooKeeper "chroot" [connection syntax][chroot] _(search for "chroot" in page)_ is not currently working in the C drivers, and I don't have tests for the Java version. This hasn't been an incredibly high priority item, but support for this feature is intended.
 
-* I am currently in the process of cleaning up the API documentation and converting it to use [YARD][]. You can follow along on [this branch][dev/yard] which will be merged into master and released ASAP.
+* I am currently in the process of cleaning up the API documentation and converting it to use [YARD][]. 
 
 [twitter/zookeeper]: https://github.com/twitter/zookeeper
 [async-branch]: https://github.com/slyphon/zk/tree/dev%2Fasync-conveniences

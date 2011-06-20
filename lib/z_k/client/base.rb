@@ -1,24 +1,28 @@
 module ZK
   module Client
     class Base
+      # The Eventhandler is used by client code to register callbacks to handle
+      # events triggerd for given paths. 
+      #
+      # @see ZK::EventHandler#register
       attr_reader :event_handler
       
       # @private the wrapped connection object
       attr_reader :cnx
 
 
-      # @deprecated: for backwards compatibility only
+      # @deprecated for backwards compatibility only
       def watcher
         event_handler
       end
 
       # returns true if the connection has been closed
-      #--
-      # XXX: should this be *our* idea of closed or ZOO_CLOSED_STATE ?
       def closed?
+        # XXX: should this be *our* idea of closed or ZOO_CLOSED_STATE ?
         defined?(::JRUBY_VERSION) ? jruby_closed? : mri_closed?
       end
 
+      # @private
       def inspect
         "#<#{self.class.name}:#{object_id} ...>"
       end
@@ -44,6 +48,7 @@ module ZK
         state
       end
 
+      # close the underlying connection and clear all pending events.
       def close!
         event_handler.clear!
         wrap_state_closed_error { @cnx.close unless @cnx.closed? }
