@@ -26,8 +26,8 @@ module ZK
 
       # closes the underlying connection and deregisters all callbacks
       def close!
-        super
         @threadpool.shutdown
+        super
         nil
       end
     end

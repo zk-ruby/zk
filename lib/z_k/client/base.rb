@@ -652,11 +652,12 @@ module ZK
 
       protected
         def check_rc(hash, inputs=nil)
-          hash.tap do |h|
-            if code = h[:rc]
-              msg = inputs ? "inputs: #{inputs.inspect}" : nil
-              raise Exceptions::KeeperException.by_code(code), msg unless code == Zookeeper::ZOK
-            end
+          code = hash[:rc]
+          if code && (code != Zookeeper::ZOK)
+            msg = inputs ? "inputs: #{inputs.inspect}" : nil
+            raise Exceptions::KeeperException.by_code(code), msg 
+          else
+            hash
           end
         end
 
