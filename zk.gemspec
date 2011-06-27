@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   s.summary     = %q{A high-level wrapper around the zookeeper driver}
   s.description = s.summary
 
-  s.add_runtime_dependency 'slyphon-zookeeper', '~> 0.2.0'
+  s.add_runtime_dependency 'slyphon-zookeeper', '~> 0.2.1'
 
   s.add_development_dependency 'rspec', '~> 2.4.0'
   s.add_development_dependency 'wirble'
