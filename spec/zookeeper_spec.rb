@@ -4,43 +4,29 @@ describe ZK do
   before do
     @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => nil)
 
-#     @zk.set_debug_level(:debug) unless defined?(::JRUBY_VERSION)
+    @base_path = "/zktests"
+    @zk.rm_rf(@base_path)
+    @zk.mkdir_p(@base_path)
+  end
 
-    wait_until{ @zk.connected? }
+  after do
+    @zk.rm_rf(@base_path)
+    @zk.close!
   end
 
   describe ZK, "with no paths" do
-    before(:each) do
-      delete_test!
-    end
-    
-    after(:each) do
-      delete_test!
-      @zk.close!
-      wait_until{ @zk.closed? }
-    end
-
-    def delete_test!
-      if (@zk.exists?('/test'))
-        @zk.children("/test").each do |child|
-          @zk.delete("/test/#{child}")
-        end
-        @zk.delete('/test')
-      end
-    end
-
     it "should not exist" do
-      @zk.exists?("/test").should be_false
+      @zk.exists?("#{@base_path}/test").should be_false
     end
 
     it "should create a path" do
-      @zk.create("/test", "test_data", :mode => :ephemeral).should == "/test"
+      @zk.create("#{@base_path}/test", "test_data", :mode => :ephemeral).should == "#{@base_path}/test"
     end
 
     it "should be able to set the data" do
-      @zk.create("/test", "something", :mode => :ephemeral)
-      @zk.set("/test", "somethingelse")
-      @zk.get("/test").first.should == "somethingelse"
+      @zk.create("#{@base_path}/test", "something", :mode => :ephemeral)
+      @zk.set("#{@base_path}/test", "somethingelse")
+      @zk.get("#{@base_path}/test").first.should == "somethingelse"
     end
 
     it "should raise an exception for a non existent path" do
@@ -48,27 +34,27 @@ describe ZK do
     end
 
     it "should create a path with sequence set" do
-      @zk.create("/test", "test_data", :mode => :persistent_sequential).should =~ /test(\d+)/
+      @zk.create("#{@base_path}/test", "test_data", :mode => :persistent_sequential).should =~ /test(\d+)/
     end
 
     it "should create an ephemeral path" do
-      @zk.create("/test", "test_data", :mode => :ephemeral).should == "/test"
+      @zk.create("#{@base_path}/test", "test_data", :mode => :ephemeral).should == "#{@base_path}/test"
     end
 
     it "should remove ephemeral path when client session ends" do
-      @zk.create("/test", "test_data", :mode => :ephemeral).should == "/test"
-      @zk.exists?("/test").should_not be_nil
+      @zk.create("#{@base_path}/test", "test_data", :mode => :ephemeral).should == "#{@base_path}/test"
+      @zk.exists?("#{@base_path}/test").should_not be_nil
       @zk.close!
       wait_until(2) { !@zk.connected? }
       @zk.should_not be_connected
 
       @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => nil)
       wait_until{ @zk.connected? }
-      @zk.exists?("/test").should be_false
+      @zk.exists?("#{@base_path}/test").should be_false
     end
 
     it "should remove sequential ephemeral path when client session ends" do
-      created = @zk.create("/test", "test_data", :mode => :ephemeral_sequential)
+      created = @zk.create("#{@base_path}/test", "test_data", :mode => :ephemeral_sequential)
       created.should =~ /test(\d+)/
       @zk.exists?(created).should_not be_nil
       @zk.close!
@@ -77,40 +63,23 @@ describe ZK do
       wait_until{ @zk.connected? }
       @zk.exists?(created).should be_false
     end
-
   end
 
   describe ZK, "with a path" do
     before(:each) do
-      delete_test!
-      @zk.create("/test", "test_data", :mode => :persistent)
-    end
-
-    after(:each) do
-      delete_test!
-      @zk.close!
-      wait_until{ @zk.closed? }
-    end
-
-    def delete_test!
-      if (@zk.exists?('/test'))
-        @zk.children("/test").each do |child|
-          @zk.delete("/test/#{child}")
-        end
-        @zk.delete('/test')
-      end
+      @zk.create("#{@base_path}/test", "test_data", :mode => :persistent)
     end
 
     it "should return a stat" do
-      @zk.stat("/test").should be_instance_of(ZookeeperStat::Stat)
+      @zk.stat("#{@base_path}/test").should be_instance_of(ZookeeperStat::Stat)
     end
 
     it "should return a boolean" do
-      @zk.exists?("/test").should be_true
+      @zk.exists?("#{@base_path}/test").should be_true
     end
 
     it "should get data and stat" do
-      data, stat = @zk.get("/test")
+      data, stat = @zk.get("#{@base_path}/test")
       data.should == "test_data"
       stat.should be_a_kind_of(ZookeeperStat::Stat)
       stat.created_time.should_not == 0
@@ -118,59 +87,41 @@ describe ZK do
 
     it "should set data with a file" do
       file = File.read('spec/test_file.txt')
-      @zk.set("/test", file)
-      @zk.get("/test").first.should == file
+      @zk.set("#{@base_path}/test", file)
+      @zk.get("#{@base_path}/test").first.should == file
     end
 
     it "should delete path" do
-      @zk.delete("/test")
-      @zk.exists?("/test").should be_false
+      @zk.delete("#{@base_path}/test")
+      @zk.exists?("#{@base_path}/test").should be_false
     end
 
     it "should create a child path" do
-      @zk.create("/test/child", "child", :mode => :ephemeral).should == "/test/child"
+      @zk.create("#{@base_path}/test/child", "child", :mode => :ephemeral).should == "#{@base_path}/test/child"
     end
 
     it "should create sequential child paths" do
-      (child1 = @zk.create("/test/child", "child1", :mode => :persistent_sequential)).should =~ /\/test\/child(\d+)/
-      (child2 = @zk.create("/test/child", "child2", :mode => :persistent_sequential)).should =~ /\/test\/child(\d+)/
-      children = @zk.children("/test")
+      (child1 = @zk.create("#{@base_path}/test/child", "child1", :mode => :persistent_sequential)).should =~ /\/test\/child(\d+)/
+      (child2 = @zk.create("#{@base_path}/test/child", "child2", :mode => :persistent_sequential)).should =~ /\/test\/child(\d+)/
+      children = @zk.children("#{@base_path}/test")
       children.length.should == 2
       children.should be_include(child1.match(/\/test\/(child\d+)/)[1])
       children.should be_include(child2.match(/\/test\/(child\d+)/)[1])
     end
 
     it "should have no children" do
-      @zk.children("/test").should be_empty
+      @zk.children("#{@base_path}/test").should be_empty
     end
-
   end
 
   describe ZK, "with children" do
-
     before(:each) do
-      delete_test!
-      @zk.create("/test", "test_data", :mode => :persistent)
-      @zk.create("/test/child", "child", :mode => "persistent").should == "/test/child"
-    end
-
-    after(:each) do
-      delete_test!
-      @zk.close!
-      wait_until{ @zk.closed? }
-    end
-
-    def delete_test!
-      if (@zk.exists?('/test'))
-        @zk.children("/test").each do |child|
-          @zk.delete("/test/#{child}")
-        end
-        @zk.delete('/test')
-      end
+      @zk.create("#{@base_path}/test", "test_data", :mode => :persistent)
+      @zk.create("#{@base_path}/test/child", "child", :mode => "persistent").should == "#{@base_path}/test/child"
     end
 
     it "should get children" do
-      @zk.children("/test").should eql(["child"])
+      @zk.children("#{@base_path}/test").should eql(["child"])
     end
   end
 end
