@@ -290,9 +290,7 @@ describe ZK::Election do
         end
 
         it %[should be palin who is leader] do
-          pending_192 "this test is flaky" do
-            @palin.should be_leader
-          end
+          @palin.should be_leader
         end
 
         it %[should have seen both the death and life events] do
@@ -301,9 +299,7 @@ describe ZK::Election do
         end
 
         it %[should see the data of the new leader] do
-          pending_192 "this test is buggy under 1.9.2" do
-            @observer.leader_data.should == 'palin'
-          end
+          @observer.leader_data.should == 'palin'
         end
       end
     end
