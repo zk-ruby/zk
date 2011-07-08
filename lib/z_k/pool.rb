@@ -59,8 +59,10 @@ module ZK
 
           @pool.clear
 
-          while cnx = @connections.shift
-            cnx.close!
+          until @connections.empty?
+            if cnx = @connections.shift
+              cnx.close!
+            end
           end
 
           @state = :closed
@@ -105,7 +107,7 @@ module ZK
       end
 
       def size #:nodoc:
-        @connection.synchronize { @pool.size }
+        @mutex.synchronize { @pool.size }
       end
 
       def pool_state #:nodoc:
@@ -191,6 +193,10 @@ module ZK
 
             if @pool.length > 0
               cnx = @pool.shift
+
+              # XXX(slyphon): not really sure how this case happens, but protect against it as we're
+              # seeing an issue in production
+              next if cnx.nil?
               
               # if the connection isn't connected, then set up an on_connection
               # handler and try the next one in the pool
