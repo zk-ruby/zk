@@ -44,7 +44,7 @@ describe ZK::Election do
             # wait for us to signal
             queue.pop
 
-            $stderr.puts "obama on_winning_election entered"
+#             $stderr.puts "obama on_winning_election entered"
             @obama_won = true
           end
 
