@@ -1,6 +1,8 @@
 module ZK
   module Pool
     class Base
+      include Logging
+
       attr_reader :connections #:nodoc:
 
       def initialize
