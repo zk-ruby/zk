@@ -1,6 +1,6 @@
 # ZK
 
-ZK is a high-level interface to the Apache [ZooKeeper][] server. It is based on the [zookeeper gem][] which is a multi-Ruby low-level driver. Currently MRI 1.8.7 and JRuby are supported, and MRI 1.9.2 is very close to being ready. It is licensed under the [MIT][] license. 
+ZK is a high-level interface to the Apache [ZooKeeper][] server. It is based on the [zookeeper gem][] which is a multi-Ruby low-level driver. Currently MRI 1.8.7, 1.9.2, and JRuby are supported (rubinius 1.2 is experimental but _should_ work). It is licensed under the [MIT][] license. 
 
 This library is heavily used in a production deployment and is actively developed and maintained.
 
