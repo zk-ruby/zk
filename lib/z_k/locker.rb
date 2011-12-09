@@ -9,7 +9,8 @@ module ZK
   # synchronize operations.
   #
   module Locker
-    SHARED_LOCK_PREFIX  = 'sh'.freeze
+    ROOT_LOCK_NODE        = "/_zklocking".freeze
+    SHARED_LOCK_PREFIX    = 'sh'.freeze
     EXCLUSIVE_LOCK_PREFIX = 'ex'.freeze
 
     def self.shared_locker(zk, name)
@@ -42,7 +43,7 @@ module ZK
         path[/0*(\d+)$/, 1].to_i
       end
 
-      def initialize(zookeeper_client, name, root_lock_node = "/_zklocking") 
+      def initialize(zookeeper_client, name, root_lock_node=ROOT_LOCK_NODE)
         @zk = zookeeper_client
         @root_lock_node = root_lock_node
         @path = name
