@@ -6,7 +6,10 @@ source "http://localhost:50000"
 gemspec
 
 gem 'ruby-debug',   :platforms => [:mri_18, :jruby]
-gem 'ruby-debug19', :platforms => :mri_19
+
+if RUBY_VERSION < '1.9.3'
+  gem 'ruby-debug19', :platforms => :mri_19
+end
 
 
 # vim:ft=ruby

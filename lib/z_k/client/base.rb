@@ -430,6 +430,7 @@ module ZK
       # this method will act *exactly* like stat
       #
       def exists?(path, opts={})
+        # XXX: this should use the underlying 'exists' call!
         rv = stat(path, opts)
         opts[:callback] ? rv : rv.exists?
       end
@@ -648,6 +649,16 @@ module ZK
 
           @cnx.set_debug_level(num)
         end
+      end
+
+      # returns the session_id of the underlying connection
+      def session_id
+        @cnx.session_id
+      end
+
+      # returns the session_passwd of the underlying connection
+      def session_passwd
+        @cnx.session_passwd
       end
 
       protected
