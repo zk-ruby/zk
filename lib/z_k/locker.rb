@@ -1,12 +1,11 @@
 module ZK
-  # Implements locking primitives {described here}[http://hadoop.apache.org/zookeeper/docs/current/recipes.html#sc_recipes_Locks]
+  # Implements locking primitives [described here](http://hadoop.apache.org/zookeeper/docs/current/recipes.html#sc_recipes_Locks)
   #
   # There are both shared and exclusive lock implementations.
   #
-  #
-  # NOTE: These locks are _not_ safe for use across threads. If you want to use
-  # the same Locker class between threads, it is your responsibility to
-  # synchronize operations.
+  # NOTE: These lock instances are _not_ safe for use across threads. If you
+  # want to use the same Locker instance between threads, it is your
+  # responsibility to synchronize operations.
   #
   module Locker
     SHARED_LOCK_PREFIX  = 'sh'.freeze
