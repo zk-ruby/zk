@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency 'slyphon-zookeeper', '~> 0.3.0'
 
-  s.add_development_dependency 'rspec', '~> 2.4.0'
+  s.add_development_dependency 'rspec', '~> 2.8.0'
   s.add_development_dependency 'flexmock', '~> 0.8.10'
   s.add_development_dependency 'ZenTest', '~> 4.5.0'
   s.add_development_dependency 'pry'
