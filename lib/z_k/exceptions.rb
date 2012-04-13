@@ -96,6 +96,10 @@ module ZK
 
     # raised when assert_locked_for_share! is called and no shared lock is held
     class MustBeShareLockedException < ZKError; end
+
+    # raised for certain operations when using a chrooted connection, but the
+    # root doesn't exist.
+    class NonExistentRootError < ZKError; end
   end
 end
 

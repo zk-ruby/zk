@@ -25,7 +25,7 @@ module ZK
       rescue Exceptions::NoNode
         if File.dirname(path) == '/'
           # ok, we're screwed, blow up
-          raise KeeperException, "could not create '/', something is wrong", caller
+          raise Exceptions::NonExistentRootError, "could not create '/', are you chrooted into a non-existent path?", caller
         end
 
         mkdir_p(File.dirname(path))

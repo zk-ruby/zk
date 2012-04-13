@@ -393,33 +393,53 @@ describe "ZK::Locker chrooted" do
   let(:chroot_path) { '/_zk_chroot_' }
 
   let(:zk)  { ZK.new("localhost:#{ZK_TEST_PORT}#{chroot_path}") }
-  let(:zk2) { ZK.new("localhost:#{ZK_TEST_PORT}#{chroot_path}") }
-  let(:zk3) { ZK.new("localhost:#{ZK_TEST_PORT}#{chroot_path}") }
 
-  let(:connections) { [zk, zk2, zk3] }
+  describe 'when the chroot exists' do
+    let(:zk2) { ZK.new("localhost:#{ZK_TEST_PORT}#{chroot_path}") }
+    let(:zk3) { ZK.new("localhost:#{ZK_TEST_PORT}#{chroot_path}") }
 
-  let(:path) { "shlock" }
-  let(:root_lock_path) { "/_zklocking/#{path}" }
+    let(:connections) { [zk, zk2, zk3] }
 
-  before do
-    ZK.open("localhost:#{ZK_TEST_PORT}") do |zk|
-      zk.mkdir_p(chroot_path)
+    let(:path) { "shlock" }
+    let(:root_lock_path) { "/_zklocking/#{path}" }
+
+    before do
+      ZK.open("localhost:#{ZK_TEST_PORT}") do |zk|
+        zk.mkdir_p(chroot_path)
+      end
+
+      wait_until{ connections.all?(&:connected?) }
     end
 
-    wait_until{ connections.all?(&:connected?) }
+    after do
+      connections.each { |c| c.close! }
+      wait_until { !connections.any?(&:connected?) }
+
+      ZK.open("localhost:#{ZK_TEST_PORT}") do |zk|
+        zk.rm_rf(chroot_path)
+      end
+    end
+
+    it_should_behave_like 'SharedLocker'
+    it_should_behave_like 'ExclusiveLocker'
+    it_should_behave_like 'shared-exclusive interaction'
   end
 
-  after do
-    connections.each { |c| c.close! }
-    wait_until { !connections.any?(&:connected?) }
+  describe "when the root doesn't exist" do
+    let(:lock_name) { 'master' }
 
-    ZK.open("localhost:#{ZK_TEST_PORT}") do |zk|
-      zk.rm_rf(chroot_path)
+    it %[should raise a NonExistentRootError] do
+      @got_lock = false
+
+      lambda do
+        zk.with_lock(lock_name) do
+          @got_lock = true
+        end
+      end.should raise_error(ZK::Exceptions::NonExistentRootError)
+
+
+      @got_lock.should_not be_true
     end
   end
-
-  it_should_behave_like 'SharedLocker'
-  it_should_behave_like 'ExclusiveLocker'
-  it_should_behave_like 'shared-exclusive interaction'
 end
 
