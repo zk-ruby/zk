@@ -9,12 +9,17 @@
 
 gemset_name = 'zk'
 
-%w[1.9.2 1.9.3 jruby].each do |rvm_ruby|
+%w[1.8.7 1.9.2 1.9.3 jruby].each do |rvm_ruby|
   ruby_with_gemset = "#{rvm_ruby}@#{gemset_name}"
-  bundle_task_name  = "mb:#{rvm_ruby}:bundle_install"
-  rspec_task_name   = "mb:#{rvm_ruby}:run_rspec"
+  create_gemset_task_name = "mb:#{rvm_ruby}:create_gemset"
+  bundle_task_name        = "mb:#{rvm_ruby}:bundle_install"
+  rspec_task_name         = "mb:#{rvm_ruby}:run_rspec"
 
-  task bundle_task_name do
+  task create_gemset_task_name do
+    sh "rvm #{rvm_ruby} do rvm gemset create #{gemset_name}"
+  end
+
+  task bundle_task_name => create_gemset_task_name do
     rm_f 'Gemfile.lock'
     sh "rvm #{ruby_with_gemset} do bundle install"
   end
