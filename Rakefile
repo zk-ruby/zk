@@ -9,7 +9,7 @@
 
 gemset_name = 'zk'
 
-%w[1.9.3 jruby].each do |rvm_ruby|
+%w[1.9.2 1.9.3 jruby].each do |rvm_ruby|
   ruby_with_gemset = "#{rvm_ruby}@#{gemset_name}"
   bundle_task_name  = "mb:#{rvm_ruby}:bundle_install"
   rspec_task_name   = "mb:#{rvm_ruby}:run_rspec"
@@ -23,6 +23,6 @@ gemset_name = 'zk'
     sh "rvm #{ruby_with_gemset} do bundle exec rspec spec --fail-fast"
   end
 
-  task "mb:test_all_rubies" => rspec_task_name
+  task "mb:test_all" => rspec_task_name
 end
 
