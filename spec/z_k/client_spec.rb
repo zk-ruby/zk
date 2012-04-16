@@ -106,6 +106,68 @@ describe ZK::Client do
       @zk.session_passwd.should be_kind_of(String)
     end
   end
+
+  describe 'reopen' do
+    describe 'watchers' do
+      before do
+        @path = '/testwatchers'
+        @queue = Queue.new
+      end
+
+      after do
+        @zk.delete(@path)
+      end
+
+      def register_watch!
+        @sub = @zk.event_handler.register(@path) do |event|
+          logger.debug { "got event: #{event.inspect}" } 
+          @queue << event
+        end
+      end
+
+      def ensure_event_delivery!
+        register_watch!
+
+        @zk.exists?(@path, :watch => true).should be_false
+        @zk.create(@path, '')
+
+        logger.debug { "waiting for event delivery" } 
+
+        wait_until(2) do 
+          begin
+            @events << @queue.pop(true)
+            true
+          rescue ThreadError
+            false
+          end
+        end
+
+        # first watch delivered correctly
+        @events.length.should > 0
+      end
+
+      it %[should fire re-registered watchers after reopen (#9)] do
+        @events = []
+
+        logger.debug { "ensure event delivery" }
+        ensure_event_delivery!
+
+        logger.debug { "reopening connection" }
+        @zk.reopen
+
+        wait_until(2) { @zk.connected? }
+
+        logger.debug { "deleting path" }
+        @zk.delete(@path)
+
+        logger.debug { "clearing events" }
+        @events.clear
+
+        logger.debug  { "taunt them a second time" }
+        ensure_event_delivery!
+      end
+    end
+  end
 end
 
 
