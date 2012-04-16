@@ -1,8 +1,6 @@
 # ZK
 
-ZK is a high-level interface to the Apache [ZooKeeper][] server. It is based on the [zookeeper gem][] which is a multi-Ruby low-level driver. Currently MRI 1.8.7, 1.9.2, and JRuby are supported (rubinius 1.2 is experimental but _should_ work). It is licensed under the [MIT][] license. 
-
-Note: 1.9.3-p0 support is currently under development, there are a few bugs to work out still...
+ZK is a high-level interface to the Apache [ZooKeeper][] server. It is based on the [zookeeper gem][] which is a multi-Ruby low-level driver. Currently MRI 1.8.7, 1.9.2, 1.9.3, and JRuby are supported (rubinius 1.2 is experimental but _should_ work). It is licensed under the [MIT][] license. 
 
 This library is heavily used in a production deployment and is actively developed and maintained.
 
@@ -35,13 +33,13 @@ The [zookeeper gem][] provides a low-level, cross platform library for interfaci
 ZK provides:
 
 * 	a robust lock implementation (both shared and exclusive locks)
-* 	an extension for the [Mongoid][] ORM to provide advisory locks on mongodb records
 * 	a leader election implementation with both "leader" and "observer" roles
 * 	a higher-level interface to the ZooKeeper callback/watcher mechanism than the [zookeeper gem][] provides
 * 	a simple threadpool implementation
 * 	a bounded, dynamically-growable (threadsafe) client pool implementation
 * 	a recursive Find class (like the Find module in ruby-core)
 * 	unix-like rm\_rf and mkdir\_p methods (useful for functional testing)
+* 	an extension for the [Mongoid][] ORM to provide advisory locks on mongodb records
 
 In addition to all of that, I would like to think that the public API the ZK::Client provides is more convenient to use for the common (synchronous) case. For use with [EventMachine][] there is [zk-eventmachine][] which provides a convenient API for writing evented code that uses the ZooKeeper server.
 
@@ -58,7 +56,7 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 
 * ZK::Client supports asynchronous calls of all basic methods (get, set, delete, etc.) however these versions are kind of inconvenient to use. For a fully evented stack, try [zk-eventmachine][], which is designed to be compatible and convenient to use in event-driven code.
 
-* ZooKeeper "chroot" [connection syntax][chroot] _(search for "chroot" in page)_ is not currently working in the C drivers, and I don't have tests for the Java version. This hasn't been an incredibly high priority item, but support for this feature is intended.
+* ZooKeeper "chroot" [connection syntax][chroot] is currently being developed and should work for most cases. Right now we require that the root path exist before the chrooted client is used, but that may change [in the near future](https://github.com/slyphon/zk/issues/7).
 
 * I am currently in the process of cleaning up the API documentation and converting it to use [YARD][]. 
 
