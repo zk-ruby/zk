@@ -31,3 +31,19 @@ gemset_name = 'zk'
   task "mb:test_all" => rspec_task_name
 end
 
+namespace :spec do
+  task :define do
+    require 'rubygems'
+    require 'bundler/setup'
+    require 'rspec/core/rake_task'
+
+    RSpec::Core::RakeTask.new('spec:runner')
+  end
+
+  task :run => :define do
+    Rake::Task['spec:runner'].invoke
+  end
+end
+
+task :default => 'spec:run'
+
