@@ -118,15 +118,11 @@ describe ZK::Client do
         @zk.delete(@path)
       end
 
-      def register_watch!
-        @sub = @zk.event_handler.register(@path) do |event|
+      def ensure_event_delivery!
+        @sub ||= @zk.event_handler.register(@path) do |event|
           logger.debug { "got event: #{event.inspect}" } 
           @queue << event
         end
-      end
-
-      def ensure_event_delivery!
-        register_watch!
 
         @zk.exists?(@path, :watch => true).should be_false
         @zk.create(@path, '')
