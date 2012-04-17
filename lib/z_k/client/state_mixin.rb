@@ -48,8 +48,6 @@ module ZK
         end
       end
 
-      # @private
-      #
       # Register a block to be called on connection, when the client has
       # connected. 
       # 
