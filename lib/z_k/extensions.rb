@@ -17,7 +17,7 @@ module ZK
           #
           # *args, if given, will be passed on *after* the callback
           #
-          # example:
+          # @example
           #   
           #   WatcherCallback.create do |cb|
           #     puts "watcher callback called with argument: #{cb.inspect}"
