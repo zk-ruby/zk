@@ -10,7 +10,21 @@ module ZK
     #
     # (this class is in no way related to dropbox.com or Dropbox Inc.)
     class DropBox
-      UNDEFINED = Object.new unless defined?(UNDEFINED)
+      UNDEFINED = Object.new              unless defined?(UNDEFINED)
+      KILL_TOKEN = Object.new             unless defined?(KILL_TOKEN)
+      IMPOSSIBLE_TO_CONTINUE = Object.new unless defined?(IMPOSSIBLE_TO_CONTINUE)
+
+      # represents an exception to raise. if the pop method sees the value as an instance
+      # of this class, it will call the raise! method
+      class ExceptionValue
+        def initialize(exception_class, message)
+          @exception_class, @message = exception_class, message
+        end
+
+        def raise!
+          raise @exception_class, @message
+        end
+      end
 
       THREAD_LOCAL_KEY = :__zk_client_continuation_current__ unless defined?(THREAD_LOCAL_KEY)
 
@@ -52,7 +66,7 @@ module ZK
       def pop
         @mutex.synchronize do
           @cond.wait(@mutex)
-          @value
+          @value.kind_of?(ExceptionValue) ? @value.raise! : @value
         end
       end
 
@@ -65,6 +79,16 @@ module ZK
       # we are done if value is defined, use clear to reset
       def done?
         @value != UNDEFINED
+      end
+
+      # called when you need the waiting thread to receive a YouCannotContinueException
+      # returns nil if a value has already been set
+      def oh_noes!(exception_class, message)
+        @mutex.synchronize do
+          return if done?
+          @value = ExceptionValue.new(exception_class, message)
+          @cond.signal
+        end
       end
     end
   end
