@@ -52,19 +52,24 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 
 ZK strives to be a complete, correct, and convenient way of interacting with ZooKeeper. There are a few weak points in the implementation:
 
+* Starting with 0.9 there is only *one* event dispatch thread (in 0.8 there are 5). It is *very important* that you don't block the event delivery thread.
+
+* If you're not familiar with developing solutions with zookeeper, you should read about [sessions][] and [watches][] in the Programmer's Guide. Even if you *are* familiar, you should probably go read it again. 
+
+* It is very important that you not ignore connection state events if you're using watches.
+
 * _ACLS: HOW DO THEY WORK?!_  ACL support is mainly faith-based now. I have not had a need for ACLs, and the authors of the upstream [twitter/zookeeper][] code also don't seem to have much experience with them/use for them (purely my opinion, no offense intended). If you are using ACLs and you find bugs or have suggestions, I would much appreciate feedback or examples of how they *should* work so that support and tests can be added.
 
 * ZK::Client supports asynchronous calls of all basic methods (get, set, delete, etc.) however these versions are kind of inconvenient to use. For a fully evented stack, try [zk-eventmachine][], which is designed to be compatible and convenient to use in event-driven code.
 
 * ZooKeeper "chroot" [connection syntax][chroot] is currently being developed and should work for most cases. Right now we require that the root path exist before the chrooted client is used, but that may change [in the near future](https://github.com/slyphon/zk/issues/7).
 
-* I am currently in the process of cleaning up the API documentation and converting it to use [YARD][]. 
-
 [twitter/zookeeper]: https://github.com/twitter/zookeeper
 [async-branch]: https://github.com/slyphon/zk/tree/dev%2Fasync-conveniences
 [chroot]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkSessions
 [YARD]: http://yardoc.org/
-[dev/yard]: https://github.com/slyphon/zk/tree/dev%2Fyard
+[sessions]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkSessions 
+[watches]: http://zookeeper.apache.org/doc/r3.3.5/zookeeperProgrammers.html#ch_zkWatches
 
 ## Dependencies
 
@@ -78,11 +83,11 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 [szk-jar-gem]: https://rubygems.org/gems/slyphon-zookeeper_jar
 [szk-jar-repo]: https://github.com/slyphon/zookeeper_jar
 
-### Related Projects
+## Contacting the author
 
-There are a few related projects that extend ZK.
+* Send me a github message (slyphon)
+* I'm usually hanging out in IRC on freenode.net in #ruby-lang and in #zookeeper
+* if you really want to, you can also reach me via twitter [@slyphon][]
 
-* [ZK::Znode][]: a simple ORM to provide ActiveModel semantics around znodes. While still in early development, may also be a useful example of how to use ZK.
-
-[ZK::Znode]: https://github.com/slyphon/zk-znode
+[@slyphon]: https://twitter.com/#!/slyphon
 
