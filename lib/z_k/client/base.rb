@@ -1,5 +1,6 @@
 module ZK
   module Client
+
     class Base
       # The Eventhandler is used by client code to register callbacks to handle
       # events triggerd for given paths. 
@@ -10,8 +11,8 @@ module ZK
       # @private the wrapped connection object
       attr_reader :cnx
 
-
       # @deprecated for backwards compatibility only
+      # use ZK::Client::Base#event_handler instead
       def watcher
         event_handler
       end
@@ -25,6 +26,23 @@ module ZK
       # @private
       def inspect
         "#<#{self.class.name}:#{object_id} ...>"
+      end
+
+      # Create a new client and connect to the zookeeper server. 
+      #
+      # @param [String] host should be a string of comma-separated host:port
+      #   pairs. You can also supply an optional "chroot" suffix that will act as
+      #   an implicit prefix to all paths supplied.
+      #
+      # @see ZK::Client::Threaded#initialize valid options to use with the
+      #   synchronous (non-evented) client
+      #
+      # @example Threaded client with two hosts and a chroot path
+      #    
+      #   ZK::Client.new("zk01:2181,zk02:2181/chroot/path")
+      #
+      def initialize(host, opts={})
+        # no-op
       end
 
       private
@@ -86,7 +104,7 @@ module ZK
       # @param [String] data the data to create the znode with
       # 
       # @option opts [Integer] :acl defaults to <tt>ZookeeperACLs::ZOO_OPEN_ACL_UNSAFE</tt>, 
-      #   otherwise the ACL for the node. Should be a +ZOO_*+ constant defined under the 
+      #   otherwise the ACL for the node. Should be a `ZOO_*` constant defined under the 
       #   ZookeeperACLs module in the zookeeper gem.
       #
       # @option opts [bool] :ephemeral (false) if true, the created node will be ephemeral
@@ -96,14 +114,14 @@ module ZK
       # @option opts [ZookeeperCallbacks::StringCallback] :callback (nil) provide a callback object
       #   that will be called when the znode has been created
       # 
-      # @option opts [Object] :context (nil) an object passed to the +:callback+
-      #   given as the +context+ param
+      # @option opts [Object] :context (nil) an object passed to the `:callback`
+      #   given as the `context` param
       #
       # @option opts [:ephemeral_sequential, :persistent_sequential, :persistent, :ephemeral] :mode (nil)
-      #   may be specified instead of :ephemeral and :sequence options. If +:mode+ *and* either of
-      #   the +:ephermeral+ or +:sequential+ options are given, the +:mode+ option will win
+      #   may be specified instead of :ephemeral and :sequence options. If `:mode` *and* either of
+      #   the `:ephermeral` or `:sequential` options are given, the `:mode` option will win
       #
-      # @raise [ZK::Exceptions::NodeExists] if a node with the same +path+ already exists
+      # @raise [ZK::Exceptions::NodeExists] if a node with the same `path` already exists
       # 
       # @raise [ZK::Exceptions::NoNode] if the parent node does not exist
       # 
@@ -216,10 +234,10 @@ module ZK
 
       # Return the data and stat of the node of the given path.  
       # 
-      # If +:watch+ is true and the call is successful (no exception is
+      # If `:watch` is true and the call is successful (no exception is
       # raised), registered watchers on the node will be 'armed'. The watch
       # will be triggered by a successful operation that sets data on the node,
-      # or deletes the node. See +watcher+ for documentation on how to register
+      # or deletes the node. See `watcher` for documentation on how to register
       # blocks to be called when a watch event is fired.
       #
       # @todo fix references to Watcher documentation
@@ -233,8 +251,8 @@ module ZK
       #
       # @option opts [ZookeeperCallbacks::DataCallback] :callback to make this call asynchronously
       #
-      # @option opts [Object] :context an object passed to the +:callback+
-      #   given as the +context+ param
+      # @option opts [Object] :context an object passed to the `:callback`
+      #   given as the `context` param
       #
       # @return [Array] a two-element array of ['node data', #<ZookeeperStat::Stat>]
       #
@@ -308,8 +326,8 @@ module ZK
       # @option opts [ZookeeperCallbacks::StatCallback] :callback will recieve the
       #   ZookeeperStat::Stat object asynchronously
       #
-      # @option opts [Object] :context an object passed to the +:callback+
-      #   given as the +context+ param
+      # @option opts [Object] :context an object passed to the `:callback`
+      #   given as the `context` param
       #
       # @example unconditionally set the data of "/path"
       #
@@ -359,8 +377,8 @@ module ZK
       # @option opts [ZookeeperCallbacks::StatCallback] :callback will recieve the
       #   ZookeeperStat::Stat object asynchronously
       #
-      # @option opts [Object] :context an object passed to the +:callback+
-      #   given as the +context+ param
+      # @option opts [Object] :context an object passed to the `:callback`
+      #   given as the `context` param
       #
       # @return [ZookeeperStat::Stat] a stat object of the specified node
       #
@@ -440,7 +458,7 @@ module ZK
       # If the watch is true and the call is successful (no exception is thrown),
       # registered watchers of the children of the node will be enabled. The
       # watch will be triggered by a successful operation that deletes the node
-      # of the given path or creates/delete a child under the node. See +watcher+
+      # of the given path or creates/delete a child under the node. See `watcher`
       # for documentation on how to register blocks to be called when a watch
       # event is fired.
       # 
@@ -454,8 +472,8 @@ module ZK
       # @option opts [ZookeeperCallbacks::StringsCallback] :callback to make this
       #   call asynchronously
       #
-      # @option opts [Object] :context an object passed to the +:callback+
-      #   given as the +context+ param
+      # @option opts [Object] :context an object passed to the `:callback`
+      #   given as the `context` param
       # 
       # @example get children for path
       #
@@ -505,9 +523,6 @@ module ZK
       # Can be called with just the path, otherwise a hash with the arguments
       # set.  Supports being executed asynchronousy by passing a callback object.
       #
-      # A KeeperException with error code KeeperException::NotEmpty will be
-      # thrown if the node has children.
-      #
       # @raise [ZK::Exceptions::NoNode] raised if no node with the given path exists 
       # 
       # @raise [ZK::Exceptions::BadVersion] raised if the given version does not
@@ -524,8 +539,8 @@ module ZK
       # @option opts [ZookeeperCallbacks::VoidCallback] :callback will be called
       #   asynchronously when the operation is complete
       #
-      # @option opts [Object] :context an object passed to the +:callback+
-      #   given as the +context+ param
+      # @option opts [Object] :context an object passed to the `:callback`
+      #   given as the `context` param
       # 
       # @example delete a node
       #   zk.delete("/path")
@@ -567,8 +582,8 @@ module ZK
       # @option opts [ZookeeperCallback::AclCallback] (nil) :callback for an
       #   asynchronous call to occur
       #
-      # @option opts [Object] :context (nil) an object passed to the +:callback+
-      #   given as the +context+ param
+      # @option opts [Object] :context (nil) an object passed to the `:callback`
+      #   given as the `context` param
       # 
       # @example get acl
       #
@@ -619,8 +634,8 @@ module ZK
       # @option opts [ZookeeperCallbacks::VoidCallback] :callback will be called
       #   asynchronously when the operation is complete
       #
-      # @option opts [Object] :context an object passed to the +:callback+
-      #   given as the +context+ param
+      # @option opts [Object] :context an object passed to the `:callback`
+      #   given as the `context` param
       #
       # @todo: TBA - waiting on clarification of method use
       #
@@ -662,6 +677,7 @@ module ZK
       end
 
       protected
+        # @private
         def check_rc(hash, inputs=nil)
           code = hash[:rc]
           if code && (code != Zookeeper::ZOK)
@@ -672,6 +688,7 @@ module ZK
           end
         end
 
+        # @private
         def setup_watcher!(watch_type, opts)
           event_handler.setup_watcher!(watch_type, opts)
         end
