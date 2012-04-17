@@ -7,24 +7,30 @@ module ZK
       include Unixisms
       include Conveniences
 
-      # Create a new client and connect to the zookeeper server. 
+      DEFAULT_THREADPOOL_SIZE = 1
+
+      # @param [String] host (see ZK::Client::Base#initialize)
       #
-      # +host+ should be a string of comma-separated host:port pairs. You can
-      # also supply an optional "chroot" suffix that will act as an implicit 
-      # prefix to all paths supplied.
+      # @option opts [Fixnum] :threadpool_size the size of the threadpool that
+      #   should be used to deliver events. In ZK 0.8.x this was set to 5, which
+      #   means that events could be delivered concurrently. As of 0.9, this will
+      #   be set to 1, so it's very important to _not block the event thread_.
       #
-      # example:
-      #    
-      #   ZK::Client.new("zk01:2181,zk02:2181/chroot/path")
+      # @yield [self] calls the block with the new instance after the event
+      #   handler has been set up, but before any connections have been made.
+      #   This allows the client to register watchers for session events like
+      #   `connected`.
       #
-      def initialize(host, opts={})
+      def initialize(host, opts={}, &b)
+        super(host, opts)
         @event_handler = EventHandler.new(self)
         yield self if block_given?
         @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, @event_handler.get_default_watcher_block)
-        @threadpool = Threadpool.new
+        tp_size = opts.fetch(:threadpool_size, DEFAULT_THREADPOOL_SIZE)
+        @threadpool = Threadpool.new(tp_size)
       end
 
-      # closes the underlying connection and deregisters all callbacks
+      # @see ZK::Client::Base#close!
       def close!
         @threadpool.shutdown
         super
