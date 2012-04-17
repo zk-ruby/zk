@@ -1,5 +1,22 @@
 module ZK
   module Pool
+    # Base class for a ZK connection pool. There are some applications that may 
+    # require high synchronous throughput, which would be a suitable use for a
+    # connection pool. The ZK::Client::Threaded class is threadsafe, so it's
+    # not a problem accessing it from multiple threads, but it is limited to
+    # one outgoing synchronous request at a time, which could cause throughput
+    # issues for apps that are making very heavy use of zookeeper. 
+    #
+    # The problem with using a connection pool is the added complexity when you
+    # try to use watchers. It may be possible to register a watch with one
+    # connection, and then call `:watch => true` on a different connection if
+    # you're not careful. Events delivered as part of an event handler have a
+    # `zk` attribute which can be used to access the connection that the
+    # callback is registered with. 
+    #
+    # Unless you're sure you *need* a connection pool, then avoid the added
+    # complexity.
+    #
     class Base
       include Logging
 
@@ -40,7 +57,6 @@ module ZK
       end
 
       # close all the connections on the pool
-      # @param optional Boolean graceful allow the checked out connections to come back first?
       def close_all!
         @mutex.synchronize do 
           return unless open?
@@ -54,7 +70,8 @@ module ZK
 
       # calls close! on all connection objects, whether or not they're back in the pool
       # this is DANGEROUS!
-      def force_close! #:nodoc:
+      # @private
+      def force_close!
         @mutex.synchronize do
           return if (closed? or forced?)
           @state = :forced
@@ -279,11 +296,12 @@ module ZK
 
     # create a connection pool useful for multithreaded applications
     #
-    # Will spin up +number_of_connections+ at creation time and remain fixed at
+    # Will spin up `number_of_connections` at creation time and remain fixed at
     # that number for the life of the pool.
     #
-    # ==== Example
-    #   pool = ZK::Pool::Simple.new("localhost:2181", 10)
+    # @example
+    #
+    #   pool = ZK::Pool::Simple.new("localhost:2181", :timeout => 10)
     #   pool.checkout do |zk|
     #     zk.create("/mynew_path")
     #   end
