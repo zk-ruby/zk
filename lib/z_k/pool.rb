@@ -273,7 +273,7 @@ module ZK
         end
 
         def create_connection
-          ZK.new(@host, @connection_timeout, @connection_args)
+          ZK.new(@host, @connection_args.merge(:timeout => @connection_timeout))
         end
     end # Bounded
 

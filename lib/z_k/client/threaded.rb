@@ -16,6 +16,9 @@ module ZK
       #   means that events could be delivered concurrently. As of 0.9, this will
       #   be set to 1, so it's very important to _not block the event thread_.
       #
+      # @option opts [Fixnum] :timeout the session timeout to negotiate with
+      #   the server. (default is 10s)
+      #
       # @yield [self] calls the block with the new instance after the event
       #   handler has been set up, but before any connections have been made.
       #   This allows the client to register watchers for session events like
@@ -23,9 +26,15 @@ module ZK
       #
       def initialize(host, opts={}, &b)
         super(host, opts)
+        
+        @session_timeout = opts.fetch(:timeout, DEFAULT_TIMEOUT) # maybe move this into superclass?
+
         @event_handler = EventHandler.new(self)
+
         yield self if block_given?
-        @cnx = ::Zookeeper.new(host, DEFAULT_TIMEOUT, @event_handler.get_default_watcher_block)
+
+        @cnx = ::Zookeeper.new(host, @session_timeout, @event_handler.get_default_watcher_block)
+
         tp_size = opts.fetch(:threadpool_size, DEFAULT_THREADPOOL_SIZE)
         @threadpool = Threadpool.new(tp_size)
       end
