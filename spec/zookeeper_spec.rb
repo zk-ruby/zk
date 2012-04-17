@@ -2,7 +2,7 @@ require File.join(File.dirname(__FILE__), %w[spec_helper])
 
 describe ZK do
   before do
-    @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => nil)
+    @zk = ZK.new("localhost:#{ZK_TEST_PORT}")
 
     @base_path = "/zktests"
     @zk.rm_rf(@base_path)
@@ -48,7 +48,7 @@ describe ZK do
       wait_until(2) { !@zk.connected? }
       @zk.should_not be_connected
 
-      @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => nil)
+      @zk = ZK.new("localhost:#{ZK_TEST_PORT}")
       wait_until{ @zk.connected? }
       @zk.exists?("#{@base_path}/test").should be_false
     end
@@ -59,7 +59,7 @@ describe ZK do
       @zk.exists?(created).should_not be_nil
       @zk.close!
 
-      @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => nil)
+      @zk = ZK.new("localhost:#{ZK_TEST_PORT}")
       wait_until{ @zk.connected? }
       @zk.exists?(created).should be_false
     end
