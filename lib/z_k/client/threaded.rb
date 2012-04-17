@@ -33,7 +33,7 @@ module ZK
 
         yield self if block_given?
 
-        @cnx = ::Zookeeper.new(host, @session_timeout, @event_handler.get_default_watcher_block)
+        @cnx = create_connection(host, @session_timeout, @event_handler.get_default_watcher_block)
 
         tp_size = opts.fetch(:threadpool_size, DEFAULT_THREADPOOL_SIZE)
         @threadpool = Threadpool.new(tp_size)
@@ -45,7 +45,13 @@ module ZK
         super
         nil
       end
+
+      protected
+        # allows for the Mutliplexed client to wrap the connection in its ContinuationProxy
+        # @private
+        def create_connection(*args)
+          ::Zookeeper.new(*args)
+        end
     end
   end
 end
-

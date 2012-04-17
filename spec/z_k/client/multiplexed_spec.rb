@@ -1,9 +1,9 @@
 require 'spec_helper'
 require 'shared/client_examples'
 
-describe ZK::Client::Threaded do
+describe 'ZK::Client::Multiplexed' do
   before do
-    @zk = ZK::Client::Threaded.new("localhost:#{ZK_TEST_PORT}").tap do |zk|
+    @zk = ZK::Client::Multiplexed.new("localhost:#{ZK_TEST_PORT}").tap do |zk|
       wait_until { zk.connected? }
     end
 
@@ -19,4 +19,3 @@ describe ZK::Client::Threaded do
 
   it_should_behave_like 'client'
 end
-

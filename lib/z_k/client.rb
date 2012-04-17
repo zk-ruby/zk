@@ -30,4 +30,6 @@ require 'z_k/client/unixisms'
 require 'z_k/client/conveniences'
 require 'z_k/client/base'
 require 'z_k/client/threaded'
+require 'z_k/client/continuation_proxy'
+require 'z_k/client/multiplexed'
 

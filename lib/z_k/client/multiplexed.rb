@@ -1,3 +1,4 @@
+
 module ZK
   module Client
     # This client is an experimental implementation of a threaded and
@@ -10,7 +11,18 @@ module ZK
     # Asynchronous requests are not supported through this client.
     #
     class Multiplexed < Threaded
+      def close!
+        @cnx.connection_closed!
+        super
+      end
 
+      protected
+        def create_connection(*args)
+          ConnectionProxy.new.tap do |cp|
+            on_session_expired { cp.session_expired! } # hook up client's session expired event listener
+            cp.zookeeper_cnx = super(*args)
+          end
+        end
     end
   end
 end
