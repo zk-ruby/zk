@@ -24,6 +24,7 @@ module ZK
   end
 end
 
+require 'z_k/client/drop_box'
 require 'z_k/client/state_mixin'
 require 'z_k/client/unixisms'
 require 'z_k/client/conveniences'
