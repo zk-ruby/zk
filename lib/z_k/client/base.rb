@@ -25,7 +25,7 @@ module ZK
 
       # @private
       def inspect
-        "#<#{self.class.name}:#{object_id} ...>"
+        "#<#{self.class.name}:#{object_id} zk_session_id=#{safe_session_id} ...>"
       end
 
       # Create a new client and connect to the zookeeper server. 
@@ -692,6 +692,15 @@ module ZK
         # @private
         def setup_watcher!(watch_type, opts)
           event_handler.setup_watcher!(watch_type, opts)
+        end
+
+        # used in #inspect, doesn't raise an error if we're not connected
+        def safe_session_id
+          if cnx and cnx.session_id
+            '0x%x' % cnx.session_id
+          end
+        rescue ZookeeperExceptions::ZookeeperException, ZK::Exceptions::KeeperException
+          nil
         end
     end # Base
   end   # Client
