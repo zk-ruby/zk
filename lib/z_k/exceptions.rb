@@ -77,6 +77,13 @@ module ZK
       AUTHFAILED              => AuthFailed,
     }
 
+    # This is a special case for the Multiplexed client. If reopen or close is called,
+    # it's possible that some requesting threads may never wake up (since their
+    # events will not be delivered), This exception will be raised. It's a subclass
+    # of KeeperException::SessionExpired (because it's arguably a special case of
+    # that condition).
+    class YouCannotContinueException < SessionExpired; end
+
     # base class of ZK generated errors (not driver-level errors)
     class ZKError < StandardError; end
 
