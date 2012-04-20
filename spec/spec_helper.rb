@@ -14,51 +14,18 @@ Dir[File.expand_path("../support/**/*.rb", __FILE__)].each {|f| require f}
 
 $stderr.sync = true
 
-# COMMENT THESE LINES FOR REMOTE DEBUGGING
-# require 'ruby-debug'
 require 'flexmock'
 
 RSpec.configure do |config|
   config.mock_with :flexmock
   config.include(FlexMock::ArgumentTypes)
 
-#   config.before(:all) do
-#     unless $did_debug
-#       $did_debug = true
-#       $stderr.puts "debugger started? is #{Debugger.started?.inspect}"
+  config.include(WaitWatchers)
+  config.extend(WaitWatchers)
 
-#       Debugger.wait_connection = true
-#       $stderr.puts "run 'rdebug -c -p #{Debugger::PORT}'"
-#       Debugger.start_remote
-
-#       config.debug = true
-#     end
-#   end
+  config.include(SpecGlobalLogger)
+  config.extend(SpecGlobalLogger)
 end
-
-def logger
-  ZK.logger
-end
-
-# method to wait until block passed returns true or timeout (default is 2 seconds) is reached 
-def wait_until(timeout=2)
-  time_to_stop = Time.now + timeout
-
-  until yield 
-    break if Time.now > time_to_stop
-    Thread.pass
-  end
-end
-
-def wait_while(timeout=2)
-  time_to_stop = Time.now + timeout
-
-  while yield 
-    break if Time.now > time_to_stop
-    Thread.pass
-  end
-end
-
 
 class ::Thread
   # join with thread until given block is true, the thread joins successfully, 
@@ -69,7 +36,8 @@ class ::Thread
 
     until yield
       break if Time.now > time_to_stop
-      break if join(0.1)
+      break if join(0)
+      Thread.pass
     end
   end
   
@@ -78,15 +46,10 @@ class ::Thread
 
     while yield
       break if Time.now > time_to_stop
-      break if join(0.1)
+      break if join(0)
+      Thread.pass
     end
   end
-end
-
-def report_realtime(what)
-  return yield
-  t = Benchmark.realtime { yield }
-  $stderr.puts "#{what}: %0.3f" % [t.to_f]
 end
 
 
