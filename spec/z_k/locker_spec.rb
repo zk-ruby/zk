@@ -366,8 +366,8 @@ end # shared-exclusive interaction
 
 
 describe ZK::Locker do
-  let(:zk)  { ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => :default) }
-  let(:zk2) { ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => :default) }
+  let(:zk)  { ZK.new("localhost:#{ZK_TEST_PORT}") }
+  let(:zk2) { ZK.new("localhost:#{ZK_TEST_PORT}") }
   let(:zk3) { ZK.new("localhost:#{ZK_TEST_PORT}") }
 
   let(:connections) { [zk, zk2, zk3] }
