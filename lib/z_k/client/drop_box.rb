@@ -89,6 +89,7 @@ module ZK
           @value = ExceptionValue.new(exception_class, message)
           @cond.signal
         end
+        true
       end
     end
   end

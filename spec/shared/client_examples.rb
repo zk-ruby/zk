@@ -97,11 +97,13 @@ shared_examples_for 'client' do
       before do
         @path = '/testwatchers'
         @queue = Queue.new
+        @zk.delete(@path) rescue ZK::Exceptions::NoNode
       end
 
-      after do
-        @zk.delete(@path)
-      end
+#       after do
+#         logger.info { "AFTER EACH" } 
+#         @zk.delete(@path)
+#       end
 
       def ensure_event_delivery!
         @sub ||= @zk.event_handler.register(@path) do |event|
