@@ -5,6 +5,8 @@ module ZK
     #
     # @private
     class ContinuationProxy
+      include ZK::Logging
+
       attr_accessor :zookeeper_cnx
 
       # @private
@@ -12,6 +14,7 @@ module ZK
         syms.each do |sym|
           class_eval(<<-EOS, __FILE__, __LINE__+1)
             def #{sym}(opts)
+              logger.debug { "_call_continue(#{sym.inspect}, \#{opts.inspect})" }
               _call_continue(#{sym.inspect}, opts)
             end
           EOS
@@ -36,7 +39,7 @@ module ZK
       # called by the multiplxed client to wake up threads that are waiting for
       # results (with an exception)
       # @private
-      def session_expired!
+      def expired_session!
         _oh_noes(ZookeeperExceptions::ZookeeperException::SessionExpired, 'session expired')
       end
 
@@ -63,6 +66,7 @@ module ZK
 
           _with_drop_box do |db|
             cb = lambda do |hash|
+              logger.debug { "#{self.class}##{__method__} block pushing: #{hash.inspect}" } 
               db.push(hash)
             end
 
@@ -70,7 +74,9 @@ module ZK
 
             @zookeeper_cnx.__send__(meth, opts)
 
-            db.pop
+            db.pop.tap do |obj|
+              logger.debug { "#{self.class}##{__method__} popped and returning: #{obj.inspect}" } 
+            end
           end
         end
 

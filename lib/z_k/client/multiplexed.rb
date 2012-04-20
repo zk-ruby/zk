@@ -1,4 +1,3 @@
-
 module ZK
   module Client
     # This client is an experimental implementation of a threaded and
@@ -18,8 +17,8 @@ module ZK
 
       protected
         def create_connection(*args)
-          ConnectionProxy.new.tap do |cp|
-            on_session_expired { cp.session_expired! } # hook up client's session expired event listener
+          ContinuationProxy.new.tap do |cp|
+            on_expired_session { cp.expired_session! } # hook up client's session expired event listener
             cp.zookeeper_cnx = super(*args)
           end
         end
