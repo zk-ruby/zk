@@ -2,6 +2,8 @@
 source ENV['MBOX_BUNDLER_SOURCE'] if ENV['MBOX_BUNDLER_SOURCE']
 source "http://rubygems.org"
 
+# gem 'slyphon-zookeeper', :path => '~/zookeeper'
+
 group :development do
   gem 'pry'
   gem 'rake'
