@@ -16,7 +16,9 @@ describe ZK do
         wait_until { !@zk.connected? }
       end
 
-      ZK.open(@cnx_str) { |zk| zk.rm_rf(@path) }
+      mute_logger do
+        ZK.open(@cnx_str) { |zk| zk.rm_rf(@path) }
+      end
     end
 
     it "should call back to path registers" do
@@ -37,6 +39,16 @@ describe ZK do
       callback_called.should be_true
     end
 
+    # this is stupid, and a bad test, but we have to check that events 
+    # don't get re-delivered to a single registered callback just because 
+    # :watch => true was called twice
+    #
+    # again, we're testing a negative here, so consider this a regression check
+    #
+    def wait_for_events_to_not_be_delivered(events)
+      lambda { wait_until(0.2) { events.length >= 2 } }.should raise_error(WaitWatchers::TimeoutError)
+    end
+
     it %[should only deliver an event once to each watcher registered for exists?] do
       events = []
 
@@ -51,7 +63,8 @@ describe ZK do
 
       @zk.create(@path, '', :mode => :ephemeral)
 
-      wait_until { events.length >= 2 }
+      wait_for_events_to_not_be_delivered(events)
+
       events.length.should == 1
     end
 
@@ -72,7 +85,8 @@ describe ZK do
 
       @zk.set(@path, 'two')
 
-      wait_until { events.length >= 2 }
+      wait_for_events_to_not_be_delivered(events)
+
       events.length.should == 1
     end
 
@@ -94,7 +108,8 @@ describe ZK do
 
       @zk.create("#{@path}/pfx", '', :mode => :ephemeral_sequential)
 
-      wait_until { events.length >= 2 }
+      wait_for_events_to_not_be_delivered(events)
+
       events.length.should == 1
     end
   end
