@@ -1,6 +1,8 @@
 module ZK
   module Client
     module Unixisms
+      include ZookeeperConstants
+
       # Creates all parent paths and 'path' in zookeeper as persistent nodes with
       # zero data.
       #
@@ -62,7 +64,7 @@ module ZK
       #   watcher, you *will* deadlock!
       def block_until_node_deleted(abs_node_path)
         queue = Queue.new
-        ev_sub = nil
+        subs = []
 
         node_deletion_cb = lambda do |event|
           if event.node_deleted?
@@ -72,16 +74,35 @@ module ZK
           end
         end
 
-        ev_sub = watcher.register(abs_node_path, &node_deletion_cb)
+        subs << event_handler.register(abs_node_path, &node_deletion_cb)
 
+        # NOTE: this pattern may be necessary for other features with blocking semantics!
+
+        session_cb = lambda do |event|
+          queue.enq(event.state)
+        end
+
+        [:expired_session, :connecting, :closed].each do |sym|
+          subs << event_handler.register_state_handler(sym, &session_cb)
+        end
+        
         # set up the callback, but bail if we don't need to wait
         return true unless exists?(abs_node_path, :watch => true)  
 
-        queue.pop # block waiting for node deletion
-        true
+        case queue.pop
+        when :deleted
+          true
+        when ZOO_EXPIRED_SESSION_STATE
+          raise ZookeeperExceptions::ZookeeperException::SessionExpired
+        when ZOO_CONNECTING_STATE
+          raise ZookeeperExceptions::ZookeeperException::NotConnected
+        when ZOO_CLOSED_STATE
+          raise ZookeeperExceptions::ZookeeperException::ConnectionClosed
+        else
+          raise "Hit unexpected case in block_until_node_deleted"
+        end
       ensure
-        # be sure we clean up after ourselves
-        ev_sub.unregister if ev_sub
+        subs.each(&:unregister)
       end
     end
   end
