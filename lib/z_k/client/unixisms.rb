@@ -54,14 +54,16 @@ module ZK
         ZK::Find.find(self, *paths, &block)
       end
 
-      # will block the caller until +abs_node_path+ has been removed
-      #
-      # @private this method is of dubious value and may be removed in a later
-      #   version
+      # will block the caller until `abs_node_path` has been removed
       #
       # @note this is dangerous to use in callbacks! there is only one
       #   event-delivery thread, so if you use this method in a callback or
       #   watcher, you *will* deadlock!
+      #
+      # @raise [ZK::Exceptions::InterruptedSession] If a session event occurs while we're
+      #   blocked waiting for the node to be deleted, an exception that
+      #   mixes in the InterruptedSession module will be raised. 
+      #
       def block_until_node_deleted(abs_node_path)
         queue = Queue.new
         subs = []

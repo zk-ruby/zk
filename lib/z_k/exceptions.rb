@@ -35,10 +35,15 @@ module ZK
       end
     end
 
+    # This module is mixed into the session-related exceptions to allow
+    # one to rescue that group of exceptions. It is also mixed into the related
+    # ZookeeperException objects
+    module InterruptedSession
+    end
+
     class SystemError             < KeeperException; end
     class RunTimeInconsistency    < KeeperException; end
     class DataInconsistency       < KeeperException; end
-    class ConnectionLoss          < KeeperException; end
     class MarshallingError        < KeeperException; end
     class Unimplemented           < KeeperException; end
     class OperationTimeOut        < KeeperException; end
@@ -50,10 +55,22 @@ module ZK
     class NoChildrenForEphemerals < KeeperException; end
     class NodeExists              < KeeperException; end
     class NotEmpty                < KeeperException; end
-    class SessionExpired          < KeeperException; end
     class InvalidCallback         < KeeperException; end
     class InvalidACL              < KeeperException; end
     class AuthFailed              < KeeperException; end
+
+    class ConnectionLoss < KeeperException
+      include InterruptedSession
+    end
+
+    class SessionExpired < KeeperException
+      include InterruptedSession
+    end
+
+    # mixes in InterruptedSession, and can be raised on its own
+    class InterruptedSessionException < KeeperException
+      include InterruptedSession
+    end
 
     ERROR_MAP = {
       SYSTEMERROR             => SystemError,
@@ -76,13 +93,6 @@ module ZK
       INVALIDACL              => InvalidACL,
       AUTHFAILED              => AuthFailed,
     }
-
-    # This is a special case for the Multiplexed client. If reopen or close is called,
-    # it's possible that some requesting threads may never wake up (since their
-    # events will not be delivered), This exception will be raised. It's a subclass
-    # of KeeperException::SessionExpired (because it's arguably a special case of
-    # that condition).
-    class YouCannotContinueException < SessionExpired; end
 
     # base class of ZK generated errors (not driver-level errors)
     class ZKError < StandardError; end

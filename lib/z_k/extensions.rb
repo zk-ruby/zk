@@ -116,7 +116,6 @@ module ZK
         MEMBERS.all? { |m| self.__send__(m) == other.__send__(m) }
       end
     end
-
   end     # Extensions
 end       # ZK
 
@@ -124,6 +123,15 @@ end       # ZK
 ZookeeperCallbacks::Callback.send(:include, ZK::Extensions::Callbacks::Callback)
 ZookeeperCallbacks::WatcherCallback.send(:include, ZK::Extensions::Callbacks::WatcherCallbackExt)
 ZookeeperStat::Stat.send(:include, ZK::Extensions::Stat)
+
+# Include the InterruptedSession module in key ZookeeperExceptions to allow
+# clients to catch a single error type when waiting on a node (for example)
+
+[:ConnectionClosed, :NotConnected, :SessionExpired, :SessionMoved, :ConnectionLoss].each do |class_name|
+  ZookeeperExceptions::ZookeeperException.const_get(class_name).tap do |klass|
+    klass.__send__(:include, InterruptedSession)
+  end
+end
 
 class ::Exception
   unless method_defined?(:to_std_format)
