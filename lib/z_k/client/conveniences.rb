@@ -1,5 +1,8 @@
 module ZK
   module Client
+    # EXTENSIONS
+    #
+    # convenience methods for dealing with zookeeper (rm -rf, mkdir -p, etc)
     module Conveniences
       # Queue an operation to be run on an internal threadpool. You may either
       # provide an object that responds_to?(:call) or pass a block. There is no
@@ -9,10 +12,13 @@ module ZK
       #
       # An ArgumentError will be raised if +callable+ does not <tt>respond_to?(:call)</tt>
       #
-      # ==== Arguments
-      # * <tt>callable</tt>: an object that <tt>respond_to?(:call)</tt>, takes precedence
-      #   over a given block
+      # @param [#call] callable an object that `respond_to?(:call)`, takes
+      #   precedence over a given block
       #
+      # @yield [] the block that should be run in the threadpool, if `callable`
+      #   isn't given
+      #
+      # @private
       def defer(callable=nil, &block)
         @threadpool.defer(callable, &block)
       end
@@ -28,18 +34,9 @@ module ZK
         false
       end
 
-
-      #--
-      #
-      # EXTENSIONS
-      #
-      # convenience methods for dealing with zookeeper (rm -rf, mkdir -p, etc)
-      #
-      #++
-      
       # creates a new locker based on the name you send in
       #
-      # see ZK::Locker::ExclusiveLocker
+      # @see ZK::Locker::ExclusiveLocker
       #
       # returns a ZK::Locker::ExclusiveLocker instance using this Client and provided
       # lock name

@@ -81,7 +81,7 @@ module ZK
         @value != UNDEFINED
       end
 
-      # called when you need the waiting thread to receive a YouCannotContinueException
+      # called when you need the waiting thread to receive an exception
       # returns nil if a value has already been set
       def oh_noes!(exception_class, message)
         @mutex.synchronize do
