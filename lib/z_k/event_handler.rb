@@ -85,9 +85,16 @@ module ZK
     end
     alias :subscribe :register
 
-    # registers a "state of the connection" handler
+    # Registers a "state of the connection" handler
     #
-    # @param [String] state the state you want to register for
+    # Valid states are: connecting, associating, connected, auth_failed,
+    # expired_session. Of all of these, you are probably most likely
+    # interested in `expired_session` and `connecting`, which are fired
+    # when you either lose your session (and have to completely reconnect),
+    # or when there's a temporary loss in connection and Zookeeper recommends
+    # you go into 'safe mode'.
+    #
+    # @param [String] state The state you want to register for.
     # @param [Block] block the block to execute on state changes
     # @yield [event] yields your block with
     #

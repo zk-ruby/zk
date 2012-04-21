@@ -1,7 +1,13 @@
 #!/usr/bin/env ruby
 
-require 'rubygems'
 require 'zk'
+require 'logger'
+
+$stderr.sync = true
+
+ZK.logger = log = Logger.new('informal.log').tap { |l| l.level = Logger::DEBUG }
+Zookeeper.logger = log
+Zookeeper.set_debug_level(4)
 
 class ::Exception
   def to_std_format
@@ -27,13 +33,19 @@ lock_name = 'the_big_sleep'
 
 q = Queue.new
 
-th1 = Thread.new do
-  ZK.open do |zk|
-    $stderr.puts "first connection session_id: 0x%x" % zk.session_id
 
-    zk.with_lock(lock_name) do
-      q.push(:ok_sleeping)
-      sleep # we now sleep with the fishes
+th1 = Thread.new do
+  print_error do
+    ZK.open do |zk|
+      $stderr.puts "first connection session_id: 0x%x" % zk.session_id
+      sub = zk.on_expired_session do |state|
+        $stderr.puts "OH NOES! thread 1 got an expired session! #{state.inspect}"
+      end
+
+      zk.with_lock(lock_name) do
+        q.push(:ok_sleeping)
+        sleep # we now sleep with the fishes
+      end
     end
   end
 end
@@ -47,11 +59,17 @@ Thread.pass until th1.status == 'sleep'
 $stderr.puts "ok, now try to acquire lock"
 
 th2 = Thread.new do
-  ZK.open do |zk|
-    $stderr.puts "second connection session_id: 0x%x" % zk.session_id
+  print_error do
+    ZK.open do |zk|
+      $stderr.puts "second connection session_id: 0x%x" % zk.session_id
 
-    zk.with_lock(lock_name) do
-      $stderr.puts "acquired the lock in second thread"
+      sub = zk.on_expired_session do |state|
+        $stderr.puts "OH NOES! thread 2 got an expired session! #{state.inspect}"
+      end
+
+      zk.with_lock(lock_name) do
+        $stderr.puts "acquired the lock in second thread"
+      end
     end
   end
 end

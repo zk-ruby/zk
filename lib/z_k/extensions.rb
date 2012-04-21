@@ -71,6 +71,7 @@ module ZK
         def state_event?
           path.nil? or path.empty?
         end
+        alias session_event? state_event?
 
         # has this watcher been called because of a change to a zookeeper node?
         def node_event?
