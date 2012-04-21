@@ -133,7 +133,7 @@ describe ZK::Client do
           # ditto, this is probably happening synchrnously
           wait_until(2) { @a }
 
-          lambda { th.join(0.1) }.should raise_error(zoo_error_class)
+          lambda { th.join(2) }.should raise_error(zoo_error_class)
         end
       end
 
