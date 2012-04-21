@@ -25,8 +25,7 @@ require 'z_k/find'
 module ZK
   ZK_ROOT = File.expand_path('../..', __FILE__)
 
-  KILL_TOKEN = :__ZK_kILL_tOkEn__ #:nodoc:
-
+  KILL_TOKEN = Object.new unless defined?(KILL_TOKEN) 
 
   # The logger used by the ZK library. uses a Logger to +/dev/null+ by default
   #
