@@ -28,7 +28,7 @@ ZooKeeper is also (relatively) easy to deploy in a [Highly Available][ha-config]
 
 ## What does ZK do that the zookeeper gem doesn't?
 
-The [zookeeper gem][] provides a low-level, cross platform library for interfacing with ZooKeeper. While it is full featured, it only handles the basic operations that the driver provides. ZK implements the majority of the [recipes][] in the ZooKeeper documentation, plus a number of other conveniences for a production environment. 
+The [zookeeper gem][] provides a low-level, cross platform library for interfacing with ZooKeeper. While it is full featured, it only handles the basic operations that the driver provides. ZK implements the majority of the [recipes][] in the ZooKeeper documentation, plus a number of other conveniences for a production environment. ZK aims to be to Zookeeper, as Sequel or ActiveRecord is to the MySQL or Postgres drivers (not that ZK is attempting to provide an object persistence system, but rather a higher level API that users can develop applications with).
 
 ZK provides:
 
@@ -38,7 +38,7 @@ ZK provides:
 * 	a simple threadpool implementation
 * 	a bounded, dynamically-growable (threadsafe) client pool implementation
 * 	a recursive Find class (like the Find module in ruby-core)
-* 	unix-like rm\_rf and mkdir\_p methods (useful for functional testing)
+* 	unix-like rm\_rf and mkdir\_p methods
 * 	an extension for the [Mongoid][] ORM to provide advisory locks on mongodb records
 
 In addition to all of that, I would like to think that the public API the ZK::Client provides is more convenient to use for the common (synchronous) case. For use with [EventMachine][] there is [zk-eventmachine][] which provides a convenient API for writing evented code that uses the ZooKeeper server.
