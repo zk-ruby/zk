@@ -35,8 +35,14 @@ module ZK
       # @see ZK::Client::Base#register
       attr_reader :event_handler
       
-      # @private the wrapped connection object
+      # the wrapped connection object
+      # @private 
       attr_reader :cnx
+      protected :cnx
+
+      # @returns [Monitor] a mutex for synchronizing changes to the underlying connection
+      # @private
+      attr_reader :mutex
 
       # @deprecated for backwards compatibility only
       # use ZK::Client::Base#event_handler instead
@@ -69,18 +75,18 @@ module ZK
       #   ZK::Client.new("zk01:2181,zk02:2181/chroot/path")
       #
       def initialize(host, opts={})
-        # no-op
+        @mutex = Monitor.new
       end
 
       private
         # @private
         def jruby_closed?
-          @cnx.state == Java::OrgApacheZookeeper::ZooKeeper::States::CLOSED
+          cnx.state == Java::OrgApacheZookeeper::ZooKeeper::States::CLOSED
         end
 
         # @private
         def mri_closed?
-          @cnx.closed?
+          cnx.closed?
         end
 
       public
@@ -88,8 +94,8 @@ module ZK
       # reopen the underlying connection
       # returns state of connection after operation
       def reopen(timeout=nil)
-        timeout ||= @session_timeout
-        @cnx.reopen(timeout, @event_handler.get_default_watcher_block)
+        timeout ||= @session_timeout # XXX: @session_timeout ?
+        cnx.reopen(timeout, @event_handler.get_default_watcher_block)
         @threadpool.start!  # restart the threadpool if previously stopped by close!
         state
       end
@@ -97,7 +103,7 @@ module ZK
       # close the underlying connection and clear all pending events.
       def close!
         event_handler.clear!
-        wrap_state_closed_error { @cnx.close unless @cnx.closed? }
+        wrap_state_closed_error { cnx.close unless cnx.closed? }
       end
 
       # Create a node with the given path. The node data will be the given data.
@@ -255,7 +261,7 @@ module ZK
           end
         end
 
-        rv = check_rc(@cnx.create(h), h)
+        rv = check_rc(cnx.create(h), h)
 
         h[:callback] ? rv : rv[:path]
       end
@@ -317,7 +323,7 @@ module ZK
 
         setup_watcher!(:data, h)
 
-        rv = check_rc(@cnx.get(h), h)
+        rv = check_rc(cnx.get(h), h)
 
         opts[:callback] ? rv : rv.values_at(:data, :stat)
       end
@@ -381,7 +387,7 @@ module ZK
 
         h = { :path => path, :data => data }.merge(opts)
 
-        rv = check_rc(@cnx.set(h), h)
+        rv = check_rc(cnx.set(h), h)
 
         opts[:callback] ? rv : rv[:stat]
       end
@@ -445,7 +451,7 @@ module ZK
 
         setup_watcher!(:data, h)
 
-        rv = @cnx.stat(h)
+        rv = cnx.stat(h)
 
         return rv if opts[:callback] 
 
@@ -539,7 +545,7 @@ module ZK
 
         setup_watcher!(:child, h)
 
-        rv = check_rc(@cnx.get_children(h), h)
+        rv = check_rc(cnx.get_children(h), h)
         opts[:callback] ? rv : rv[:children]
       end
 
@@ -595,7 +601,7 @@ module ZK
 
 
         h = { :path => path, :version => -1 }.merge(opts)
-        rv = check_rc(@cnx.delete(h), h)
+        rv = check_rc(cnx.delete(h), h)
         opts[:callback] ? rv : nil
       end
 
@@ -641,7 +647,7 @@ module ZK
         #   zk.acls("/path", :callback => callback, :context => context)
 
         h = { :path => path }.merge(opts)
-        rv = check_rc(@cnx.get_acl(h), h)
+        rv = check_rc(cnx.get_acl(h), h)
         opts[:callback] ? rv : rv.values_at(:children, :stat)
       end
 
@@ -672,7 +678,7 @@ module ZK
       #
       def set_acl(path, acls, opts={})
         h = { :path => path, :acl => acls }.merge(opts)
-        rv = check_rc(@cnx.set_acl(h), h)
+        rv = check_rc(cnx.set_acl(h), h)
         opts[:callback] ? rv : rv[:stat]
       end
 
@@ -693,18 +699,18 @@ module ZK
 
           raise ArgumentError, "#{level.inspect} is not a valid argument to set_debug_level" unless num
 
-          @cnx.set_debug_level(num)
+          cnx.set_debug_level(num)
         end
       end
 
       # returns the session_id of the underlying connection
       def session_id
-        @cnx.session_id
+        cnx.session_id
       end
 
       # returns the session_passwd of the underlying connection
       def session_passwd
-        @cnx.session_passwd
+        cnx.session_passwd
       end
       
       # Register a block that should be delivered events for a given path. After 
