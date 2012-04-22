@@ -32,51 +32,7 @@ module ZK
       end
     end
 
-    # register a path with the handler
-    #
-    # your block will be called with all events on that path.
-    #
-    # @note All watchers are one-shot handlers. After an event is delivered to
-    #   your handler, you *must* re-watch the node to receive more events. This
-    #   leads to a pattern you will find throughout ZK code that avoids races,
-    #   see the example below "avoiding a race"
-    #
-    # @example avoiding a race waiting for a node to be deleted
-    #
-    #   # we expect that '/path/to/node' exists currently and want to be notified
-    #   # when it's deleted
-    #
-    #   # register a handler that will be called back when an event occurs on
-    #   # node
-    #   # 
-    #   node_subscription = zk.event_handler.register('/path/to/node') do |event|
-    #     if event.node_deleted?
-    #       do_something_when_node_deleted
-    #     end
-    #   end
-    #
-    #   # check to see if our condition is true *while* setting a watch on the node
-    #   # if our condition happens to be true while setting the watch
-    #   #
-    #   unless exists?('/path/to/node', :watch => true)
-    #     node_subscription.unsubscribe   # cancel the watch
-    #     do_something_when_node_deleted  # call the callback
-    #   end
-    #
-    #
-    # @param [String] path the path you want to listen to
-    #
-    # @param [Block] block the block to execute when a watch event happpens
-    #
-    # @yield [event] We will call your block with the watch event object (which
-    #   has the connection the event occurred on as its #zk attribute)
-    #
-    # @return [ZooKeeper::EventHandlerSubscription] the subscription object
-    #   you can use to to unsubscribe from an event
-    #
-    # @see ZooKeeper::WatcherEvent
-    # @see ZK::EventHandlerSubscription
-    #
+    # @see ZK::Client::Base#register
     def register(path, &block)
 #       logger.debug { "EventHandler#register path=#{path.inspect}" }
       EventHandlerSubscription.new(self, path, block).tap do |subscription|

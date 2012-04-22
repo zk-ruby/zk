@@ -706,6 +706,62 @@ module ZK
       def session_passwd
         @cnx.session_passwd
       end
+      
+      # Register a block that should be delivered events for a given path. After 
+      # registering a block, you need to call {#get}, {#stat}, or {#children} with the
+      # `:watch => true` option for the block to receive _the next event_ (see note).
+      # {#get} and {#stat} will cause the block to receive events when the path is
+      # created, deleted, or its data is changed. {#children} will cause the block to
+      # receive events about its list of child nodes changing (i.e. being added
+      # or deleted, but *not* their content changing).
+      #
+      # This method will return an {EventHandlerSubscription} instance that can be used
+      # to remove the block from further updates by calling its `.unsubscribe` method.
+      #
+      # @note All node watchers are one-shot handlers. After an event is delivered to
+      #   your handler, you *must* re-watch the node to receive more events. This
+      #   leads to a pattern you will find throughout ZK code that avoids races,
+      #   see the example below "avoiding a race"
+      #
+      # @example avoiding a race waiting for a node to be deleted
+      #
+      #   # we expect that '/path/to/node' exists currently and want to be notified
+      #   # when it's deleted
+      #
+      #   # register a handler that will be called back when an event occurs on
+      #   # node
+      #   # 
+      #   node_subscription = zk.register('/path/to/node') do |event|
+      #     if event.node_deleted?
+      #       do_something_when_node_deleted
+      #     end
+      #   end
+      #
+      #   # check to see if our condition is true *while* setting a watch on the node
+      #   # if our condition happens to be true while setting the watch
+      #   #
+      #   unless exists?('/path/to/node', :watch => true)
+      #     node_subscription.unsubscribe   # cancel the watch
+      #     do_something_when_node_deleted  # call the callback
+      #   end
+      #
+      #
+      # @param [String] path the path you want to listen to
+      #
+      # @param [Block] block the block to execute when a watch event happpens
+      #
+      # @yield [event] We will call your block with the watch event object (which
+      #   has the connection the event occurred on as its #zk attribute)
+      #
+      # @return [EventHandlerSubscription] the subscription object
+      #   you can use to to unsubscribe from an event
+      #
+      # @see ZooKeeper::WatcherEvent
+      # @see ZK::EventHandlerSubscription
+      #
+      def register(path, &block)
+        event_handler.register(path, &block)
+      end
 
       protected
         # @private
