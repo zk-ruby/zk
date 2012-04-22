@@ -117,6 +117,9 @@ module ZK
     # raised for certain operations when using a chrooted connection, but the
     # root doesn't exist.
     class NonExistentRootError < ZKError; end
+
+    # raised when someone performs a blocking ZK operation on the event delivery thread. 
+    class EventDeliveryThreadException < ZKError; end
   end
 end
 
