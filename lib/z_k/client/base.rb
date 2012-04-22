@@ -769,6 +769,16 @@ module ZK
         event_handler.register(path, &block)
       end
 
+      # returns true if the caller is calling from the event dispatch thread
+      def event_dispatch_thread?
+        cnx.event_dispatch_thread?
+      end
+
+      # @private
+      def assert_we_are_not_on_the_event_dispatch_thread!
+        raise Exceptions::EventDispatchThreadException, "blocking method called on dispatch thread" if event_dispatch_thread?
+      end
+
       protected
         # @private
         def check_rc(hash, inputs=nil)

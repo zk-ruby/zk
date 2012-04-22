@@ -1,3 +1,5 @@
+require 'spec_helper'
+
 shared_examples_for 'session death' do
   def deliver_session_event_to(event_num, zk)
     # jeez, Zookeeper callbacks are so frustratingly stupid
@@ -26,13 +28,21 @@ shared_examples_for 'session death' do
       @other_zk.block_until_node_deleted(@path)
     end
 
+    # we don't expect an exception yet, so warn us if there is on while this
+    # thread is on its way to sleep
+    th.abort_on_exception = true
+
     wait_until(2) { th.status == 'sleep' }
+
+    th.abort_on_exception = false   # after here, we're raising an exception on purpose
+
+    th.join if th.status.nil?       # this indicates an exception happened...already
 
     # not on the other thread, this may be bad
     deliver_session_event_to(zoo_state, @other_zk)
 
     # ditto, this is probably happening synchrnously
-    wait_until(2) { @a }
+    wait_until(2) { @a }.should be_true
 
     lambda { th.join(2) }.should raise_error(zoo_error_class)
   end
@@ -65,6 +75,34 @@ end
 
 describe 'threaded client and locking behavior' do
   include_context 'threaded client connection'
+
+  before do
+    @path = '/test'
+    @zk.create('/test') rescue ZK::Exceptions::NodeExists
+  end
+
+  describe 'block_until_node_deleted' do
+    it %[should raise an EventDispatchThreadException if called in the context of the event dispatch thread] do
+      @exception = nil
+
+      @zk.register(@path) do |event|
+        @zk.event_dispatch_thread?.should be_true
+
+        begin
+          @zk.block_until_node_deleted(@path)
+        rescue Exception => e
+          @exception = e
+        end
+      end
+
+      @zk.exists?(@path, :watch => true)
+
+      @zk.set(@path, 'blah')
+
+      wait_until(2) { @exception }.should be_kind_of(ZK::Exceptions::EventDispatchThreadException)
+    end
+  end
+
   it_should_behave_like 'locking and session death'
 end
 

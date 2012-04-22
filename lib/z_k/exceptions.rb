@@ -118,8 +118,8 @@ module ZK
     # root doesn't exist.
     class NonExistentRootError < ZKError; end
 
-    # raised when someone performs a blocking ZK operation on the event delivery thread. 
-    class EventDeliveryThreadException < ZKError; end
+    # raised when someone performs a blocking ZK operation on the event dispatch thread. 
+    class EventDispatchThreadException < ZKError; end
   end
 end
 

@@ -118,8 +118,13 @@ module ZK
       #   mixes in the InterruptedSession module will be raised. 
       #
       def block_until_node_deleted(abs_node_path)
-        queue = Queue.new
         subs = []
+
+        assert_we_are_not_on_the_event_dispatch_thread!
+
+        raise ArgumentError, "argument must be String-ish, not: #{abs_node_path.inspect}" unless abs_node_path
+
+        queue = Queue.new
 
         node_deletion_cb = lambda do |event|
           if event.node_deleted?
