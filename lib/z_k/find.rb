@@ -14,7 +14,7 @@ module ZK
           yield p.dup.taint
           next unless zk.exists?(p)
 
-          zk.children(p).each do |ch| 
+          zk.children(p).sort.reverse.each do |ch| 
             paths.unshift ZK.join(p, ch).untaint
           end
         end
