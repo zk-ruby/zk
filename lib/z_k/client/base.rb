@@ -75,7 +75,7 @@ module ZK
       #   ZK::Client.new("zk01:2181,zk02:2181/chroot/path")
       #
       def initialize(host, opts={})
-        @mutex = Monitor.new
+        # no-op
       end
 
       private
