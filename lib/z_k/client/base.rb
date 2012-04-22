@@ -40,10 +40,6 @@ module ZK
       attr_reader :cnx
       protected :cnx
 
-      # @returns [Monitor] a mutex for synchronizing changes to the underlying connection
-      # @private
-      attr_reader :mutex
-
       # @deprecated for backwards compatibility only
       # use ZK::Client::Base#event_handler instead
       def watcher
