@@ -3,7 +3,10 @@ module ZK
     # like ruby's Find module, will call the given block with each _absolute_ znode path 
     # under +paths+. you can call ZK::Find.prune if you want to not recurse
     # deeper under the current directory path.
-    def find(zk, *paths) #:yield: znode_path
+    #
+    # @yield [String] each znode path under the list of paths given.
+    #
+    def find(zk, *paths) 
       paths.collect!{|d| d.dup}
 
       while p = paths.shift

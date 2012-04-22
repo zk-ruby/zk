@@ -1,8 +1,22 @@
 module WaitWatchers
   class TimeoutError < StandardError; end
 
-  # method to wait until block passed returns true or timeout (default is 10 seconds) is reached 
-  # raises TiemoutError on timeout
+  # method to wait until block passed returns truthy (false will not work) or
+  # timeout (default is 2 seconds) is reached raises TiemoutError on timeout
+  #
+  # @returns the truthy value
+  #
+  # @example 
+  #     
+  #   @a = nil
+  #
+  #   th = Thread.new do
+  #     sleep(1)
+  #     @a = :fudge
+  #   end
+  #
+  #   wait_until(2) { @a }.should == :fudge
+  #
   def wait_until(timeout=2)
     time_to_stop = Time.now + timeout
     while true

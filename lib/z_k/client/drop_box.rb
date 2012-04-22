@@ -9,6 +9,7 @@ module ZK
     # exits (allowing for reuse)
     #
     # (this class is in no way related to dropbox.com or Dropbox Inc.)
+    # @private
     class DropBox
       UNDEFINED = Object.new              unless defined?(UNDEFINED)
       KILL_TOKEN = Object.new             unless defined?(KILL_TOKEN)

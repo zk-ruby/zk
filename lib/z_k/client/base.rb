@@ -1,11 +1,38 @@
 module ZK
   module Client
 
+    # This class forms the base API for interacting with ZooKeeper. Most people will
+    # want to create instances of the class ZK::Client::Threaded, and the most
+    # convenient way of doing that is through the top-level method `ZK.new`
+    #
+    # @note There is a lot of functionality mixed into the subclasses of this
+    #   class! You should take a look at {Unixisms}, {Conveniences}, and
+    #   {StateMixin} for a lot of the higher-level functionality!
+    #
+    # @example Create a new default connection
+    #
+    #   # if no host:port is given, we connect to localhost:2181 by default
+    #   # (convenient for use in tests and in irb/pry)
+    #
+    #   zk = ZK.new
+    #
+    # @example Create a new connection, specifying host
+    #
+    #   zk = ZK.new('localhost:2181')
+    #
+    # @example For quick tasks, you can use the visitor pattern, (like the File class)
+    #
+    #   ZK.open('localhost:2181') do |zk|
+    #     # do stuff with connection
+    #   end
+    #
+    #   # connection is automatically closed
+    #
     class Base
       # The Eventhandler is used by client code to register callbacks to handle
       # events triggerd for given paths. 
       #
-      # @see ZK::EventHandler#register
+      # @see ZK::Client::Base#register
       attr_reader :event_handler
       
       # @private the wrapped connection object
@@ -462,6 +489,9 @@ module ZK
       # of the given path or creates/delete a child under the node. See `watcher`
       # for documentation on how to register blocks to be called when a watch
       # event is fired.
+      #
+      # @note It is important to note that the list of children is _not sorted_. If you
+      #   need them to be ordered, you must call `.sort` on the returned array
       # 
       # @raise [ZK::Exceptions::NoNode] if the node does not exist
       # 

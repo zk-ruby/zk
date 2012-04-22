@@ -2,10 +2,14 @@
 
 ZK is a high-level interface to the Apache [ZooKeeper][] server. It is based on the [zookeeper gem][] which is a multi-Ruby low-level driver. Currently MRI 1.8.7, 1.9.2, 1.9.3, and JRuby are supported (rubinius 1.2 is experimental but _should_ work). It is licensed under the [MIT][] license. 
 
+The key place to start in the documentation is with ZK::Client::Base ([rubydoc.info][ZK::Client::Base], [local](/docs/ZK/Client/Base)
+).
+
 This library is heavily used in a production deployment and is actively developed and maintained.
 
 Development is sponsored by [Snapfish][] and has been generously released to the Open Source community by HPDC, L.P.
 
+[ZK::Client::Base]: http://rubydoc.info/gems/zk/ZK/Client/Base
 [ZooKeeper]: http://zookeeper.apache.org/ "Apache ZooKeeper"
 [zookeeper gem]: https://github.com/slyphon/zookeeper "slyphon-zookeeper gem"
 [MIT]: http://www.gnu.org/licenses/license-list.html#Expat "MIT (Expat) License"
