@@ -28,16 +28,21 @@ module ZK
     class LockerBase
       include ZK::Logging
 
-      attr_accessor :zk #:nodoc:
+      # @private
+      attr_accessor :zk
 
       # our absolute lock node path
       #
       # ex. '/_zklocking/foobar/__blah/lock000000007'
-      attr_reader :lock_path #;nodoc:
+      #
+      # @private
+      attr_reader :lock_path
 
-      attr_reader :root_lock_path #:nodoc:
+      # @private
+      attr_reader :root_lock_path
 
-      def self.digit_from_lock_path(path) #:nodoc:
+      # @private
+      def self.digit_from_lock_path(path)
         path[/0*(\d+)$/, 1].to_i
       end
 
