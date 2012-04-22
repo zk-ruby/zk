@@ -10,10 +10,6 @@ module ZK
 
       DEFAULT_THREADPOOL_SIZE = 1
 
-      def reopen(timeout=nil)
-        @mutex.synchronize { super(timeout) }
-      end
-
       # @param [String] host (see ZK::Client::Base#initialize)
       #
       # @option opts [Fixnum] :threadpool_size the size of the threadpool that
@@ -33,8 +29,6 @@ module ZK
       def initialize(host, opts={}, &b)
         super(host, opts)
 
-        @mutex = Monitor.new
-        
         @session_timeout = opts.fetch(:timeout, DEFAULT_TIMEOUT) # maybe move this into superclass?
         @event_handler   = EventHandler.new(self)
 
@@ -42,26 +36,19 @@ module ZK
 
         @cnx = create_connection(host, @session_timeout, @event_handler.get_default_watcher_block)
 
-        tp_size     = opts.fetch(:threadpool_size, DEFAULT_THREADPOOL_SIZE)
+        tp_size = opts.fetch(:threadpool_size, DEFAULT_THREADPOOL_SIZE)
 
         @threadpool = Threadpool.new(tp_size)
       end
 
       # @see ZK::Client::Base#close!
       def close!
-        @mutex.synchronize do
-          @threadpool.shutdown
-          super
-        end
-
+        @threadpool.shutdown
+        super
         nil
       end
 
       protected
-        def cnx
-          @mutex.synchronize { @cnx }
-        end
-
         # allows for the Mutliplexed client to wrap the connection in its ContinuationProxy
         # @private
         def create_connection(*args)
