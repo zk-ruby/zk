@@ -129,7 +129,7 @@ ZookeeperStat::Stat.send(:include, ZK::Extensions::Stat)
 
 [:ConnectionClosed, :NotConnected, :SessionExpired, :SessionMoved, :ConnectionLoss].each do |class_name|
   ZookeeperExceptions::ZookeeperException.const_get(class_name).tap do |klass|
-    klass.__send__(:include, InterruptedSession)
+    klass.__send__(:include, ZK::Exceptions::InterruptedSession)
   end
 end
 
