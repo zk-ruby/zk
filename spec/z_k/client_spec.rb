@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'shared/client_examples'
 
 describe ZK::Client::Threaded do
   include_context 'threaded client connection'

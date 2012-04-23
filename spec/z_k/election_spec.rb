@@ -162,21 +162,22 @@ describe ZK::Election do
             @obama.zk.close!
             wait_until { @palin_won }
 
-            zk = ZK.new('localhost:2181')
-            newbama = ZK::Election::Candidate.new(zk, @election_name, :data => @data1)
+            ZK.open('localhost:2181') do |zk|
+              newbama = ZK::Election::Candidate.new(zk, @election_name, :data => @data1)
 
-            win_again = false
+              win_again = false
 
-            newbama.on_winning_election do
-              win_again = true
+              newbama.on_winning_election do
+                win_again = true
+              end
+
+              newbama.vote!
+              wait_until { newbama.voted? }
+
+              newbama.should be_voted
+              win_again.should be_false
+              newbama.should_not be_leader
             end
-
-            newbama.vote!
-            wait_until { newbama.voted? }
-
-            newbama.should be_voted
-            win_again.should be_false
-            newbama.should_not be_leader
           end
         end
       end

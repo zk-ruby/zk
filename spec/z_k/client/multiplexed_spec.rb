@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'shared/client_examples'
 
 describe 'ZK::Client::Multiplexed', :client => :multiplexed do
   before do
