@@ -92,6 +92,10 @@ module ZK
     alias :unsubscribe :unregister
 
     # called from the client-registered callback when an event fires
+    #
+    # @note this is *ONLY* dealing with asynchronous callbacks! watchers
+    #   and session events go through here, NOT anything else!!
+    #
     # @private
     def process(event)
 #       logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
