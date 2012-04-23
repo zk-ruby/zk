@@ -10,6 +10,13 @@ module ZK
 
       DEFAULT_THREADPOOL_SIZE = 1
 
+      # @note The `:timeout` argument here is *not* the session_timeout for the
+      #   connection. rather it is the amount of time we wait for the connection
+      #   to be established. The session timeout exchanged with the server is 
+      #   set to 10s by default in the C implemenation, and as of version 0.8.0 
+      #   of slyphon-zookeeper has yet to be exposed as an option. That feature
+      #   is planned. 
+      #
       # @param [String] host (see ZK::Client::Base#initialize)
       #
       # @option opts [Fixnum] :threadpool_size the size of the threadpool that
