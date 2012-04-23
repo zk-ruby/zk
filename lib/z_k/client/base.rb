@@ -91,7 +91,7 @@ module ZK
       # returns state of connection after operation
       def reopen(timeout=nil)
         timeout ||= @session_timeout # XXX: @session_timeout ?
-        cnx.reopen(timeout, @event_handler.get_default_watcher_block)
+        cnx.reopen(timeout)
         @threadpool.start!  # restart the threadpool if previously stopped by close!
         state
       end
