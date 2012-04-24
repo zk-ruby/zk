@@ -1,7 +1,54 @@
 module ZK
+
+
   module Client
     # This is the default client that ZK will use. In the zk-eventmachine gem,
     # there is an Evented client.
+    #
+    # If you want to register `on_*` callbacks (see ZK::Client::StateMixin)
+    # then you should pass a block, which will be called before the
+    # connection is set up (this way you can get the `on_connected` event). See
+    # the 'Register on_connected callback' example.
+    #
+    # A note on event delivery. There has been some confusion, caused by
+    # incorrect documentation (which I'm very sorry about), about how many
+    # threads are delivering events. The documentation for 0.9.0 was incorrect
+    # in stating the number of threads used to deliver events. There was one,
+    # unconfigurable, event dispatch thread. In 1.0 the number of event
+    # delivery threads is configurable, but still defaults to 1. 
+    #
+    # The configurability is intended to allow users to easily dispatch events to
+    # event handlers that will perform (application specific) work. Be aware,
+    # the default will give you the guarantee that only one event will be delivered
+    # at a time. The advantage to this is that you can be sure that no event will 
+    # be delivered "behind your back" while you're in an event handler. If you're
+    # comfortable with dealing with threads and concurrency, then feel free to 
+    # set the `:threadpool_size` option to the constructor to a value you feel is
+    # correct for your app. 
+    # 
+    # If you use the threadpool/event callbacks to perform work, you may be
+    # interested in registering an `on_exception` callback that will receive
+    # all exceptions that occur on the threadpool that are not handled (i.e.
+    # that bubble up to top of a block).
+    #
+    # It is recommended that you not run any possibly long-running work on the
+    # event threadpool, as `close!` will attempt to shutdown the threadpool, and
+    # **WILL NOT WAIT FOREVER**. (TODO: more on this)
+    # 
+    #
+    # @example Register on_connected callback.
+    #   
+    #   # the nice thing about this pattern is that in the case of a call to #reopen
+    #   # all your watches will be re-established
+    #
+    #   ZK::Client::Threaded.new('localhsot:2181') do |zk|
+    #     # do not do anything in here except register callbacks
+    #     
+    #     zk.on_connected do |event|
+    #       zk.stat('/foo/bar', watch: true)
+    #       zk.stat('/baz', watch: true)
+    #     end
+    #   end
     #
     class Threaded < Base
       include StateMixin
@@ -10,6 +57,8 @@ module ZK
 
       DEFAULT_THREADPOOL_SIZE = 1
 
+      # Construct a new threaded client.
+      #
       # @note The `:timeout` argument here is *not* the session_timeout for the
       #   connection. rather it is the amount of time we wait for the connection
       #   to be established. The session timeout exchanged with the server is 
@@ -17,15 +66,27 @@ module ZK
       #   of slyphon-zookeeper has yet to be exposed as an option. That feature
       #   is planned. 
       #
+      # @note The documentation for 0.9.0 was incorrect in stating the number
+      #   of threads used to deliver events. There was one, unconfigurable,
+      #   event dispatch thread. In 1.0 the number of event delivery threads is
+      #   configurable, but still defaults to 1. (The Management apologizes for
+      #   any confusion this may have caused).
+      #
       # @param [String] host (see ZK::Client::Base#initialize)
       #
-      # @option opts [Fixnum] :threadpool_size the size of the threadpool that
-      #   should be used to deliver events. In ZK 0.8.x this was set to 5, which
-      #   means that events could be delivered concurrently. As of 0.9, this will
-      #   be set to 1, so it's very important to _not block the event thread_.
+      # @option opts [true,false] :reconnect (true) if true, we will register
+      #   the equivalent of `on_session_expired { zk.reopen }` so that in the
+      #   case of an expired session, we will keep trying to reestablish the
+      #   connection.
+      #
+      # @option opts [Fixnum] :threadpool_size (1) the size of the threadpool that
+      #   should be used to deliver events. As of 1.0, this is the number of
+      #   event delivery threads and controls the amount of concurrency in your
+      #   app if you're doing work in the event callbacks.
       #
       # @option opts [Fixnum] :timeout how long we will wait for the connection
-      #   to be established. 
+      #   to be established. If timeout is nil, we will wait forever *use
+      #   carefully*.
       #
       # @yield [self] calls the block with the new instance after the event
       #   handler has been set up, but before any connections have been made.
