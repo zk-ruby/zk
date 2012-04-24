@@ -780,8 +780,9 @@ module ZK
       end
 
       # @private
-      def assert_we_are_not_on_the_event_dispatch_thread!
-        raise Exceptions::EventDispatchThreadException, "blocking method called on dispatch thread" if event_dispatch_thread?
+      def assert_we_are_not_on_the_event_dispatch_thread!(msg=nil)
+        msg ||= "blocking method called on dispatch thread"
+        raise Exceptions::EventDispatchThreadException, msg if event_dispatch_thread?
       end
 
       protected
