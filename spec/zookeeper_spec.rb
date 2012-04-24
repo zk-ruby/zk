@@ -1,17 +1,8 @@
-require File.join(File.dirname(__FILE__), %w[spec_helper])
+require 'spec_helper'
 
-describe ZK do
+shared_examples_for 'ZK basic' do
   before do
-    @zk = ZK.new("localhost:#{ZK_TEST_PORT}")
-
-    @base_path = "/zktests"
-    @zk.rm_rf(@base_path)
-    @zk.mkdir_p(@base_path)
-  end
-
-  after do
-    @zk.rm_rf(@base_path)
-    @zk.close!
+    @zk.create(@base_path) rescue ZK::Exceptions::NodeExists
   end
 
   describe ZK, "with no paths" do
@@ -125,3 +116,15 @@ describe ZK do
     end
   end
 end
+
+describe 'basic multiplexed', :client => :multiplexed do
+  include_context 'multiplexed client connection'
+  it_should_behave_like 'ZK basic'
+end
+
+describe 'basic threaded', :client => :threaded do
+  include_context 'threaded client connection'
+  it_should_behave_like 'ZK basic'
+end
+
+
