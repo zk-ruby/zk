@@ -494,7 +494,7 @@ describe 'ZK::Locker Multiplexed client', :client => :multiplexed do
 
   before do
     wait_until{ connections.all?(&:connected?) }
-    pending "Mutliplexed client locking is broken"
+#     pending "Mutliplexed client locking is broken"
   end
 
   after do
@@ -506,6 +506,4 @@ describe 'ZK::Locker Multiplexed client', :client => :multiplexed do
   it_should_behave_like 'ExclusiveLocker'
   it_should_behave_like 'shared-exclusive interaction'
 end # ZK::Locker
-
-
 

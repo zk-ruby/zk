@@ -21,12 +21,20 @@ module ZK
         end
       end
 
-      call_with_continuation :create, :get, :set, :stat, :children, :delete, :get_acl, :set_acl
+      call_with_continuation :get, :set, :stat, :children, :delete, :get_acl, :set_acl
 
       def initialize(zookeeper_cnx=nil)
         @zookeeper_cnx = zookeeper_cnx
         @mutex = Mutex.new
         @dropboxen = []
+      end
+
+      # create is "special" because the return hash doesn't have a :path, it has a :string
+      def create(opts)
+        logger.debug { "_call_continue(create, #{opts.inspect})" }
+        _call_continue(:create, opts).tap do |rval|
+          rval[:path] = rval.delete(:string)
+        end
       end
 
       # called by the multiplxed client to wake up threads that are waiting for
