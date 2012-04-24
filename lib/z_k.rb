@@ -27,10 +27,19 @@ module ZK
 
   KILL_TOKEN = Object.new unless defined?(KILL_TOKEN) 
 
-  # The logger used by the ZK library. uses a Logger to +/dev/null+ by default
+  unless @logger
+    @logger = Logger.new($stderr).tap { |n| n.level = Logger::ERROR }
+  end
+
+  # The logger used by the ZK library. uses a Logger stderr with Logger::ERROR
+  # level. The only thing that should ever be logged are exceptions that are
+  # swallowed by background threads.
+  #
+  # You can change this logger by setting ZK#logger= to an object that
+  # implements the stdllb Logger API.
   #
   def self.logger
-    @logger ||= Logger.new('/dev/null')
+    @logger
   end
 
   # Assign the Logger instance to be used by ZK
