@@ -97,6 +97,15 @@ module ZK
       end
 
       # close the underlying connection and clear all pending events.
+      #
+      # @note it is VERY IMPORTANT that when using the threaded client that you
+      #   __NOT CALL THIS ON THE EVENT DISPATCH THREAD__. If you do call it when
+      #   `event_dispatch_thread?` is true, you will get a big fat Kernel.warn
+      #   and nothing will happen. There is currently no safe way to have the event
+      #   thread cause a shutdown in the main thread (with good reason). There is also
+      #   no way to get an exception from the event thread (they're currently
+      #   just logged and swallowed), so this is the least horrible remedy available.
+      #   
       def close!
         event_handler.clear!
         wrap_state_closed_error { cnx.close unless cnx.closed? }
