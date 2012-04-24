@@ -74,7 +74,7 @@ module ZK
 
           _with_drop_box do |db|
             cb = lambda do |hash|
-              logger.debug { "#{self.class}##{__method__} block pushing: #{hash.inspect}" } 
+#               logger.debug { "#{self.class}##{__method__} block pushing: #{hash.inspect}" } 
               db.push(hash)
             end
 
@@ -82,9 +82,11 @@ module ZK
 
             @zookeeper_cnx.__send__(meth, opts)
 
-            db.pop.tap do |obj|
-              logger.debug { "#{self.class}##{__method__} popped and returning: #{obj.inspect}" } 
-            end
+#             db.pop.tap do |obj|
+#               logger.debug { "#{self.class}##{__method__} popped and returning: #{obj.inspect}" } 
+#             end
+            
+            db.pop
           end
         end
 
