@@ -50,6 +50,16 @@ module ZK
 
       # @see ZK::Client::Base#close!
       def close!
+        if event_dispatch_thread?
+          msg = ["ZK ERROR: You called #{self.class}#close! on the event dispatch thread!!",
+                 "This will cause the client to deadlock and possibly your main thread as well!"]
+
+          warn_msg = [nil, msg, nil, "See ZK error log output (stderr by default) for a backtrace", nil].join("\n")
+
+          Kernel.warn(warn_msg)
+          assert_we_are_not_on_the_event_dispatch_thread!(msg.join(' '))
+        end
+
         @threadpool.shutdown
         super
         nil
