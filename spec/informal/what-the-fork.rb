@@ -2,7 +2,14 @@
 
 require 'zk'
 
+def new_stderr_logger
+  Logger.new($stderr).tap { |l| l.level = Logger::DEBUG }
+end
+
+ZK.logger = new_stderr_logger
+
 class WhatTheFork
+  attr_reader :logger
 
   def initialize
     @zk = ZK.new
@@ -10,53 +17,64 @@ class WhatTheFork
     @path_to_delete = "#{@base_path}/delete_me"
   end
 
+  def setup_logs!
+    Zookeeper.logger = ZK.logger = @logger = new_stderr_logger
+  end
+
   def run
+    setup_logs!
+
     @zk.mkdir_p(@path_to_delete)
 
     @zk.on_connected do |event|
-      $stderr.puts  "on_connected: #{event.inspect}"
+      _debug  "on_connected: #{event.inspect}"
     end
 
     @zk.on_connecting do |event|
-      $stderr.puts "on_connecting: #{event.inspect}"
+      _debug "on_connecting: #{event.inspect}"
     end
 
     @zk.on_expired_session do |event|
-      $stderr.puts "on_expired_session: #{event.inspect}"
+      _debug "on_expired_session: #{event.inspect}"
     end
 
     fork_it!
+
+    @zk.block_until_node_deleted(@path_to_delete)
+    _debug "exiting main process!"
   end
 
   def fork_it!
     pid = fork do
-      $stderr.puts "closing zk"
+      setup_logs!
+
+      _debug "closing zk"
       @zk.close!
-      $stderr.puts "closed zk"
+      _debug "closed zk"
       @zk = ZK.new
-      $stderr.puts "created new zk"
+      _debug "created new zk"
 
       @zk.delete(@path_to_delete)
 
-      $stderr.puts "deleted path #{@path_to_delete}, closing new zk instance"
+      _debug "deleted path #{@path_to_delete}, closing new zk instance"
 
       @zk.close!
 
-      $stderr.puts  "EXITING!!"
+      _debug  "EXITING!!"
       exit 0
     end
 
     _, stat = Process.waitpid2(pid)
-    $stderr.puts "child exited, stat: #{stat.inspect}"
+    _debug "child exited, stat: #{stat.inspect}"
   ensure
     if pid
-      $stderr.puts "ensuring #{pid} is really dead"
+      _debug "ensuring #{pid} is really dead"
       Process.kill(9, pid) rescue Errno::ESRCH
     end
   end
 
-  def logger
-    @logger
+  def _debug(str)
+    logger.debug { str }
   end
 end
 
