@@ -150,6 +150,38 @@ shared_examples_for 'client' do
         ensure_event_delivery!
       end
     end
+
+  end # reopen
+
+  describe 'reconnection' do
+    it %[should if it receives a client_invalid? event] do
+      flexmock(@zk) do |m|
+        m.should_receive(:reopen).with(0).once
+      end
+
+      bogus_event = flexmock(:expired_session_event, :session_event? => true, :client_invalid? => true, :state_name => 'ZOO_EXPIRED_SESSION_STATE')
+
+      @zk.raw_event_handler(bogus_event)
+    end
+  end # reconnection
+
+  describe :on_exception do
+    it %[should register a callback that will be called if an exception is raised on the threadpool] do
+      @ary = []
+
+      @zk.on_exception { |exc| @ary << exc }
+        
+      @zk.defer { raise "ZOMG!" }
+
+      wait_while(2) { @ary.empty? }
+
+      @ary.length.should == 1
+
+      e = @ary.shift
+
+      e.should be_kind_of(RuntimeError)
+      e.message.should == 'ZOMG!'
+    end
   end
 end
 
