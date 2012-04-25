@@ -98,6 +98,8 @@ module ZK
     #
     # @private
     def process(event)
+      @zk.raw_event_handler(event)
+
 #       logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
       event.zk = @zk
 

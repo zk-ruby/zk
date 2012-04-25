@@ -1,6 +1,4 @@
 module ZK
-
-
   module Client
     # This is the default client that ZK will use. In the zk-eventmachine gem,
     # there is an Evented client.
@@ -54,6 +52,7 @@ module ZK
       include StateMixin
       include Unixisms
       include Conveniences
+      include Logging
 
       DEFAULT_THREADPOOL_SIZE = 1
 
@@ -101,19 +100,34 @@ module ZK
         @session_timeout = opts.fetch(:timeout, DEFAULT_TIMEOUT) # maybe move this into superclass?
         @event_handler   = EventHandler.new(self)
 
+        tp_size = opts.fetch(:threadpool_size, DEFAULT_THREADPOOL_SIZE)
+        @threadpool = Threadpool.new(tp_size)
+
+        @reconnect = opts.fetch(:reconnect, true)
+
+        @mutex = Mutex.new
+
+        @close_requested = false
+
         yield self if block_given?
 
         @cnx = create_connection(host, @session_timeout, @event_handler.get_default_watcher_block)
-
-        tp_size = opts.fetch(:threadpool_size, DEFAULT_THREADPOOL_SIZE)
-
-        @threadpool = Threadpool.new(tp_size)
       end
 
-      # @see ZK::Client::Base#close!
+      def reopen(timeout=nil)
+        @mutex.synchronize { @close_requested = false }
+        super
+      end
+
+      # (see ZK::Client::Base#close!)
       def close!
+        @mutex.synchronize do 
+          return if @close_requested
+          @close_requested = true 
+        end
+
         if event_dispatch_thread?
-          msg = ["ZK ERROR: You called #{self.class}#close! on the event dispatch thread!!",
+          msg = ["ZK ERROR: You called #{self.class}#close! on event dispatch thread!!",
                  "This will cause the client to deadlock and possibly your main thread as well!"]
 
           warn_msg = [nil, msg, nil, "See ZK error log output (stderr by default) for a backtrace", nil].join("\n")
@@ -123,8 +137,32 @@ module ZK
         end
 
         @threadpool.shutdown
+
         super
+
         nil
+      end
+
+      # @private
+      def raw_event_handler(event)
+        return unless event.session_event?
+
+        if event.client_invalid?
+          return unless @reconnect
+
+          @mutex.synchronize do
+            unless @close_requested  # a legitimate shutdown case
+
+              logger.error { "Got event #{event.state_name}, calling reopen(0)! things may be messed up until this works itself out!" }
+               
+              # reopen(0) means that we don't want to wait for the connection
+              # to reach the connected state before returning
+              reopen(0)
+            end
+          end
+        end
+      rescue Exception => e
+        logger.error { "BUG: Exception caught in raw_event_handler: #{e.to_std_format}" } 
       end
 
       protected
@@ -133,6 +171,6 @@ module ZK
         def create_connection(*args)
           ::Zookeeper.new(*args)
         end
-    end
+      end
   end
 end

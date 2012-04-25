@@ -73,6 +73,18 @@ module ZK
         end
         alias session_event? state_event?
 
+        # according to [the programmer's guide](http://zookeeper.apache.org/doc/r3.3.4/zookeeperProgrammers.html#Java+Binding)
+        #
+        # > once a ZooKeeper object is closed or receives a fatal event
+        # > (SESSION_EXPIRED and AUTH_FAILED), the ZooKeeper object becomes
+        # > invalid.
+        # 
+        # this will return true for either of those cases
+        #
+        def client_invalid?
+          (@state == ZOO_EXPIRED_SESSION_STATE) || (@state == ZOO_AUTH_FAILED_STATE)
+        end
+
         # has this watcher been called because of a change to a zookeeper node?
         def node_event?
           path and not path.empty?
