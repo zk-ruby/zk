@@ -785,6 +785,15 @@ module ZK
         raise Exceptions::EventDispatchThreadException, msg if event_dispatch_thread?
       end
 
+      # called directly from the zookeeper event thread with every event, before they
+      # get dispatched to the user callbacks. used by client implementations for
+      # critical events like session_expired, so that we don't compete for
+      # threads in the threadpool.
+      #
+      # @private
+      def raw_event_handler(event)
+      end
+
       protected
         # @private
         def check_rc(hash, inputs=nil)
@@ -811,6 +820,6 @@ module ZK
           nil
         end
     end # Base
-  end   # Client
-end     # ZK
+  end # Client
+end # ZK
 
