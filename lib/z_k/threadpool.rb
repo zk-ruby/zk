@@ -37,7 +37,7 @@ module ZK
       callable ||= blk
 
       # XXX(slyphon): do we care if the threadpool is not running?
-      raise Exceptions::ThreadpoolIsNotRunningException unless running?
+#       raise Exceptions::ThreadpoolIsNotRunningException unless running?
       raise ArgumentError, "Argument to Threadpool#defer must respond_to?(:call)" unless callable.respond_to?(:call)
 
       @threadqueue << callable

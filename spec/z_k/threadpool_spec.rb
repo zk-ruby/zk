@@ -37,11 +37,10 @@ describe ZK::Threadpool do
       lambda { @threadpool.defer(bad_obj) }.should raise_error(ArgumentError)
     end
 
-    it %[should barf if the threadpool is not running] do
+    it %[should not barf if the threadpool is not running] do
       @threadpool.shutdown
-      lambda { @threadpool.defer { "hai!" } }.should raise_error(ZK::Exceptions::ThreadpoolIsNotRunningException)
+      lambda { @threadpool.defer { "hai!" } }.should_not raise_error
     end
-
   end
 
   describe :on_exception do
