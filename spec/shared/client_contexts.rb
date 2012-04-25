@@ -3,6 +3,7 @@ shared_context 'threaded client connection' do
     @connection_string = "localhost:#{ZK_TEST_PORT}"
     @base_path = '/zktests'
     @zk = ZK::Client::Threaded.new(@connection_string).tap { |z| wait_until { z.connected? } }
+    @zk.on_exception { |e| raise e }
     @zk.rm_rf(@base_path)
   end
 
@@ -19,6 +20,7 @@ shared_context 'multiplexed client connection' do
     @connection_string = "localhost:#{ZK_TEST_PORT}"
     @base_path = '/zktests'
     @zk = ZK::Client::Multiplexed.new(@connection_string).tap { |z| wait_until { z.connected? } }
+    @zk.on_exception { |e| raise e }
     @zk.rm_rf(@base_path)
   end
 
