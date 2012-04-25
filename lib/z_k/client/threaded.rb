@@ -143,6 +143,11 @@ module ZK
         nil
       end
 
+      # (see Threadpool#on_threadpool?)
+      def on_threadpool?
+        @threadpool and @threadpool.on_threadpool?
+      end
+
       # (see Threadpool#on_exception)
       def on_exception(&blk)
         @threadpool.on_exception(&blk)
