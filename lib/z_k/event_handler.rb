@@ -17,7 +17,8 @@ module ZK
       Zookeeper::ZOO_CHILD_EVENT   => :child,
     }.freeze
 
-    attr_accessor :zk  # :nodoc:
+    # @private
+    attr_accessor :zk
 
     # @private
     # :nodoc:
@@ -204,15 +205,16 @@ module ZK
 
       # @private
       def safe_call(callbacks, *args)
-        while cb = callbacks.shift
-          begin
-            cb.call(*args) if cb.respond_to?(:call)
-          rescue Exception => e
-            logger.error { "Error caught in user supplied callback" }
-            logger.error { e.to_std_format }
-          end
+        # oddly, a `while cb = callbacks.shift` here will have thread safety issues
+        # as cb will be nil when the defer block is called on the threadpool
+        
+        callbacks.each do |cb|
+          next unless cb.respond_to?(:call)
+
+          zk.defer { cb.call(*args) }
         end
       end
-  end
-end
+
+  end # EventHandler
+end # ZK 
 
