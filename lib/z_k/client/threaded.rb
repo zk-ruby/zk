@@ -143,6 +143,11 @@ module ZK
         nil
       end
 
+      # (see Threadpool#on_exception)
+      def on_exception(&blk)
+        @threadpool.on_exception(&blk)
+      end
+
       # @private
       def raw_event_handler(event)
         return unless event.session_event?

@@ -22,6 +22,8 @@ module ZK
 
       @mutex = Mutex.new
 
+      @error_callbacks = []
+
       start!
     end
 
@@ -54,6 +56,18 @@ module ZK
         spawn_threadpool
       end
       true
+    end
+
+    # register a block to be called back with unhandled exceptions that occur
+    # in the threadpool. 
+    # 
+    # @note if your exception callback block itself raises an exception, I will
+    #   make fun of you.
+    #
+    def on_exception(&blk)
+      @mutex.synchronize do
+        @error_callbacks << blk
+      end
     end
 
     # join all threads in this threadpool, they will be given a maximum of +timeout+
@@ -90,18 +104,46 @@ module ZK
     end
 
     private
+      def dispatch_to_error_handler(e)
+        # make a copy that will be free from thread manipulation
+        # and doesn't require holding the lock
+        cbs = @error_callbacks.dup 
+
+        if cbs.empty?
+          default_exception_handler(e)
+        else
+          cbs.each do |cb|
+            begin
+              cb.call(e)
+            rescue Exception => e
+              msg = [ 
+                "Exception caught in user supplied on_exception handler.", 
+                "Just meditate on the irony of that for a moment. There. Good.",
+                "The callback that errored was: #{cb.inspect}, the exception was",
+                ""
+              ]
+
+              default_exception_handler(e, msg.join("\n"))
+            end
+          end
+        end
+      end
+
+      def default_exception_handler(e, msg=nil)
+        msg ||= 'Exception caught in threadpool'
+        logger.error { "#{msg}: #{e.to_std_format}" }
+      end
+
       def spawn_threadpool #:nodoc:
         until @threadpool.size >= @size.to_i
           thread = Thread.new do
             while @running
               begin
                 op = @threadqueue.pop
-#                 $stderr.puts "thread #{Thread.current.inspect} got #{op.inspect}"
                 break if op == KILL_TOKEN
                 op.call
               rescue Exception => e
-                logger.error { "Exception caught in threadpool" }
-                logger.error { e.to_std_format }
+                dispatch_to_error_handler(e)
               end
             end
           end
