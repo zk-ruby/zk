@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe 'ZK::Client::Multiplexed', :client => :multiplexed do
+describe 'ZK::Client::Multiplexed', :multiplexed => true do
   before do
     @zk = ZK::Client::Multiplexed.new("localhost:#{ZK_TEST_PORT}").tap do |zk|
       wait_until { zk.connected? }

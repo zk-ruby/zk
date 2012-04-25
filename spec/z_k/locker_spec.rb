@@ -482,7 +482,7 @@ describe "ZK::Locker chrooted" do
   end
 end
 
-describe 'ZK::Locker Multiplexed client', :client => :multiplexed do
+describe 'ZK::Locker Multiplexed client', :multiplexed => true do
   let(:zk)  { ZK::Client::Multiplexed.new("localhost:#{ZK_TEST_PORT}") }
   let(:zk2) { ZK::Client::Multiplexed.new("localhost:#{ZK_TEST_PORT}") }
   let(:zk3) { ZK::Client::Multiplexed.new("localhost:#{ZK_TEST_PORT}") }

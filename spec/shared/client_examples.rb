@@ -3,6 +3,7 @@ shared_examples_for 'client' do
     before(:each) do
       @path_ary = %w[test mkdir_p path creation]
       @bogus_path = File.join('/', *@path_ary)
+      @zk.rm_rf('/test')
     end
     
     it %[should create all intermediate paths for the path givem] do

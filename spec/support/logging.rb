@@ -1,5 +1,6 @@
 module ZK
-  LOG_FILE = File.open(File.join(ZK::ZK_ROOT, 'test.log'), 'a').tap { |f| f.sync = true }
+#   LOG_FILE = File.open(File.join(ZK::ZK_ROOT, 'test.log'), 'a').tap { |f| f.sync = true }
+  LOG_FILE = File.join(ZK::ZK_ROOT, 'test.log')
 #   LOG_FILE = $stderr
 end
 

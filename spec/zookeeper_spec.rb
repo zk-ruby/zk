@@ -117,12 +117,12 @@ shared_examples_for 'ZK basic' do
   end
 end
 
-describe 'basic multiplexed', :client => :multiplexed do
+describe 'basic multiplexed', :multiplexed => true do
   include_context 'multiplexed client connection'
   it_should_behave_like 'ZK basic'
 end
 
-describe 'basic threaded', :client => :threaded do
+describe 'basic threaded', :threaded => true do
   include_context 'threaded client connection'
   it_should_behave_like 'ZK basic'
 end
