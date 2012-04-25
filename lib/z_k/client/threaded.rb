@@ -89,10 +89,11 @@ module ZK
       #   carefully*.
       #
       # @yield [self] calls the block with the new instance after the event
-      #   handler has been set up, but before any connections have been made.
-      #   This allows the client to register watchers for session events like
-      #   `connected`. You *cannot* perform any other operations with the client 
-      #   as you will get a NoMethodError (the underlying connection is nil).
+      #   handler and threadpool have been set up, but before any connections
+      #   have been made.  This allows the client to register watchers for
+      #   session events like `connected`. You *cannot* perform any other
+      #   operations with the client as you will get a NoMethodError (the
+      #   underlying connection is nil).
       #
       def initialize(host, opts={}, &b)
         super(host, opts)
