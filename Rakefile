@@ -9,11 +9,14 @@
 
 gemset_name = 'zk'
 
-%w[1.8.7 1.9.2 1.9.3 jruby].each do |rvm_ruby|
-  ruby_with_gemset = "#{rvm_ruby}@#{gemset_name}"
-  create_gemset_task_name = "mb:#{rvm_ruby}:create_gemset"
-  bundle_task_name        = "mb:#{rvm_ruby}:bundle_install"
-  rspec_task_name         = "mb:#{rvm_ruby}:run_rspec"
+%w[1.8.7 1.9.2 1.9.3 jruby rbx].each do |ns_name|
+
+  rvm_ruby = (ns_name == 'rbx') ? "rbx-2.0.testing" : ns_name
+
+  ruby_with_gemset        = "#{rvm_ruby}@#{gemset_name}"
+  create_gemset_task_name = "mb:#{ns_name}:create_gemset"
+  bundle_task_name        = "mb:#{ns_name}:bundle_install"
+  rspec_task_name         = "mb:#{ns_name}:run_rspec"
 
   task create_gemset_task_name do
     sh "rvm #{rvm_ruby} do rvm gemset create #{gemset_name}"
@@ -27,6 +30,8 @@ gemset_name = 'zk'
   task rspec_task_name => bundle_task_name do
     sh "rvm #{ruby_with_gemset} do bundle exec rspec spec --fail-fast"
   end
+
+  task "mb:#{ns_name}" => rspec_task_name
 
   task "mb:test_all" => rspec_task_name
 end
