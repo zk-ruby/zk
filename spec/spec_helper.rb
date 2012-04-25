@@ -25,11 +25,6 @@ RSpec.configure do |config|
 
   config.include(SpecGlobalLogger)
   config.extend(SpecGlobalLogger)
-
-#   if defined?(::JRUBY_VERSION)
-#     warn "Not running mutliplexed client specs on jruby, causes deadlocks"
-    config.filter_run_excluding :multiplexed => true
-#   end
 end
 
 class ::Thread

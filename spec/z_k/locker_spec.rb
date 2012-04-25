@@ -482,28 +482,4 @@ describe "ZK::Locker chrooted" do
   end
 end
 
-describe 'ZK::Locker Multiplexed client', :multiplexed => true do
-  let(:zk)  { ZK::Client::Multiplexed.new("localhost:#{ZK_TEST_PORT}") }
-  let(:zk2) { ZK::Client::Multiplexed.new("localhost:#{ZK_TEST_PORT}") }
-  let(:zk3) { ZK::Client::Multiplexed.new("localhost:#{ZK_TEST_PORT}") }
-
-  let(:connections) { [zk, zk2, zk3] }
-
-  let(:path) { "shlock" }
-  let(:root_lock_path) { "/_zklocking/#{path}" }
-
-  before do
-    wait_until{ connections.all?(&:connected?) }
-#     pending "Mutliplexed client locking is broken"
-  end
-
-  after do
-    connections.each { |c| c.close! }
-    wait_until { !connections.any?(&:connected?) }
-  end
-
-  it_should_behave_like 'SharedLocker'
-  it_should_behave_like 'ExclusiveLocker'
-  it_should_behave_like 'shared-exclusive interaction'
-end # ZK::Locker
 
