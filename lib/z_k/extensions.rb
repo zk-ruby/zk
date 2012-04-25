@@ -36,6 +36,7 @@ module ZK
       module WatcherCallbackExt
         include ZookeeperConstants
 
+        # XXX: this is not uesd it seems
         EVENT_NAME_MAP = {
           1   => 'created',
           2   => 'deleted', 
@@ -45,16 +46,28 @@ module ZK
           -2  => 'notwatching',
         }.freeze
 
+        # XXX: remove this duplication here since this is available in ZookeeperConstants
+        # @private
         STATES = %w[connecting associating connected auth_failed expired_session].freeze unless defined?(STATES)
 
+        # XXX: ditto above
+        # @private
         EVENT_TYPES = %w[created deleted changed child session notwatching].freeze unless defined?(EVENT_TYPES)
+
+        # argh, event.state_expired_session? is really dumb, should be event.expired_session?
 
         STATES.each do |state|
           class_eval <<-RUBY, __FILE__, __LINE__ + 1
-            def state_#{state}?
+            def #{state}?
               @state == ZOO_#{state.upcase}_STATE
             end
+
+            alias state_#{state}? #{state}?  # alias for backwards compatibility
           RUBY
+        end
+
+        def state_name
+          (name = STATE_NAMES[@state]) ? "ZOO_#{name.to_s.upcase}_STATE" : ''
         end
 
         EVENT_TYPES.each do |ev|
@@ -65,11 +78,15 @@ module ZK
           RUBY
         end
 
+        def event_name
+          (name = EVENT_TYPE_NAMES[@type]) ? "ZOO_#{name.to_s.upcase}_EVENT" : ''
+        end
+
         alias :node_not_watching? :node_notwatching?
 
         # has this watcher been called because of a change in connection state?
         def state_event?
-          path.nil? or path.empty?
+          @type == ZOO_SESSION_EVENT
         end
         alias session_event? state_event?
 
@@ -89,12 +106,6 @@ module ZK
         def node_event?
           path and not path.empty?
         end
-
-        # cause this watch to be re-registered
-#         def renew_watch!
-#           zk.stat(path, :watch => true)
-#           nil
-#         end
       end
     end   # Callbacks
 
