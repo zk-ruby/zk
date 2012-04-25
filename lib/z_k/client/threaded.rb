@@ -97,11 +97,11 @@ module ZK
       def initialize(host, opts={}, &b)
         super(host, opts)
 
-        @session_timeout = opts.fetch(:timeout, DEFAULT_TIMEOUT) # maybe move this into superclass?
-        @event_handler   = EventHandler.new(self)
-
         tp_size = opts.fetch(:threadpool_size, DEFAULT_THREADPOOL_SIZE)
         @threadpool = Threadpool.new(tp_size)
+
+        @session_timeout = opts.fetch(:timeout, DEFAULT_TIMEOUT) # maybe move this into superclass?
+        @event_handler   = EventHandler.new(self)
 
         @reconnect = opts.fetch(:reconnect, true)
 
