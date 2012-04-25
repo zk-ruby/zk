@@ -107,12 +107,12 @@ module ZK
       def dispatch_to_error_handler(e)
         # make a copy that will be free from thread manipulation
         # and doesn't require holding the lock
-        cbs = @error_callbacks.dup 
+        cbs = @mutex.synchronize { @error_callbacks.dup }
 
         if cbs.empty?
           default_exception_handler(e)
         else
-          cbs.each do |cb|
+          while cb = cbs.shift
             begin
               cb.call(e)
             rescue Exception => e
