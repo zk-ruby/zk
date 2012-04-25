@@ -3,11 +3,14 @@ require File.join(File.dirname(__FILE__), %w[spec_helper])
 describe ZK do
   describe do
     before do
-      @cnx_str = "localhost:#{ZK_TEST_PORT}"
-      @zk = ZK.new(@cnx_str)
+      mute_logger do
+        @cnx_str = "localhost:#{ZK_TEST_PORT}"
+        @zk = ZK.new(@cnx_str)
 
-      @path = "/_testWatch"
-      wait_until { @zk.connected? }
+        @path = "/_testWatch"
+        wait_until { @zk.connected? }
+        @zk.rm_rf(@path)
+      end
     end
 
     after do
