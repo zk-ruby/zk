@@ -88,5 +88,16 @@ describe ZK::Threadpool do
     end
   end
 
+  describe :on_threadpool? do
+    it %[should return true if we're currently executing on one of the threadpool threads] do
+      @a = []
+      @threadpool.defer { @a << @threadpool.on_threadpool? }
+
+      wait_while(2) { @a.empty? }
+      @a.should_not be_empty
+
+      @a.first.should be_true
+    end
+  end
 end
 

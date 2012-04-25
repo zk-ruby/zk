@@ -48,6 +48,12 @@ module ZK
       @mutex.synchronize { @running }
     end
 
+    # returns true if the current thread is one of the threadpool threads
+    def on_threadpool?
+      tp = @mutex.synchronize { @threadpool.dup }
+      tp and tp.respond_to?(:include?) and tp.include?(Thread.current)
+    end
+
     # starts the threadpool if not already running
     def start!
       @mutex.synchronize do
