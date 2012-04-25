@@ -183,5 +183,17 @@ shared_examples_for 'client' do
       e.message.should == 'ZOMG!'
     end
   end
+
+  describe :on_threadpool? do
+    it %[should be true if we're on the threadpool] do
+      @ary = []
+
+      @zk.defer { @ary << @zk.on_threadpool? }
+
+      wait_while(2) { @ary.empty? }
+      @ary.length.should == 1
+      @ary.first.should be_true
+    end
+  end
 end
 
