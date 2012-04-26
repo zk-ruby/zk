@@ -326,9 +326,9 @@ module ZK
       def get(path, opts={})
         h = { :path => path }.merge(opts)
 
-        setup_watcher!(:data, h)
-
-        rv = check_rc(cnx.get(h), h)
+        rv = setup_watcher!(:data, h) do
+          check_rc(cnx.get(h), h)
+        end
 
         opts[:callback] ? rv : rv.values_at(:data, :stat)
       end
@@ -438,33 +438,19 @@ module ZK
       #
       #
       def stat(path, opts={})
-        # ===== exist node asynchronously
-        #
-        #   class StatCallback
-        #     def process_result(return_code, path, context, stat)
-        #       # do processing here
-        #     end
-        #   end
-        #  
-        #   callback = StatCallback.new
-        #   context = Object.new
-        #
-        #   zk.exists?("/path", :callback => callback, :context => context)
-
-
         h = { :path => path }.merge(opts)
 
-        setup_watcher!(:data, h)
+        setup_watcher!(:data, h) do
+          rv = cnx.stat(h)
 
-        rv = cnx.stat(h)
+          return rv if opts[:callback] 
 
-        return rv if opts[:callback] 
-
-        case rv[:rc] 
-        when Zookeeper::ZOK, Zookeeper::ZNONODE
-          rv[:stat]
-        else
-          check_rc(rv, h) # throws the appropriate error
+          case rv[:rc] 
+          when Zookeeper::ZOK, Zookeeper::ZNONODE
+            rv[:stat]
+          else
+            check_rc(rv, h) # throws the appropriate error
+          end
         end
       end
 
@@ -548,9 +534,10 @@ module ZK
 
         h = { :path => path }.merge(opts)
 
-        setup_watcher!(:child, h)
+        rv = setup_watcher!(:child, h) do
+          check_rc(cnx.get_children(h), h)
+        end
 
-        rv = check_rc(cnx.get_children(h), h)
         opts[:callback] ? rv : rv[:children]
       end
 
@@ -807,8 +794,8 @@ module ZK
         end
 
         # @private
-        def setup_watcher!(watch_type, opts)
-          event_handler.setup_watcher!(watch_type, opts)
+        def setup_watcher!(watch_type, opts, &b)
+          event_handler.setup_watcher!(watch_type, opts, &b)
         end
 
         # used in #inspect, doesn't raise an error if we're not connected

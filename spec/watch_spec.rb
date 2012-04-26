@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__), %w[spec_helper])
+require 'spec_helper'
 
 describe ZK do
   describe do
@@ -14,12 +14,12 @@ describe ZK do
     end
 
     after do
-      if @zk.connected?
-        @zk.close! 
-        wait_until { !@zk.connected? }
-      end
-
       mute_logger do
+        if @zk.connected?
+          @zk.close! 
+          wait_until { !@zk.connected? }
+        end
+
         ZK.open(@cnx_str) { |zk| zk.rm_rf(@path) }
       end
     end
@@ -28,7 +28,7 @@ describe ZK do
       locker = Mutex.new
       callback_called = false
 
-      @zk.watcher.register(@path) do |event|
+      @zk.register(@path) do |event|
         locker.synchronize do
           callback_called = true
         end
@@ -55,7 +55,7 @@ describe ZK do
     it %[should only deliver an event once to each watcher registered for exists?] do
       events = []
 
-      sub = @zk.watcher.register(@path) do |ev|
+      sub = @zk.register(@path) do |ev|
         logger.debug "got event #{ev}"
         events << ev
       end
@@ -76,7 +76,7 @@ describe ZK do
 
       @zk.create(@path, 'one', :mode => :ephemeral)
 
-      sub = @zk.watcher.register(@path) do |ev|
+      sub = @zk.register(@path) do |ev|
         logger.debug "got event #{ev}"
         events << ev
       end
@@ -99,7 +99,7 @@ describe ZK do
 
       @zk.create(@path, '')
 
-      sub = @zk.watcher.register(@path) do |ev|
+      sub = @zk.register(@path) do |ev|
         logger.debug "got event #{ev}"
         events << ev
       end
@@ -114,6 +114,40 @@ describe ZK do
       wait_for_events_to_not_be_delivered(events)
 
       events.length.should == 1
+    end
+
+    it %[should restrict_new_watches_for? if a successul watch has been set] do
+      @zk.stat(@path, :watch => true)
+      @zk.event_handler.should be_restricting_new_watches_for(:data, @path)
+    end
+
+    it %[should not a block on new watches after an operation fails] do
+      # this is a situation where we did get('/blah', :watch => true) but
+      # got an exception, the next watch set should work
+
+      events = []
+
+      sub = @zk.register(@path) do |ev|
+        logger.debug { "got event #{ev}" }
+        events << ev
+      end
+
+      # get a path that doesn't exist with a watch
+
+      lambda { @zk.get(@path, :watch => true) }.should raise_error(ZK::Exceptions::NoNode)
+
+      @zk.event_handler.should_not be_restricting_new_watches_for(:data, @path)
+
+      @zk.stat(@path, :watch => true)
+
+      @zk.event_handler.should be_restricting_new_watches_for(:data, @path)
+
+      @zk.create(@path, '')
+
+      wait_while { events.empty? }
+
+      events.should_not be_empty
+
     end
   end
 
@@ -143,10 +177,6 @@ describe ZK do
           m.should_receive(:state_event?).and_return(true)
           m.should_receive(:state).and_return(ZookeeperConstants::ZOO_CONNECTED_STATE)
         end
-      end
-
-      it %[should only fire the callback once] do
-        pending "not sure if this is the behavior we want"
       end
     end
   end
