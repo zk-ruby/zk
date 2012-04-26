@@ -24,9 +24,9 @@ module ZK
   end
 end
 
-require 'z_k/client/state_mixin'
-require 'z_k/client/unixisms'
-require 'z_k/client/conveniences'
-require 'z_k/client/base'
-require 'z_k/client/threaded'
+require 'zk/client/state_mixin'
+require 'zk/client/unixisms'
+require 'zk/client/conveniences'
+require 'zk/client/base'
+require 'zk/client/threaded'
 
