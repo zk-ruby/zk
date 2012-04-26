@@ -109,7 +109,7 @@ module ZK
       end
     end   # Callbacks
 
-    # aliases for long-names of properties from mb-zookeeper version
+    # aliases for long-names of properties from slyphon-zookeeper version
     module Stat
       [ %w[created_zxid czxid],
         %w[last_modified_zxid mzxid],
@@ -138,9 +138,13 @@ module ZK
       def ==(other)
         MEMBERS.all? { |m| self.__send__(m) == other.__send__(m) }
       end
-    end
-  end     # Extensions
-end       # ZK
+
+      def ephemeral?
+        ephemeral_owner && (ephemeral_owner != 0)
+      end
+    end # Stat
+  end # Extensions
+end # ZK
 
 # ZookeeperCallbacks::Callback.extend(ZK::Extensions::Callbacks::Callback)
 ZookeeperCallbacks::Callback.send(:include, ZK::Extensions::Callbacks::Callback)
@@ -173,6 +177,27 @@ class ::Thread
 
   def zk_mongoid_lock_registry=(obj)
     self[:_zk_mongoid_lock_registry] = obj
+  end
+end
+
+class ::Hash
+  # taken from ActiveSupport 3.0.12, but we don't replace it if it exists
+  unless method_defined?(:extractable_options?)
+    def extractable_options?
+      instance_of?(Hash)
+    end
+  end
+end
+
+class ::Array
+  unless method_defined?(:extract_options!)
+    def extract_options!
+      if last.is_a?(Hash) && last.extractable_options?
+        pop
+      else
+        {}
+      end
+    end
   end
 end
 

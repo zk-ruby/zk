@@ -129,18 +129,16 @@ module ZK
       # creating sequential node with the same path argument, the call will never
       # throw a NodeExists exception.
       # 
-      # @todo clean up the verbiage around watchers
-      #
-      # This operation, if successful, will trigger all the watches left on the
-      # node of the given path by exists and get API calls, and the watches left
-      # on the parent node by children API calls.
-      # 
       # If a node is created successfully, the ZooKeeper server will trigger the
       # watches on the path left by exists calls, and the watches on the parent
       # of the node by children calls.
       #
-      # @param [String] path absolute path of the znode
-      # @param [String] data the data to create the znode with
+      # @overload create(path, opts={})
+      #   creates a znode at the absolute `path` with blank data and given
+      #   options
+      #
+      # @overload create(path, data, opts={})
+      #   creates a znode at the absolute `path` with given data and options
       # 
       # @option opts [Integer] :acl defaults to <tt>ZookeeperACLs::ZOO_OPEN_ACL_UNSAFE</tt>, 
       #   otherwise the ACL for the node. Should be a `ZOO_*` constant defined under the 
@@ -149,6 +147,9 @@ module ZK
       # @option opts [bool] :ephemeral (false) if true, the created node will be ephemeral
       #
       # @option opts [bool] :sequence (false) if true, the created node will be sequential
+      #
+      # @option opts [bool] :sequential (false) alias for :sequence option. if both are given
+      #   an ArgumentError is raised
       #
       # @option opts [ZookeeperCallbacks::StringCallback] :callback (nil) provide a callback object
       #   that will be called when the znode has been created
@@ -193,18 +194,18 @@ module ZK
       #
       #   # or you can also do:
       #
-      #   zk.create("/path", '', :mode => :persistent_sequence)
+      #   zk.create("/path", '', :mode => :persistent_sequential)
       #   # => "/path0"
       #
       #
       # @example create ephemeral and sequential node
       #
-      #   zk.create("/path", '', :sequential => true, :ephemeral => true)
+      #   zk.create("/path", '', :sequence => true, :ephemeral => true)
       #   # => "/path0"
       #
       #   # or you can also do:
       #
-      #   zk.create("/path", "foo", :mode => :ephemeral_sequence)
+      #   zk.create("/path", "foo", :mode => :ephemeral_sequential)
       #   # => "/path0"
       #
       # @example create a child path
@@ -214,12 +215,12 @@ module ZK
       #
       # @example create a sequential child path
       #
-      #   zk.create("/path/child", "bar", :sequential => true, :ephemeral => true)
+      #   zk.create("/path/child", "bar", :sequence => true, :ephemeral => true)
       #   # => "/path/child0"
       #
       #   # or you can also do:
       #
-      #   zk.create("/path/child", "bar", :mode => :ephemeral_sequence)
+      #   zk.create("/path/child", "bar", :mode => :ephemeral_sequential)
       #   # => "/path/child0"
       #
       # @hidden_example create asynchronously with callback object
@@ -245,7 +246,25 @@ module ZK
       #
       #   zk.create("/path", "foo", :callback => callback, :context => context)
       #
-      def create(path, data='', opts={})
+      def create(path, *args)
+        opts = args.extract_options!
+
+        # be somewhat strict about how many arguments we accept.
+        if args.length > 1
+          raise ArgumentError, "create takes path, an optional data argument, and options, you passed: (#{path}, *#{args})"
+        end
+
+        # argh, terrible documentation bug, allow for :sequential, analagous to :sequence
+        if opts.has_key?(:sequential)
+          if opts.has_key?(:sequence)
+            raise ArgumentError, "Only one of :sequential or :sequence options can be given, opts: #{opts}"
+          end
+
+          opts[:sequence] = opts.delete(:sequential)
+        end
+
+        data = args.first || ''
+
         h = { :path => path, :data => data, :ephemeral => false, :sequence => false }.merge(opts)
 
         if mode = h.delete(:mode)

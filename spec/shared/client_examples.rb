@@ -15,6 +15,88 @@ shared_examples_for 'client' do
     end
   end
 
+  # nail down all possible cases
+  describe :create do
+    describe 'only path given' do
+      it %[should create a node with blank data] do
+        @zk.create(@base_path)
+        @zk.get(@base_path).first.should == ''
+      end
+    end
+
+    describe 'path and data given' do
+      it %[should create a node with the path and data] do
+        @zk.create(@base_path, 'blah')
+        @zk.get(@base_path).first.should == 'blah'
+      end
+    end
+
+    describe 'path and sequential' do
+      it %[should create a sequential node with blank data] do
+        @zk.create(@base_path)
+        path = @zk.create("#{@base_path}/v", :sequential => true)
+        path.start_with?(@base_path).should be_true
+
+        File.basename(path).should match(/v\d+/)
+
+        @zk.get(path).first.should == ''
+      end
+
+      it %[should create a sequential node with given data] do
+        @zk.create(@base_path)
+        path = @zk.create("#{@base_path}/v", 'thedata', :sequential => true)
+        path.start_with?(@base_path).should be_true
+
+        File.basename(path).should match(/v\d+/)
+
+        data, st = @zk.get(path)
+        data.should == 'thedata'
+        st.should_not be_ephemeral
+      end
+    end
+
+    describe 'path and ephemeral' do
+      it %[should create an ephemeral node with blank data] do
+        @zk.create(@base_path, :ephemeral => true)
+        @zk.get(@base_path).last.should be_ephemeral
+      end
+
+      it %[should create an ephemeral node with given data] do
+        @zk.create(@base_path, 'thedata', :ephemeral => true)
+        data, stat = @zk.get(@base_path)
+        data.should == 'thedata'
+        stat.should be_ephemeral
+      end
+    end
+
+    describe 'path and sequential and ephemeral' do
+      it %[should create a sequential ephemeral node with blank data] do
+        @zk.create(@base_path)
+        path = @zk.create("#{@base_path}/v", :sequential => true, :ephemeral => true)
+        path.start_with?(@base_path).should be_true
+
+        File.basename(path).should match(/v\d+/)
+
+        data, st = @zk.get(path)
+        data.should == ''
+        st.should be_ephemeral
+      end
+
+      it %[should create a sequential ephemeral node with given data] do
+        @zk.create(@base_path)
+        path = @zk.create("#{@base_path}/v", 'thedata', :sequential => true, :ephemeral => true)
+        path.start_with?(@base_path).should be_true
+
+        File.basename(path).should match(/v\d+/)
+
+        data, st = @zk.get(path)
+        data.should == 'thedata'
+        st.should be_ephemeral
+      end
+
+    end
+  end
+
   describe :stat do
     describe 'for a missing node' do
       before do
@@ -61,7 +143,7 @@ shared_examples_for 'client' do
 
     describe 'node exists initially' do
       before do
-        @zk.create(@path, '', :mode => :ephemeral)
+        @zk.create(@path, :mode => :ephemeral)
         @zk.exists?(@path).should be_true
       end
 
@@ -114,7 +196,7 @@ shared_examples_for 'client' do
         end
 
         @zk.exists?(@path, :watch => true).should be_false
-        @zk.create(@path, '')
+        @zk.create(@path)
 
         logger.debug { "waiting for event delivery" } 
 
