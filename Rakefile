@@ -36,6 +36,16 @@ gemset_name = 'zk'
   task "mb:test_all" => rspec_task_name
 end
 
+namespace :yard do
+  task :clean do
+    rm_rf '.yardoc'
+  end
+
+  task :server => :clean do
+    sh "yard server --reload"
+  end
+end
+
 namespace :spec do
   task :define do
     require 'rubygems'
