@@ -93,7 +93,10 @@ shared_examples_for 'client' do
         data.should == 'thedata'
         st.should be_ephemeral
       end
+    end
 
+    it %[should barf if someone hands 3 params] do
+      lambda { @zk.create(@base_path, 'data', :sequence) }.should raise_error(ArgumentError)
     end
   end
 
