@@ -1,5 +1,27 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v0.9.1 ###
+
+The "Don't forget to update the RELEASES file before pushing a new release" release
+
+* Fix a fairly bad bug in event de-duplication (diff: http://is.gd/a1iKNc)
+	
+	This is fairly edge-case-y but could bite someone. If you'd set a watch
+	when doing a get that failed because the node didn't exist, any subsequent
+	attempts to set a watch would fail silently, because the client thought that the
+	watch had already been set.
+	
+	We now wrap the operation in the setup_watcher! method, which rolls back the
+	record-keeping of what watches have already been set for what nodes if an
+	exception is raised.
+	
+	This change has the side-effect that certain operations (get,stat,exists?,children)
+	will block event delivery until completion, because they need to have a consistent
+	idea about what events are pending, and which have been delivered. This also means
+	that calling these methods represent a synchronization point between user threads
+	(these operations can only occur serially, not simultaneously).
+
+
 ### v0.9.0 ###
 
 * Default threadpool size has been changed from 5 to 1. This should only affect people who are using the Election code.
