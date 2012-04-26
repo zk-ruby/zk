@@ -1,7 +1,9 @@
 require 'rubygems'
 require 'bundler/setup'
 
-$LOAD_PATH.unshift(File.expand_path('../../lib', __FILE__))
+# $LOAD_PATH.unshift(File.expand_path('../../lib', __FILE__))
+
+Bundler.require(:development, :test)
 
 require 'zk'
 require 'benchmark'

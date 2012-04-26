@@ -5,9 +5,10 @@ source "http://rubygems.org"
 # gem 'slyphon-zookeeper', :path => '~/zookeeper'
 
 group :development do
-  gem 'pry'
   gem 'rake'
 end
+
+gem 'pry', :group => [:development, :test]
 
 group :docs do
   gem 'yard', '~> 0.7.5'
