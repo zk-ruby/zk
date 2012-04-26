@@ -10,6 +10,8 @@ module ZK
 
     VALID_WATCH_TYPES = [:data, :child].freeze
 
+    ALL_NODE_EVENTS_KEY = :all_node_events
+
     ZOOKEEPER_WATCH_TYPE_MAP = {
       Zookeeper::ZOO_CREATED_EVENT => :data,
       Zookeeper::ZOO_DELETED_EVENT => :data,
@@ -35,7 +37,8 @@ module ZK
 
     # @see ZK::Client::Base#register
     def register(path, &block)
-#       logger.debug { "EventHandler#register path=#{path.inspect}" }
+      path = ALL_NODE_EVENTS_KEY if path == :all
+
       EventHandlerSubscription.new(self, path, block).tap do |subscription|
         synchronize { @callbacks[path] << subscription }
       end
@@ -104,11 +107,11 @@ module ZK
 #       logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
       event.zk = @zk
 
-      cb_key = 
+      cb_keys = 
         if event.node_event?
-          event.path
+          [event.path, ALL_NODE_EVENTS_KEY]
         elsif event.state_event?
-          state_key(event.state)
+          [state_key(event.state)]
         else
           raise ZKError, "don't know how to process event: #{event.inspect}"
         end
@@ -116,22 +119,34 @@ module ZK
 #       logger.debug { "EventHandler#process: cb_key: #{cb_key}" }
 
       cb_ary = synchronize do 
-        if event.node_event?
-          if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
-#             logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
-            
-            # we recieved a watch event for this path, now we allow code to set new watchers
-            @outstanding_watches[watch_type].delete(event.path)
-          end
-        end
+        clear_watch_restrictions(event)
 
-        @callbacks[cb_key].dup
+        @callbacks.values_at(*cb_keys)
       end
 
+      cb_ary.flatten! # takes care of not modifying original arrays
       cb_ary.compact!
 
       safe_call(cb_ary, event)
     end
+
+    private
+      # happens inside the lock, clears the restriction on setting new watches
+      # for a given path/event type combination
+      #
+      def clear_watch_restrictions(event)
+        return unless event.node_event?
+
+        if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
+          #logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
+          
+          # we recieved a watch event for this path, now we allow code to set new watchers
+          @outstanding_watches[watch_type].delete(event.path)
+        end
+      end
+
+
+    public
 
     # used during shutdown to clear registered listeners
     # @private

@@ -147,9 +147,41 @@ describe ZK do
       wait_while { events.empty? }
 
       events.should_not be_empty
+    end
 
+    describe ':all' do
+      before do
+        mute_logger do
+          @other_path = "#{@path}2"
+          @zk.rm_rf(@other_path)
+        end
+      end
+
+      after do
+        mute_logger do
+          @zk.rm_rf(@other_path)
+        end
+      end
+
+      it %[should receive all node events] do
+        events = []
+
+        sub = @zk.register(:all) do |ev|
+          logger.debug { "got event #{ev}" }
+          events << ev
+        end
+
+        @zk.stat(@path, :watch => true)
+        @zk.stat(@other_path, :watch => true)
+
+        @zk.create(@path)
+        @zk.create(@other_path, 'blah')
+
+        wait_until { events.length == 2 }.should be_true
+      end
     end
   end
+
 
   describe 'state watcher' do
     describe 'live-fire test' do

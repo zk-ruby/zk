@@ -744,7 +744,9 @@ module ZK
       #   end
       #
       #
-      # @param [String] path the path you want to listen to
+      # @param [String,:all] path the znode path you want to listen to, or the
+      #   special value :all, that will cause the block to be delivered events
+      #   for all znode paths
       #
       # @param [Block] block the block to execute when a watch event happpens
       #
