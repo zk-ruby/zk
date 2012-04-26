@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 $:.push File.expand_path("../lib", __FILE__)
-require "z_k/version"
+require "zk/version"
 
 Gem::Specification.new do |s|
   s.name        = "zk"
