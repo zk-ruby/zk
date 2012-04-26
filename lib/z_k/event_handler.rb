@@ -153,26 +153,52 @@ module ZK
       end
     end
 
+    # returns true if there's a pending watch of type for path
+    # @private
+    def restricting_new_watches_for?(watch_type, path)
+      synchronize do
+        if set = @outstanding_watches[watch_type]
+          return set.include?(path)
+        end
+      end
+
+      false
+    end
+
     # implements not only setting up the watcher callback, but deduplicating 
     # event delivery. Keeps track of in-flight watcher-type+path requests and
     # doesn't re-register the watcher with the server until a response has been
     # fired. This prevents one event delivery to *every* callback per :watch => true
     # argument.
     #
+    # due to somewhat poor design, we destructively modify opts before we yield
+    # and the client implictly knows this
+    #
     # @private
     def setup_watcher!(watch_type, opts)
-      return unless opts.delete(:watch)
+      return yield unless opts.delete(:watch)
 
       synchronize do
         set = @outstanding_watches.fetch(watch_type)
         path = opts[:path]
 
         if set.add?(path)
-          # this path has no outstanding watchers, let it do its thing
-          opts[:watcher] = watcher_callback 
+          # if we added the path to the set, blocking further registration of
+          # watches and an exception is raised then we rollback
+          begin
+            # this path has no outstanding watchers, let it do its thing
+            opts[:watcher] = watcher_callback 
+
+            yield opts
+          rescue Exception
+            set.delete(path)
+            raise
+          end
         else
-          # outstanding watch for path and data pair already exists, so ignore
-#           logger.debug { "outstanding watch request for path #{path.inspect} and watcher type #{watch_type.inspect}, not re-registering" }
+          # we did not add the path to the set, which means we are not
+          # responsible for removing a block on further adds if the operation
+          # fails, therefore, we just yield
+          yield opts
         end
       end
     end
