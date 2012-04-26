@@ -6,6 +6,7 @@ shared_examples_for 'client' do
     end
     
     it %[should create all intermediate paths for the path givem] do
+      @zk.rm_rf('/test')
       @zk.should_not be_exists(@bogus_path)
       @zk.should_not be_exists(File.dirname(@bogus_path))
       @zk.mkdir_p(@bogus_path)
