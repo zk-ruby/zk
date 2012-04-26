@@ -438,20 +438,6 @@ module ZK
       #
       #
       def stat(path, opts={})
-        # ===== exist node asynchronously
-        #
-        #   class StatCallback
-        #     def process_result(return_code, path, context, stat)
-        #       # do processing here
-        #     end
-        #   end
-        #  
-        #   callback = StatCallback.new
-        #   context = Object.new
-        #
-        #   zk.exists?("/path", :callback => callback, :context => context)
-
-
         h = { :path => path }.merge(opts)
 
         setup_watcher!(:data, h) do
