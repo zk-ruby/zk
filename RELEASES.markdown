@@ -1,5 +1,13 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.0.0 ###
+
+* allow for both :sequence and :sequential arguments to create, because I always
+  forget which one is the "right one"
+
+* add zk.register(:all) to recevie node updates for all nodes (i.e. not
+  filtered on path)
+
 ### v0.9.1 ###
 
 The "Don't forget to update the RELEASES file before pushing a new release" release
@@ -33,4 +41,4 @@ The "Don't forget to update the RELEASES file before pushing a new release" rele
 * Began work on an experimental Multiplexed client, that would allow multithreaded clients to more effectively share a single connection by making all requests asynchronous behind the scenes, and using a queue to provide a synchronous (blocking) API. 
 
 
-# vim:ft=markdown
+# vim:ft=markdown:sts=2:sw=2:et
