@@ -1,6 +1,10 @@
 module ZK
-  # A ruby-friendly wrapper around the low-level zookeeper drivers. This is the
-  # class that you will likely interact with the most. 
+  # A ruby-friendly wrapper around the low-level zookeeper drivers.
+  #
+  # You're probably looking for {Client::Base} and {Client::Threaded}.
+  #
+  # Once you've had a look there, take a look at {Client::Conveniences},
+  # {Client::StateMixin}, and {Client::Unixisms}
   #
   # @todo ACL support is pretty much unused currently. 
   #   If anyone has suggestions, hints, use-cases, examples, etc. by all means please file a bug.
