@@ -117,7 +117,7 @@ describe ZK do
     end
 
     it %[should restrict_new_watches_for? if a successul watch has been set] do
-      @zk.stat(@path, watch: true)
+      @zk.stat(@path, :watch => true)
       @zk.event_handler.should be_restricting_new_watches_for(:data, @path)
     end
 
@@ -134,11 +134,11 @@ describe ZK do
 
       # get a path that doesn't exist with a watch
 
-      lambda { @zk.get(@path, watch: true) }.should raise_error(ZK::Exceptions::NoNode)
+      lambda { @zk.get(@path, :watch => true) }.should raise_error(ZK::Exceptions::NoNode)
 
       @zk.event_handler.should_not be_restricting_new_watches_for(:data, @path)
 
-      @zk.stat(@path, watch: true)
+      @zk.stat(@path, :watch => true)
 
       @zk.event_handler.should be_restricting_new_watches_for(:data, @path)
 
