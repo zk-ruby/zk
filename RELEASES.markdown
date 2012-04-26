@@ -2,11 +2,17 @@ This file notes feature differences and bugfixes contained between releases.
 
 ### v1.0.0 ###
 
-* allow for both :sequence and :sequential arguments to create, because I always
-  forget which one is the "right one"
+* allow for both :sequence and :sequential arguments to create, because I always forget which one is the "right one"
 
-* add zk.register(:all) to recevie node updates for all nodes (i.e. not
-  filtered on path)
+* add zk.register(:all) to recevie node updates for all nodes (i.e. not filtered on path)
+
+* create now allows you to pass a path and options, instead of requiring the blank string
+
+    zk.create('/path', '', :sequential => true)
+
+    # now also
+
+    zk.create('/path', :sequential => true)
 
 ### v0.9.1 ###
 
