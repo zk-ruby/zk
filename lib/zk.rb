@@ -21,6 +21,7 @@ require 'zk/mongoid'
 require 'zk/client'
 require 'zk/pool'
 require 'zk/find'
+require 'zk/group'
 
 module ZK
   ZK_ROOT = File.expand_path('../..', __FILE__)

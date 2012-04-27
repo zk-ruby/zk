@@ -120,6 +120,13 @@ module ZK
 
     # raised when someone performs a blocking ZK operation on the event dispatch thread. 
     class EventDispatchThreadException < ZKError; end
+
+    # Raised when you try to perform an operation on a group but it hasn't been
+    # created yet
+    class GroupDoesNotExistError < NoNode; end
+
+    # Raised when you try to create! a group but it already exists
+    class GroupAlreadyExistsError < NodeExists; end
   end
 end
 
