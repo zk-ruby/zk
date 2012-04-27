@@ -36,12 +36,10 @@ module ZK
     # interrogators
     module Callbacks
       module Callback
+        extend Concern
+
         # allow access to the connection that fired this callback
         attr_accessor :zk
-
-        def self.included(mod)
-          mod.extend(ZK::Extensions::Callbacks::Callback::ClassMethods)
-        end
 
         module ClassMethods
           # allows for easier construction of a user callback block that will be
@@ -63,7 +61,7 @@ module ZK
             cb_inst = new { block.call(cb_inst) }
           end
         end
-      end
+      end # Callback
 
       module WatcherCallbackExt
         include ZookeeperConstants
