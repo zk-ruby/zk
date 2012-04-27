@@ -81,9 +81,13 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 
 * [papertrail][]: Hosted log management service
 * [redis\_failover][]: Redis client/server failover managment system
+* [DCell][]: Distributed ruby objects, built on top of the super cool [Celluloid][] framework.
 
 [papertrail]: http://papertrailapp.com/
 [redis\_failover][]: https://github.com/ryanlecompte/redis_failover
+[DCell][]: https://github.com/celluloid/dcell
+[Celluloid][]: https://github.com/celluloid/celluloid
+
 
 ## Dependencies
 
