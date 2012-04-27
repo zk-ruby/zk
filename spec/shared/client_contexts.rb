@@ -8,10 +8,13 @@ shared_context 'threaded client connection' do
   end
 
   after do
-    @zk.rm_rf(@base_path)
-    @zk.close!
-
-    wait_until(2) { @zk.closed? }
+    if @zk.closed?
+      ZK.open(@connection_string) { |z| z.rm_rf(@base_path) }
+    else
+      @zk.rm_rf(@base_path)
+      @zk.close!
+      wait_until(2) { @zk.closed? }
+    end
   end
 end
 

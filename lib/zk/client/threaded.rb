@@ -94,6 +94,7 @@ module ZK
       #   operations with the client as you will get a NoMethodError (the
       #   underlying connection is nil).
       #
+      # @see Base#initialize
       def initialize(host, opts={}, &b)
         super(host, opts)
 
@@ -114,31 +115,42 @@ module ZK
         @cnx = create_connection(host, @session_timeout, @event_handler.get_default_watcher_block)
       end
 
+      # (see Base#reopen)
       def reopen(timeout=nil)
         @mutex.synchronize { @close_requested = false }
         super
       end
 
-      # (see ZK::Client::Base#close!)
+      # (see Base#close!)
+      #
+      # @note We will make our best effort to do the right thing if you call
+      #   this method while in the threadpool. It is _a much better idea_ to
+      #   call us from the main thread, or _at least_ a thread we're not going
+      #   to be trying to shut down as part of closing the connection and
+      #   threadpool.
+      #
       def close!
         @mutex.synchronize do 
           return if @close_requested
           @close_requested = true 
         end
 
-        if event_dispatch_thread?
-          msg = ["ZK ERROR: You called #{self.class}#close! on event dispatch thread!!",
-                 "This will cause the client to deadlock and possibly your main thread as well!"]
+        on_tpool = on_threadpool?
 
-          warn_msg = [nil, msg, nil, "See ZK error log output (stderr by default) for a backtrace", nil].join("\n")
-
-          Kernel.warn(warn_msg)
-          assert_we_are_not_on_the_event_dispatch_thread!(msg.join(' '))
+        # Ok, so the threadpool will wait up to N seconds while joining each thread.
+        # If _we're on a threadpool thread_, have it wait until we're ready to jump
+        # out of this method, and tell it to wait up to 5 seconds to let us get
+        # clear, then do the rest of the shutdown of the connection 
+        #
+        # if the user *doesn't* hate us, then we just join the shutdown_thread immediately
+        # and wait for it to exit
+        #
+        shutdown_thread = Thread.new do
+          @threadpool.shutdown(2)
+          super
         end
 
-        @threadpool.shutdown
-
-        super
+        shutdown_thread.join unless on_tpool
 
         nil
       end
