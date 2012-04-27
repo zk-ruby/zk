@@ -14,6 +14,8 @@ This file notes feature differences and bugfixes contained between releases.
 
     zk.create('/path', :sequential => true)
 
+* fix for shutdown: close! called from threadpool will do the right thing
+
 ### v0.9.1 ###
 
 The "Don't forget to update the RELEASES file before pushing a new release" release
