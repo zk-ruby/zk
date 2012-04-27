@@ -1,10 +1,9 @@
 *.gem
 .bundle
-Gemfile.lock
 pkg/*
-Gemfile.lock
 *.log
 html
 .yardoc
 .rspec
 .rvmrc
+Gemfile.*

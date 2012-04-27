@@ -1,6 +1,4 @@
-# this is here for doing internal builds in our environment
-source ENV['MBOX_BUNDLER_SOURCE'] if ENV['MBOX_BUNDLER_SOURCE']
-source "http://rubygems.org"
+source :rubygems
 
 # gem 'slyphon-zookeeper', :path => '~/zookeeper'
 
