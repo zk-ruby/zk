@@ -1,15 +1,45 @@
 module ZK
+  # this is taken from activesupport-3.2.3, and pasted here so that we don't conflict if someone
+  # is using us as part of a rails app
+  #
+  # i've removed the code that includes InstanceMethods (tftfy)
+  # @private
+  module Concern
+    def self.extended(base)
+      base.instance_variable_set("@_dependencies", [])
+    end
+
+    def append_features(base)
+      if base.instance_variable_defined?("@_dependencies")
+        base.instance_variable_get("@_dependencies") << self
+        return false
+      else
+        return false if base < self
+        @_dependencies.each { |dep| base.send(:include, dep) }
+        super
+        base.extend const_get("ClassMethods") if const_defined?("ClassMethods")
+        base.class_eval(&@_included_block) if instance_variable_defined?("@_included_block")
+      end
+    end
+
+    def included(base = nil, &block)
+      if base.nil?
+        @_included_block = block
+      else
+        super
+      end
+    end
+  end
+
   module Extensions
     # some extensions to the ZookeeperCallbacks classes, mainly convenience
     # interrogators
     module Callbacks
       module Callback
+        extend Concern
+
         # allow access to the connection that fired this callback
         attr_accessor :zk
-
-        def self.included(mod)
-          mod.extend(ZK::Extensions::Callbacks::Callback::ClassMethods)
-        end
 
         module ClassMethods
           # allows for easier construction of a user callback block that will be
@@ -31,7 +61,7 @@ module ZK
             cb_inst = new { block.call(cb_inst) }
           end
         end
-      end
+      end # Callback
 
       module WatcherCallbackExt
         include ZookeeperConstants
@@ -108,48 +138,12 @@ module ZK
         end
       end
     end   # Callbacks
-
-    # aliases for long-names of properties from slyphon-zookeeper version
-    module Stat
-      [ %w[created_zxid czxid],
-        %w[last_modified_zxid mzxid],
-        %w[created_time ctime],
-        %w[last_modified_time mtime],
-        %w[child_list_version cversion],
-        %w[acl_list_version aversion] ].each do |long, short|
-
-        class_eval <<-RUBY, __FILE__, __LINE__ + 1
-          def #{long}
-            #{short}
-          end
-        RUBY
-      end
-
-      MEMBERS = [:version, :exists, :czxid, :mzxid, :ctime, :mtime, :cversion, :aversion, :ephemeralOwner, :dataLength, :numChildren, :pzxid]
-
-      def self.included(mod)
-        mod.class_eval do
-          unless method_defined?(:exists?)
-            alias :exists? :exists
-          end
-        end
-      end
-
-      def ==(other)
-        MEMBERS.all? { |m| self.__send__(m) == other.__send__(m) }
-      end
-
-      def ephemeral?
-        ephemeral_owner && (ephemeral_owner != 0)
-      end
-    end # Stat
   end # Extensions
 end # ZK
 
 # ZookeeperCallbacks::Callback.extend(ZK::Extensions::Callbacks::Callback)
 ZookeeperCallbacks::Callback.send(:include, ZK::Extensions::Callbacks::Callback)
 ZookeeperCallbacks::WatcherCallback.send(:include, ZK::Extensions::Callbacks::WatcherCallbackExt)
-ZookeeperStat::Stat.send(:include, ZK::Extensions::Stat)
 
 # Include the InterruptedSession module in key ZookeeperExceptions to allow
 # clients to catch a single error type when waiting on a node (for example)

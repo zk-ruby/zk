@@ -13,7 +13,6 @@ module ZK
   #     #handle message
   #   end
   class MessageQueue
-
     # @private
     # :nodoc:
     attr_accessor :zk
@@ -79,15 +78,19 @@ module ZK
     #   the message
     def subscribe(&block)
       @subscription_block = block
-      @subscription_reference = @zk.watcher.subscribe(full_queue_path) do |event, zk|
+      @sub = @zk.register(full_queue_path) do |event, zk|
         find_and_process_next_available(@zk.children(full_queue_path, :watch => true))
       end
+
       find_and_process_next_available(@zk.children(full_queue_path, :watch => true))
     end
 
     # stop listening to this queue
     def unsubscribe
-      @subscription_reference.unsubscribe
+      if @sub
+        @sub.unsubscribe
+        @sub = nil
+      end
     end
 
     # a list of the message titles in the queue
@@ -98,6 +101,7 @@ module ZK
     # highly destructive method!
     # WARNING! Will delete the queue and all messages in it
     def destroy!
+      unsubscribe  # first thing, make sure we don't get any callbacks related to this
       children = @zk.children(full_queue_path)
       locks = []
       children.each do |path|
@@ -120,7 +124,7 @@ module ZK
       messages.each do |message_title|
         message_path = "#{full_queue_path}/#{message_title}"
         locker = @zk.locker(message_path)
-        if locker.lock!
+        if locker.lock! # non-blocking lock
           begin
             data = @zk.get(message_path).first
             result = @subscription_block.call(message_title, data)
