@@ -137,8 +137,6 @@ module ZK
 
         on_tpool = on_threadpool?
 
-        logger.debug { "on_threadpool? #{on_tpool}" }
-
         # Ok, so the threadpool will wait up to N seconds while joining each thread.
         # If _we're on a threadpool thread_, have it wait until we're ready to jump
         # out of this method, and tell it to wait up to 5 seconds to let us get
@@ -147,16 +145,9 @@ module ZK
         # if the user *doesn't* hate us, then we just join the shutdown_thread immediately
         # and wait for it to exit
         #
-        shutdown_thread = Thread.new(on_tpool) do |need_to_wait|
-          logger.debug { "about to call threadpool.shutdown from shutdown_thread" }
-
+        shutdown_thread = Thread.new do
           @threadpool.shutdown(2)
-
-          logger.debug { "threadpool has shut down, call super" }
-
           super
-
-          logger.debug { "super completed" }
         end
 
         shutdown_thread.join unless on_tpool
