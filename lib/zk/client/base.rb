@@ -70,6 +70,7 @@ module ZK
       #    
       #   ZK::Client.new("zk01:2181,zk02:2181/chroot/path")
       #
+      # @abstract Overridden in subclasses
       def initialize(host, opts={})
         # no-op
       end
@@ -88,7 +89,16 @@ module ZK
       public
 
       # reopen the underlying connection
-      # returns state of connection after operation
+      #
+      # The `timeout` param is here mainly for legacy support.
+      #
+      # @param [Numeric] timeout how long should we wait for
+      #   the connection to reach a connected state before returning. Note that
+      #   the method will not raise and will return whether the connection
+      #   reaches the 'connected' state or not. The default is actually to use
+      #   the same value that was passed to the constructor for 'timeout'
+      #
+      # @return [Symbol] state of connection after operation
       def reopen(timeout=nil)
         timeout ||= @session_timeout # XXX: @session_timeout ?
         cnx.reopen(timeout)
@@ -98,14 +108,6 @@ module ZK
 
       # close the underlying connection and clear all pending events.
       #
-      # @note it is VERY IMPORTANT that when using the threaded client that you
-      #   __NOT CALL THIS ON THE EVENT DISPATCH THREAD__. If you do call it when
-      #   `event_dispatch_thread?` is true, you will get a big fat Kernel.warn
-      #   and nothing will happen. There is currently no safe way to have the event
-      #   thread cause a shutdown in the main thread (with good reason). There is also
-      #   no way to get an exception from the event thread (they're currently
-      #   just logged and swallowed), so this is the least horrible remedy available.
-      #   
       def close!
         event_handler.clear!
         wrap_state_closed_error { cnx.close unless cnx.closed? }
@@ -714,12 +716,12 @@ module ZK
         end
       end
 
-      # returns the session_id of the underlying connection
+      # @return [Fixnum] the session_id of the underlying connection
       def session_id
         cnx.session_id
       end
 
-      # returns the session_passwd of the underlying connection
+      # @return [String] the session_passwd of the underlying connection
       def session_passwd
         cnx.session_passwd
       end
