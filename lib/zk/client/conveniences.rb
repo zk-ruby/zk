@@ -18,7 +18,6 @@ module ZK
       # @yield [] the block that should be run in the threadpool, if `callable`
       #   isn't given
       #
-      # @private
       def defer(callable=nil, &block)
         @threadpool.defer(callable, &block)
       end

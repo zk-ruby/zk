@@ -22,6 +22,8 @@ module ZK
 
       @mutex = Mutex.new
 
+      @error_callbacks = []
+
       start!
     end
 
@@ -35,7 +37,7 @@ module ZK
       callable ||= blk
 
       # XXX(slyphon): do we care if the threadpool is not running?
-      raise Exceptions::ThreadpoolIsNotRunningException unless running?
+#       raise Exceptions::ThreadpoolIsNotRunningException unless running?
       raise ArgumentError, "Argument to Threadpool#defer must respond_to?(:call)" unless callable.respond_to?(:call)
 
       @threadqueue << callable
@@ -46,6 +48,12 @@ module ZK
       @mutex.synchronize { @running }
     end
 
+    # returns true if the current thread is one of the threadpool threads
+    def on_threadpool?
+      tp = @mutex.synchronize { @threadpool.dup }
+      tp and tp.respond_to?(:include?) and tp.include?(Thread.current)
+    end
+
     # starts the threadpool if not already running
     def start!
       @mutex.synchronize do
@@ -54,6 +62,18 @@ module ZK
         spawn_threadpool
       end
       true
+    end
+
+    # register a block to be called back with unhandled exceptions that occur
+    # in the threadpool. 
+    # 
+    # @note if your exception callback block itself raises an exception, I will
+    #   make fun of you.
+    #
+    def on_exception(&blk)
+      @mutex.synchronize do
+        @error_callbacks << blk
+      end
     end
 
     # join all threads in this threadpool, they will be given a maximum of +timeout+
@@ -90,18 +110,46 @@ module ZK
     end
 
     private
+      def dispatch_to_error_handler(e)
+        # make a copy that will be free from thread manipulation
+        # and doesn't require holding the lock
+        cbs = @mutex.synchronize { @error_callbacks.dup }
+
+        if cbs.empty?
+          default_exception_handler(e)
+        else
+          while cb = cbs.shift
+            begin
+              cb.call(e)
+            rescue Exception => e
+              msg = [ 
+                "Exception caught in user supplied on_exception handler.", 
+                "Just meditate on the irony of that for a moment. There. Good.",
+                "The callback that errored was: #{cb.inspect}, the exception was",
+                ""
+              ]
+
+              default_exception_handler(e, msg.join("\n"))
+            end
+          end
+        end
+      end
+
+      def default_exception_handler(e, msg=nil)
+        msg ||= 'Exception caught in threadpool'
+        logger.error { "#{msg}: #{e.to_std_format}" }
+      end
+
       def spawn_threadpool #:nodoc:
         until @threadpool.size >= @size.to_i
           thread = Thread.new do
             while @running
               begin
                 op = @threadqueue.pop
-#                 $stderr.puts "thread #{Thread.current.inspect} got #{op.inspect}"
                 break if op == KILL_TOKEN
                 op.call
               rescue Exception => e
-                logger.error { "Exception caught in threadpool" }
-                logger.error { e.to_std_format }
+                dispatch_to_error_handler(e)
               end
             end
           end

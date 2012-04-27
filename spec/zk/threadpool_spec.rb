@@ -1,7 +1,6 @@
 require 'spec_helper'
 
 describe ZK::Threadpool do
-
   before do
     @threadpool = ZK::Threadpool.new
   end
@@ -19,7 +18,6 @@ describe ZK::Threadpool do
       @threadpool.size.should == ZK::Threadpool.default_size
     end
   end
-
 
   describe :defer do
     it %[should run the given block on a thread in the threadpool] do
@@ -39,9 +37,28 @@ describe ZK::Threadpool do
       lambda { @threadpool.defer(bad_obj) }.should raise_error(ArgumentError)
     end
 
-    it %[should barf if the threadpool is not running] do
+    it %[should not barf if the threadpool is not running] do
       @threadpool.shutdown
-      lambda { @threadpool.defer { "hai!" } }.should raise_error(ZK::Exceptions::ThreadpoolIsNotRunningException)
+      lambda { @threadpool.defer { "hai!" } }.should_not raise_error
+    end
+  end
+
+  describe :on_exception do
+    it %[should register a callback that will be called if an exception is raised on the threadpool] do
+      @ary = []
+
+      @threadpool.on_exception { |exc| @ary << exc }
+        
+      @threadpool.defer { raise "ZOMG!" }
+
+      wait_while(2) { @ary.empty? }
+
+      @ary.length.should == 1
+
+      e = @ary.shift
+
+      e.should be_kind_of(RuntimeError)
+      e.message.should == 'ZOMG!'
     end
   end
 
@@ -70,5 +87,16 @@ describe ZK::Threadpool do
     end
   end
 
+  describe :on_threadpool? do
+    it %[should return true if we're currently executing on one of the threadpool threads] do
+      @a = []
+      @threadpool.defer { @a << @threadpool.on_threadpool? }
+
+      wait_while(2) { @a.empty? }
+      @a.should_not be_empty
+
+      @a.first.should be_true
+    end
+  end
 end
 

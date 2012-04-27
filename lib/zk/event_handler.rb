@@ -10,6 +10,8 @@ module ZK
 
     VALID_WATCH_TYPES = [:data, :child].freeze
 
+    ALL_NODE_EVENTS_KEY = :all_node_events
+
     ZOOKEEPER_WATCH_TYPE_MAP = {
       Zookeeper::ZOO_CREATED_EVENT => :data,
       Zookeeper::ZOO_DELETED_EVENT => :data,
@@ -17,7 +19,8 @@ module ZK
       Zookeeper::ZOO_CHILD_EVENT   => :child,
     }.freeze
 
-    attr_accessor :zk  # :nodoc:
+    # @private
+    attr_accessor :zk
 
     # @private
     # :nodoc:
@@ -34,7 +37,8 @@ module ZK
 
     # @see ZK::Client::Base#register
     def register(path, &block)
-#       logger.debug { "EventHandler#register path=#{path.inspect}" }
+      path = ALL_NODE_EVENTS_KEY if path == :all
+
       EventHandlerSubscription.new(self, path, block).tap do |subscription|
         synchronize { @callbacks[path] << subscription }
       end
@@ -98,14 +102,16 @@ module ZK
     #
     # @private
     def process(event)
+      @zk.raw_event_handler(event)
+
 #       logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
       event.zk = @zk
 
-      cb_key = 
+      cb_keys = 
         if event.node_event?
-          event.path
+          [event.path, ALL_NODE_EVENTS_KEY]
         elsif event.state_event?
-          state_key(event.state)
+          [state_key(event.state)]
         else
           raise ZKError, "don't know how to process event: #{event.inspect}"
         end
@@ -113,22 +119,34 @@ module ZK
 #       logger.debug { "EventHandler#process: cb_key: #{cb_key}" }
 
       cb_ary = synchronize do 
-        if event.node_event?
-          if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
-#             logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
-            
-            # we recieved a watch event for this path, now we allow code to set new watchers
-            @outstanding_watches[watch_type].delete(event.path)
-          end
-        end
+        clear_watch_restrictions(event)
 
-        @callbacks[cb_key].dup
+        @callbacks.values_at(*cb_keys)
       end
 
+      cb_ary.flatten! # takes care of not modifying original arrays
       cb_ary.compact!
 
       safe_call(cb_ary, event)
     end
+
+    private
+      # happens inside the lock, clears the restriction on setting new watches
+      # for a given path/event type combination
+      #
+      def clear_watch_restrictions(event)
+        return unless event.node_event?
+
+        if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
+          #logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
+          
+          # we recieved a watch event for this path, now we allow code to set new watchers
+          @outstanding_watches[watch_type].delete(event.path)
+        end
+      end
+
+
+    public
 
     # used during shutdown to clear registered listeners
     # @private
@@ -153,26 +171,52 @@ module ZK
       end
     end
 
+    # returns true if there's a pending watch of type for path
+    # @private
+    def restricting_new_watches_for?(watch_type, path)
+      synchronize do
+        if set = @outstanding_watches[watch_type]
+          return set.include?(path)
+        end
+      end
+
+      false
+    end
+
     # implements not only setting up the watcher callback, but deduplicating 
     # event delivery. Keeps track of in-flight watcher-type+path requests and
     # doesn't re-register the watcher with the server until a response has been
     # fired. This prevents one event delivery to *every* callback per :watch => true
     # argument.
     #
+    # due to somewhat poor design, we destructively modify opts before we yield
+    # and the client implictly knows this
+    #
     # @private
     def setup_watcher!(watch_type, opts)
-      return unless opts.delete(:watch)
+      return yield unless opts.delete(:watch)
 
       synchronize do
         set = @outstanding_watches.fetch(watch_type)
         path = opts[:path]
 
         if set.add?(path)
-          # this path has no outstanding watchers, let it do its thing
-          opts[:watcher] = watcher_callback 
+          # if we added the path to the set, blocking further registration of
+          # watches and an exception is raised then we rollback
+          begin
+            # this path has no outstanding watchers, let it do its thing
+            opts[:watcher] = watcher_callback 
+
+            yield opts
+          rescue Exception
+            set.delete(path)
+            raise
+          end
         else
-          # outstanding watch for path and data pair already exists, so ignore
-#           logger.debug { "outstanding watch request for path #{path.inspect} and watcher type #{watch_type.inspect}, not re-registering" }
+          # we did not add the path to the set, which means we are not
+          # responsible for removing a block on further adds if the operation
+          # fails, therefore, we just yield
+          yield opts
         end
       end
     end
@@ -202,15 +246,16 @@ module ZK
 
       # @private
       def safe_call(callbacks, *args)
-        while cb = callbacks.shift
-          begin
-            cb.call(*args) if cb.respond_to?(:call)
-          rescue Exception => e
-            logger.error { "Error caught in user supplied callback" }
-            logger.error { e.to_std_format }
-          end
+        # oddly, a `while cb = callbacks.shift` here will have thread safety issues
+        # as cb will be nil when the defer block is called on the threadpool
+        
+        callbacks.each do |cb|
+          next unless cb.respond_to?(:call)
+
+          zk.defer { cb.call(*args) }
         end
       end
-  end
-end
+
+  end # EventHandler
+end # ZK 
 

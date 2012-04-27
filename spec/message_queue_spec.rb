@@ -3,8 +3,8 @@ require File.join(File.dirname(__FILE__), %w[spec_helper])
 describe ZK::MessageQueue do
 
   before(:each) do
-    @zk = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => :default)
-    @zk2 = ZK.new("localhost:#{ZK_TEST_PORT}", :watcher => :default)
+    @zk = ZK.new("localhost:#{ZK_TEST_PORT}")
+    @zk2 = ZK.new("localhost:#{ZK_TEST_PORT}")
     wait_until{ @zk.connected? && @zk2.connected? }
     @queue_name = "_specQueue"
     @consume_queue = @zk.queue(@queue_name)

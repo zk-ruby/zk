@@ -1,7 +1,5 @@
 require 'spec_helper'
 
-require 'tracer'
-
 describe ZK::Pool do
   describe :Simple do
 

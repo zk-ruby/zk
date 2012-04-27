@@ -73,36 +73,4 @@ shared_examples_for 'locking and session death' do
   end
 end
 
-describe 'threaded client and locking behavior' do
-  include_context 'threaded client connection'
-
-  before do
-    @path = '/test'
-    @zk.create('/test') rescue ZK::Exceptions::NodeExists
-  end
-
-  describe 'block_until_node_deleted' do
-    it %[should raise an EventDispatchThreadException if called in the context of the event dispatch thread] do
-      @exception = nil
-
-      @zk.register(@path) do |event|
-        @zk.event_dispatch_thread?.should be_true
-
-        begin
-          @zk.block_until_node_deleted(@path)
-        rescue Exception => e
-          @exception = e
-        end
-      end
-
-      @zk.exists?(@path, :watch => true)
-
-      @zk.set(@path, 'blah')
-
-      wait_until(2) { @exception }.should be_kind_of(ZK::Exceptions::EventDispatchThreadException)
-    end
-  end
-
-  it_should_behave_like 'locking and session death'
-end
 

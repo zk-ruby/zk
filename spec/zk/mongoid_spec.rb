@@ -1,7 +1,5 @@
 require 'spec_helper'
 
-require 'tracer'
-
 describe ZK::Mongoid::Locking do
   before do
     ZK::Mongoid::Locking.zk_lock_pool = ZK.new_pool('localhost:2181', :min_clients => 1, :max_clients => 5)

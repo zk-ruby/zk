@@ -70,6 +70,7 @@ module ZK
       #    
       #   ZK::Client.new("zk01:2181,zk02:2181/chroot/path")
       #
+      # @abstract Overridden in subclasses
       def initialize(host, opts={})
         # no-op
       end
@@ -88,7 +89,16 @@ module ZK
       public
 
       # reopen the underlying connection
-      # returns state of connection after operation
+      #
+      # The `timeout` param is here mainly for legacy support.
+      #
+      # @param [Numeric] timeout how long should we wait for
+      #   the connection to reach a connected state before returning. Note that
+      #   the method will not raise and will return whether the connection
+      #   reaches the 'connected' state or not. The default is actually to use
+      #   the same value that was passed to the constructor for 'timeout'
+      #
+      # @return [Symbol] state of connection after operation
       def reopen(timeout=nil)
         timeout ||= @session_timeout # XXX: @session_timeout ?
         cnx.reopen(timeout)
@@ -98,14 +108,6 @@ module ZK
 
       # close the underlying connection and clear all pending events.
       #
-      # @note it is VERY IMPORTANT that when using the threaded client that you
-      #   __NOT CALL THIS ON THE EVENT DISPATCH THREAD__. If you do call it when
-      #   `event_dispatch_thread?` is true, you will get a big fat Kernel.warn
-      #   and nothing will happen. There is currently no safe way to have the event
-      #   thread cause a shutdown in the main thread (with good reason). There is also
-      #   no way to get an exception from the event thread (they're currently
-      #   just logged and swallowed), so this is the least horrible remedy available.
-      #   
       def close!
         event_handler.clear!
         wrap_state_closed_error { cnx.close unless cnx.closed? }
@@ -129,18 +131,16 @@ module ZK
       # creating sequential node with the same path argument, the call will never
       # throw a NodeExists exception.
       # 
-      # @todo clean up the verbiage around watchers
-      #
-      # This operation, if successful, will trigger all the watches left on the
-      # node of the given path by exists and get API calls, and the watches left
-      # on the parent node by children API calls.
-      # 
       # If a node is created successfully, the ZooKeeper server will trigger the
       # watches on the path left by exists calls, and the watches on the parent
       # of the node by children calls.
       #
-      # @param [String] path absolute path of the znode
-      # @param [String] data the data to create the znode with
+      # @overload create(path, opts={})
+      #   creates a znode at the absolute `path` with blank data and given
+      #   options
+      #
+      # @overload create(path, data, opts={})
+      #   creates a znode at the absolute `path` with given data and options
       # 
       # @option opts [Integer] :acl defaults to <tt>ZookeeperACLs::ZOO_OPEN_ACL_UNSAFE</tt>, 
       #   otherwise the ACL for the node. Should be a `ZOO_*` constant defined under the 
@@ -149,6 +149,9 @@ module ZK
       # @option opts [bool] :ephemeral (false) if true, the created node will be ephemeral
       #
       # @option opts [bool] :sequence (false) if true, the created node will be sequential
+      #
+      # @option opts [bool] :sequential (false) alias for :sequence option. if both are given
+      #   an ArgumentError is raised
       #
       # @option opts [ZookeeperCallbacks::StringCallback] :callback (nil) provide a callback object
       #   that will be called when the znode has been created
@@ -193,18 +196,18 @@ module ZK
       #
       #   # or you can also do:
       #
-      #   zk.create("/path", '', :mode => :persistent_sequence)
+      #   zk.create("/path", '', :mode => :persistent_sequential)
       #   # => "/path0"
       #
       #
       # @example create ephemeral and sequential node
       #
-      #   zk.create("/path", '', :sequential => true, :ephemeral => true)
+      #   zk.create("/path", '', :sequence => true, :ephemeral => true)
       #   # => "/path0"
       #
       #   # or you can also do:
       #
-      #   zk.create("/path", "foo", :mode => :ephemeral_sequence)
+      #   zk.create("/path", "foo", :mode => :ephemeral_sequential)
       #   # => "/path0"
       #
       # @example create a child path
@@ -214,12 +217,12 @@ module ZK
       #
       # @example create a sequential child path
       #
-      #   zk.create("/path/child", "bar", :sequential => true, :ephemeral => true)
+      #   zk.create("/path/child", "bar", :sequence => true, :ephemeral => true)
       #   # => "/path/child0"
       #
       #   # or you can also do:
       #
-      #   zk.create("/path/child", "bar", :mode => :ephemeral_sequence)
+      #   zk.create("/path/child", "bar", :mode => :ephemeral_sequential)
       #   # => "/path/child0"
       #
       # @hidden_example create asynchronously with callback object
@@ -245,7 +248,25 @@ module ZK
       #
       #   zk.create("/path", "foo", :callback => callback, :context => context)
       #
-      def create(path, data='', opts={})
+      def create(path, *args)
+        opts = args.extract_options!
+
+        # be somewhat strict about how many arguments we accept.
+        if args.length > 1
+          raise ArgumentError, "create takes path, an optional data argument, and options, you passed: (#{path}, *#{args})"
+        end
+
+        # argh, terrible documentation bug, allow for :sequential, analagous to :sequence
+        if opts.has_key?(:sequential)
+          if opts.has_key?(:sequence)
+            raise ArgumentError, "Only one of :sequential or :sequence options can be given, opts: #{opts}"
+          end
+
+          opts[:sequence] = opts.delete(:sequential)
+        end
+
+        data = args.first || ''
+
         h = { :path => path, :data => data, :ephemeral => false, :sequence => false }.merge(opts)
 
         if mode = h.delete(:mode)
@@ -326,9 +347,9 @@ module ZK
       def get(path, opts={})
         h = { :path => path }.merge(opts)
 
-        setup_watcher!(:data, h)
-
-        rv = check_rc(cnx.get(h), h)
+        rv = setup_watcher!(:data, h) do
+          check_rc(cnx.get(h), h)
+        end
 
         opts[:callback] ? rv : rv.values_at(:data, :stat)
       end
@@ -438,33 +459,19 @@ module ZK
       #
       #
       def stat(path, opts={})
-        # ===== exist node asynchronously
-        #
-        #   class StatCallback
-        #     def process_result(return_code, path, context, stat)
-        #       # do processing here
-        #     end
-        #   end
-        #  
-        #   callback = StatCallback.new
-        #   context = Object.new
-        #
-        #   zk.exists?("/path", :callback => callback, :context => context)
-
-
         h = { :path => path }.merge(opts)
 
-        setup_watcher!(:data, h)
+        setup_watcher!(:data, h) do
+          rv = cnx.stat(h)
 
-        rv = cnx.stat(h)
+          return rv if opts[:callback] 
 
-        return rv if opts[:callback] 
-
-        case rv[:rc] 
-        when Zookeeper::ZOK, Zookeeper::ZNONODE
-          rv[:stat]
-        else
-          check_rc(rv, h) # throws the appropriate error
+          case rv[:rc] 
+          when Zookeeper::ZOK, Zookeeper::ZNONODE
+            rv[:stat]
+          else
+            check_rc(rv, h) # throws the appropriate error
+          end
         end
       end
 
@@ -548,9 +555,10 @@ module ZK
 
         h = { :path => path }.merge(opts)
 
-        setup_watcher!(:child, h)
+        rv = setup_watcher!(:child, h) do
+          check_rc(cnx.get_children(h), h)
+        end
 
-        rv = check_rc(cnx.get_children(h), h)
         opts[:callback] ? rv : rv[:children]
       end
 
@@ -708,12 +716,12 @@ module ZK
         end
       end
 
-      # returns the session_id of the underlying connection
+      # @return [Fixnum] the session_id of the underlying connection
       def session_id
         cnx.session_id
       end
 
-      # returns the session_passwd of the underlying connection
+      # @return [String] the session_passwd of the underlying connection
       def session_passwd
         cnx.session_passwd
       end
@@ -757,7 +765,9 @@ module ZK
       #   end
       #
       #
-      # @param [String] path the path you want to listen to
+      # @param [String,:all] path the znode path you want to listen to, or the
+      #   special value :all, that will cause the block to be delivered events
+      #   for all znode paths
       #
       # @param [Block] block the block to execute when a watch event happpens
       #
@@ -785,6 +795,15 @@ module ZK
         raise Exceptions::EventDispatchThreadException, msg if event_dispatch_thread?
       end
 
+      # called directly from the zookeeper event thread with every event, before they
+      # get dispatched to the user callbacks. used by client implementations for
+      # critical events like session_expired, so that we don't compete for
+      # threads in the threadpool.
+      #
+      # @private
+      def raw_event_handler(event)
+      end
+
       protected
         # @private
         def check_rc(hash, inputs=nil)
@@ -798,8 +817,8 @@ module ZK
         end
 
         # @private
-        def setup_watcher!(watch_type, opts)
-          event_handler.setup_watcher!(watch_type, opts)
+        def setup_watcher!(watch_type, opts, &b)
+          event_handler.setup_watcher!(watch_type, opts, &b)
         end
 
         # used in #inspect, doesn't raise an error if we're not connected
@@ -811,6 +830,6 @@ module ZK
           nil
         end
     end # Base
-  end   # Client
-end     # ZK
+  end # Client
+end # ZK
 
