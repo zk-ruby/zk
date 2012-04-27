@@ -108,48 +108,12 @@ module ZK
         end
       end
     end   # Callbacks
-
-    # aliases for long-names of properties from slyphon-zookeeper version
-    module Stat
-      [ %w[created_zxid czxid],
-        %w[last_modified_zxid mzxid],
-        %w[created_time ctime],
-        %w[last_modified_time mtime],
-        %w[child_list_version cversion],
-        %w[acl_list_version aversion] ].each do |long, short|
-
-        class_eval <<-RUBY, __FILE__, __LINE__ + 1
-          def #{long}
-            #{short}
-          end
-        RUBY
-      end
-
-      MEMBERS = [:version, :exists, :czxid, :mzxid, :ctime, :mtime, :cversion, :aversion, :ephemeralOwner, :dataLength, :numChildren, :pzxid]
-
-      def self.included(mod)
-        mod.class_eval do
-          unless method_defined?(:exists?)
-            alias :exists? :exists
-          end
-        end
-      end
-
-      def ==(other)
-        MEMBERS.all? { |m| self.__send__(m) == other.__send__(m) }
-      end
-
-      def ephemeral?
-        ephemeral_owner && (ephemeral_owner != 0)
-      end
-    end # Stat
   end # Extensions
 end # ZK
 
 # ZookeeperCallbacks::Callback.extend(ZK::Extensions::Callbacks::Callback)
 ZookeeperCallbacks::Callback.send(:include, ZK::Extensions::Callbacks::Callback)
 ZookeeperCallbacks::WatcherCallback.send(:include, ZK::Extensions::Callbacks::WatcherCallbackExt)
-ZookeeperStat::Stat.send(:include, ZK::Extensions::Stat)
 
 # Include the InterruptedSession module in key ZookeeperExceptions to allow
 # clients to catch a single error type when waiting on a node (for example)
