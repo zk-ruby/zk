@@ -77,9 +77,17 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 [sessions]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkSessions 
 [watches]: http://zookeeper.apache.org/doc/r3.3.5/zookeeperProgrammers.html#ch_zkWatches
 
+## Users
+
+* [papertrail][]: Hosted log management service
+* [redis\_failover][]: Redis client/server failover managment system
+
+[papertrail]: http://papertrailapp.com/
+[redis\_failover][]: https://github.com/ryanlecompte/redis_failover
+
 ## Dependencies
 
-* The [slyphon-zookeeper gem][szk-gem] ([repo][szk-repo]), which adds JRuby compatibility and a full suite of tests to the excellent [twitter/zookeeper][] project. _(I'm hoping to get this merged upstream, but it's a large change and, you know, people have day jobs)_. 
+* The [slyphon-zookeeper gem][szk-gem] ([repo][szk-repo]), which adds JRuby compatibility and a full suite of tests to the excellent [twitter/zookeeper][] project. 
 
 * For JRuby, the [slyphon-zookeeper\_jar gem][szk-jar-gem] ([repo][szk-jar-repo]), which just wraps the upstream zookeeper driver jar in a gem for easy installation
 
