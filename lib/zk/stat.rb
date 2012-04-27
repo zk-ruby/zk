@@ -9,7 +9,27 @@ module ZK
   #
   # [the documentation]: http://zookeeper.apache.org/doc/r3.3.5/zookeeperProgrammers.html#sc_zkStatStructure
   module Stat
-    MEMBERS = [:version, :exists, :czxid, :mzxid, :ctime, :mtime, :cversion, :aversion, :ephemeralOwner, :dataLength, :numChildren, :pzxid].freeze
+    # @private
+    ATTRIBUTES = [
+      :czxid, :mzxid, :ctime, :mtime, :version, :cversion, :aversion, 
+          :ephemeralOwner, :dataLength, :numChildren, :pzxid ].freeze unless defined?(ATTRIBUTES)
+
+    # @private
+    MEMBERS = ([:exists] + ATTRIBUTES).freeze unless defined?(MEMBERS)
+
+    # @private
+    BLANK_STAT = {}.tap do |h|
+      ATTRIBUTES.each do |k|
+        h[k] = 0
+      end
+    end.freeze unless defined?(BLANK_STAT)
+
+    # returns a Stat object that can be used to represent a newly-created znode,
+    # since zookeeper doesn't return a stat object for create()
+    # @private
+    def self.create_blank
+      BLANK_STAT.dup
+    end
 
     def ==(other)
       MEMBERS.all? { |m| self.__send__(m) == other.__send__(m) }
