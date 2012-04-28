@@ -130,8 +130,6 @@ module ZK
 
     args = [DEFAULT_SERVER]  if args.empty?     # the ZK.new() case
 
-    logger.debug { "(1) args: #{args.inspect}" }
-
     if args.first.kind_of?(String)
       if new_cnx_str = do_chroot_setup(args.first, chroot_opt)
         args[0] = new_cnx_str
@@ -197,8 +195,6 @@ module ZK
       else
         raise ArgumentError, ":chroot must be one of :create, :check, :ignore, or a String, not: #{chroot_opt.inspect}" 
       end
-
-      logger.debug { "#{name}.#{__method__} host: #{host}, chroot_path: #{chroot_path.inspect}" }
 
       return cnx_str unless chroot_path  # if by this point, we don't have a chroot_path, then there isn't one to be had
 
