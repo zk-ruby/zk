@@ -464,22 +464,6 @@ describe "ZK::Locker chrooted" do
     it_should_behave_like 'ExclusiveLocker'
     it_should_behave_like 'shared-exclusive interaction'
   end
-
-  describe "when the root doesn't exist" do
-    let(:lock_name) { 'master' }
-
-    it %[should raise a NonExistentRootError] do
-      @got_lock = false
-
-      lambda do
-        zk.with_lock(lock_name) do
-          @got_lock = true
-        end
-      end.should raise_error(ZK::Exceptions::NonExistentRootError)
-
-      @got_lock.should_not be_true
-    end
-  end
 end
 
 

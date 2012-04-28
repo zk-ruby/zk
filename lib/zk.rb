@@ -25,9 +25,11 @@ require 'zk/pool'
 require 'zk/find'
 
 module ZK
-  ZK_ROOT = File.expand_path('../..', __FILE__)
+  ZK_ROOT = File.expand_path('../..', __FILE__) unless defined?(ZK_ROOT)
 
   KILL_TOKEN = Object.new unless defined?(KILL_TOKEN) 
+
+  DEFAULT_SERVER = 'localhost:2181'.freeze unless defined?(DEFAULT_SERVER)
 
   unless @logger
     @logger = Logger.new($stderr).tap { |n| n.level = Logger::ERROR }
@@ -50,19 +52,66 @@ module ZK
   end
 
   # Create a new ZK::Client instance. If no arguments are given, the default
-  # config of 'localhost:2181' will be used. Otherwise all args will be passed
+  # config of `localhost:2181` will be used. Otherwise all args will be passed
   # to ZK::Client#new
   #
   # if a block is given, it will be yielded the client *before* the connection
   # is established, this is useful for registering connected-state handlers.
   #
+  # Since 1.0, if you pass a chrooted host string, i.e. `localhost:2181/foo/bar/baz` this
+  # method will create two connections. The first will be short lived, and will create the 
+  # chroot path, the second will be the chrooted one and returned to the user. This is
+  # meant as a convenience to users who want to use chrooted connections.
+  #
+  # @note As it says in the ZooKeeper [documentation](http://zookeeper.apache.org/doc/r3.4.3/zookeeperProgrammers.html#ch_gotchas), 
+  #   if you are running a cluster: "The list of ZooKeeper servers used by the
+  #   client must match the list of ZooKeeper servers that each ZooKeeper
+  #   server has. Things can work, although not optimally, if the client list
+  #   is a subset of the real list of ZooKeeper servers, but not if the client
+  #   lists ZooKeeper servers not in the ZooKeeper cluster."
+  #
+  # @example Connection using defaults
+  #
+  #   zk = ZK.new   # will connect to 'localhost:2181' 
+  #
+  # @example Connection to a single server
+  #
+  #   zk = ZK.new('localhost:2181')
+  #
+  # @example Connection to a single server with a chroot
+  #
+  #   zk = ZK.new('localhost:2181/you/are/over/here')
+  #
+  # @example Connection to multiple servers (a cluster)
+  #   
+  #   zk = ZK.new('server1:2181,server2:2181,server3:2181')
+  #
+  # @example Connection to multiple servers with a chroot
+  #
+  #   zk = ZK.new('server1:2181,server2:2181,server3:2181/you/are/over/here')
+  #
+  # @overload new(connection_str, opts={}, &block)
+  #   @param [String] connection_str A zookeeper host connection string, which
+  #     is a comma-separated list of zookeeper servers and an optional chroot
+  #     path.
+  #
   def self.new(*args, &block)
-    # XXX: might need to do some param parsing here
-   
-    opts = args.pop if args.last.kind_of?(Hash)
-    args = %w[localhost:2181] if args.empty?
+    opts = args.extract_options!
 
-    # ignore opts for now
+    create_chroot = opts.fetch(:create_chroot, true)
+
+    if args.empty?
+      args = [DEFAULT_SERVER] 
+    elsif args.first.kind_of?(String)
+      do_chroot_setup(args.first) if create_chroot
+    else
+      raise ArgumentError, "cannot create a connection given args array: #{args}"
+    end
+
+    opts.delete(:create_chroot)
+
+    args << opts
+
     Client.new(*args, &block)
   end
 
@@ -80,20 +129,16 @@ module ZK
     ZK::Pool::Bounded.new(host, opts)
   end
 
-  # Eventually this will implement proper File.join-like behavior, but only
-  # using the '/' char for a separator. for right now, this simply delegates to
-  # File.join
-  #--
-  # like File.join but ignores $INPUT_RECORD_SEPARATOR (i.e. $/, which is
-  # platform dependent) and only uses the '/' character
+  # @private
   def self.join(*paths)
     File.join(*paths)
   end
 
-  protected
-    def self.chomp_sep(str)
-      p = (p[0] == ?/ ) ? p[1..-1] : p
-      p = (p[-1] == ?/) ? p[0..-2] : p
+  private
+    def self.do_chroot_setup(host_str)
+      host, chroot = Client.split_chroot(host_str)
+      return unless chroot
+      open(host) { |zk| zk.mkdir_p(chroot) }
     end
 end
 
