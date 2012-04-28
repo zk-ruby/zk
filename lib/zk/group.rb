@@ -5,13 +5,67 @@ module ZK
   # group.
   #
   module Group
+    # common znode data access
+    module Common
+      # the data my znode contains
+      def data
+        translate_exceptions do
+          rval, self.last_stat = zk.get(path)
+          rval
+        end
+      end
 
-    # The basis for forming different kinds of Groups with configurable
+      # Set the data in my group znode (the data at {#path})
+      # 
+      # In the base implementation, no version is given, this will just
+      # overwrite whatever is currently there.
+      #
+      # @param [String] val the data to set
+      # @return [String] the data that was set
+      def data=(val)
+        translate_exceptions do
+          self.last_stat = zk.set(path, val)
+          val
+        end
+      end
+
+      protected
+        # rescue underlying client exceptions and raise group-specific ones
+        def translate_exceptions
+          yield
+        end
+    end
+
+    # A simple proxy for catching client errors and re-raising them as Group specific
+    # errors (for clearer error reporting...we hope)
+    #
+    # @private
+    class GroupExceptionTranslator
+      def initialize(zk)
+        @zk = zk
+      end
+
+      private
+        def method_missing(m, *a, &b)
+          super unless @zk.respond_to?(m)
+          @zk.__send__(m, *a, &b)
+        rescue Exceptions::NoNode
+          raise Exceptions::GroupDoesNotExistError, "group at #{path} has not been created yet", caller
+        rescue Exceptions::NodeExists
+          raise Exceptions::GroupAlreadyExistsError, "group at #{path} already exists", caller
+        end
+    end
+
+    # The basis for forming different kinds of Groups with customizable
     # memberhip policies.
     class GroupBase
       include Logging
+      include Common
 
       DEFAULT_ROOT = '/zkgroups'
+
+      # @private
+      DEFAULT_PREFIX = 'm'.freeze
 
       # the ZK Client instance
       attr_reader :zk
@@ -25,14 +79,26 @@ module ZK
       # the combination of `"#{root}/#{name}"`
       attr_reader :path 
 
-      # @return [ZookeeperStat::Stat] a 
+      # @return [ZK::Stat] the stat from the last time we either set or retrieved
+      #   data from the server. 
+      # @private
+      attr_accessor :last_stat
+
+      # Prefix used for creating sequential nodes under {#path} that represent membership.
+      # The default is 'm', so for the path `/zkgroups/foo` a member path would look like
+      # `/zkgroups/foo/m000000078`
+      #
+      # @return [String] the prefix 
+      attr_accessor :prefix
 
       def initialize(zk, name, opts={})
-        @zk   = zk
-        @name = name.to_s
-        @root = opts.fetch(:root, DEFAULT_ROOT)
+        @orig_zk    = zk
+        @zk         = GroupExceptionTranslator.new(zk)
+        @name       = name.to_s
+        @root       = opts.fetch(:root, DEFAULT_ROOT)
+        @prefix     = opts.fetch(:prefix, DEFAULT_PREFIX)
 
-        @version = nil
+        @last_stat = nil
 
         @path = File.join(@root, @name)
 
@@ -54,7 +120,6 @@ module ZK
       #
       #   @param [String] data the data to be set for this group
       #
-      #
       def create(*args)
         create!(*args)
       rescue Exceptions::GroupAlreadyExistsError
@@ -65,55 +130,27 @@ module ZK
       def create!(*args)
         ensure_root_exists!
 
-        translate_exceptions do
-          opts = args.extract_options!
-          data = args.empty? ? '' : args.first
+        opts = args.extract_options!
+        data = args.empty? ? '' : args.first
 
-          zk.create(path, data, opts)
-        end
+        zk.create(path, data, opts)
+        @last_stat = Stat.create_blank
       end
 
       # Creates a Member object that represents 'belonging' to this group.
       # 
-      # @abstract Subclass and implement according to the rules of 'joining' 
+      # The basic behavior is creating a unique path under the {#path} (using
+      # a sequential, ephemeral node).
       #
       # @return [Member] used to control a single member of the group
       def join
-        raise NotImplementedError, "implement in subclasses"
-      end
-
-      # @return [Array[Member]] A list of the members of this group as Member objects
-      def members
+        zk.create("#{path}/#{prefix}")
       end
 
       # @return [Array[String]] a list of the members of this group as strings
       #   (with no path information)
       def member_names
-        translate_exceptions do
-          zk.children(path).sort
-        end
-      end
-
-      # the data my znode contains
-      def data
-        translate_exceptions do
-          rval, @last_stat = zk.get(path)
-          rval
-        end
-      end
-
-      # Set the data in my group znode (the data at {#path})
-      # 
-      # In the base implementation, no version is given, this will just
-      # overwrite whatever is currently there.
-      #
-      # @param [String] val the data to set
-      # @return [String] the data that was set
-      def data=(val)
-        translate_exceptions do
-          @last_stat = zk.set(path, val)
-          val
-        end
+        zk.children(path).sort
       end
 
       protected
@@ -121,20 +158,14 @@ module ZK
           zk.mkdir_p(root)
         end
 
-        def translate_exceptions
-          yield
-        rescue Exceptions::NoNode
-          raise Exceptions::GroupDoesNotExistError, "group at #{path} has not been created yet", caller
-        rescue Exceptions::NodeExists
-          raise Exceptions::GroupAlreadyExistsError, "group at #{path} already exists", caller
-        end
-
         def validate!
           raise ArgumentError, "root must start with '/'" unless @root.start_with?('/')
         end
-    end
+    end # GroupBase
+    
+    class MemberBase
+      include Common
 
-    class Member
       attr_reader :zk 
 
       # @return [Group] the group instance this member belongs to
@@ -147,14 +178,19 @@ module ZK
       attr_reader :znode_path
 
       def initialize(zk, group, znode_path)
-        @zk, @group, @znode_path = zk, group, znode_path
+        @zk = zk
+        @group = group
+        @znode_path = znode_path
       end
 
       # Leave the group this membership is associated with.
       # In the basic implementation, this is not meant to kick another member
       # out of the group.
+      #
+      # @abstract Implement 'leaving' behavior in subclasses
       def leave!
+        raise NotImplementedError
       end
-    end
+    end # MemberBase
   end
 end

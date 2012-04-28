@@ -19,7 +19,6 @@ describe ZK::Group::GroupBase do
       subject.create(group_data)
       @zk.get(subject.path).first.should == group_data
     end
-
   end
 
   describe :data do
@@ -27,6 +26,14 @@ describe ZK::Group::GroupBase do
       @zk.mkdir_p(subject.path)
       @zk.set(subject.path, group_data)
       subject.data.should == group_data
+    end
+  end
+
+  describe :data= do
+    it %[should set the group's data] do
+      @zk.mkdir_p(subject.path)
+      subject.data = group_data
+      @zk.get(subject.path).first == group_data
     end
   end
 
@@ -41,5 +48,3 @@ describe ZK::Group::GroupBase do
   end
 
 end # ZK::Group::Base
-
-
