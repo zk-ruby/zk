@@ -1,27 +1,29 @@
 module ZK
   module Exceptions
-    OK                      = 0
-    # System and server-side errors
-    SYSTEMERROR             = -1
-    RUNTIMEINCONSISTENCY    = SYSTEMERROR - 1
-    DATAINCONSISTENCY       = SYSTEMERROR - 2
-    CONNECTIONLOSS          = SYSTEMERROR - 3
-    MARSHALLINGERROR        = SYSTEMERROR - 4
-    UNIMPLEMENTED           = SYSTEMERROR - 5
-    OPERATIONTIMEOUT        = SYSTEMERROR - 6
-    BADARGUMENTS            = SYSTEMERROR - 7
-    # API errors  
-    APIERROR                = -100; 
-    NONODE                  = APIERROR - 1 # Node does not exist
-    NOAUTH                  = APIERROR - 2 # Current operation not permitted
-    BADVERSION              = APIERROR - 3 # Version conflict
-    NOCHILDRENFOREPHEMERALS = APIERROR - 8
-    NODEEXISTS              = APIERROR - 10
-    NOTEMPTY                = APIERROR - 11
-    SESSIONEXPIRED          = APIERROR - 12
-    INVALIDCALLBACK         = APIERROR - 13
-    INVALIDACL              = APIERROR - 14
-    AUTHFAILED              = APIERROR - 15 # client authentication failed
+    silence_warnings do
+      OK                      = 0
+      # System and server-side errors
+      SYSTEMERROR             = -1
+      RUNTIMEINCONSISTENCY    = SYSTEMERROR - 1
+      DATAINCONSISTENCY       = SYSTEMERROR - 2
+      CONNECTIONLOSS          = SYSTEMERROR - 3
+      MARSHALLINGERROR        = SYSTEMERROR - 4
+      UNIMPLEMENTED           = SYSTEMERROR - 5
+      OPERATIONTIMEOUT        = SYSTEMERROR - 6
+      BADARGUMENTS            = SYSTEMERROR - 7
+      # API errors  
+      APIERROR                = -100; 
+      NONODE                  = APIERROR - 1 # Node does not exist
+      NOAUTH                  = APIERROR - 2 # Current operation not permitted
+      BADVERSION              = APIERROR - 3 # Version conflict
+      NOCHILDRENFOREPHEMERALS = APIERROR - 8
+      NODEEXISTS              = APIERROR - 10
+      NOTEMPTY                = APIERROR - 11
+      SESSIONEXPIRED          = APIERROR - 12
+      INVALIDCALLBACK         = APIERROR - 13
+      INVALIDACL              = APIERROR - 14
+      AUTHFAILED              = APIERROR - 15 # client authentication failed
+    end
 
 
     # these errors are returned rather than the driver level errors
@@ -92,7 +94,7 @@ module ZK
       INVALIDCALLBACK         => InvalidCallback,
       INVALIDACL              => InvalidACL,
       AUTHFAILED              => AuthFailed,
-    }
+    }.freeze unless defined?(ERROR_MAP)
 
     # base class of ZK generated errors (not driver-level errors)
     class ZKError < StandardError; end
