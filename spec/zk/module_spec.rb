@@ -12,6 +12,12 @@ describe ZK do
       end
     end
 
+    describe %[with a chrooted connection string and a :chroot => '/path'] do
+      it %[should raise an ArgumentError] do
+        lambda { @zk = ZK.new('localhost:2181/zktest', :chroot => '/zktest') }.should raise_error(ArgumentError)
+      end
+    end
+
     describe 'with no arguments' do
       before { @zk = ZK.new }
 
