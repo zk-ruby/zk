@@ -27,6 +27,12 @@ module ZK
         Threaded.new(*a, &b)
       end
 
+      # @private
+      def assert_valid_chroot_str!(str)
+        return unless str
+        raise ChrootMustStartWithASlashError, str unless str.start_with?('/')
+      end
+
       # Takes a connection string and returns an Array of [host, chroot_path].
       # If the connection string is not chrooted, then chroot_path will be nil.
       #
@@ -38,10 +44,9 @@ module ZK
 
           [host, chroot_path]
         else
-          [host, nil]
+          [str, nil]
         end
       end
-
     end
   end
 end

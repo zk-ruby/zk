@@ -120,6 +120,19 @@ module ZK
 
     # raised when someone performs a blocking ZK operation on the event dispatch thread. 
     class EventDispatchThreadException < ZKError; end
+
+    # raised when a chrooted conection is requested but the root doesn't exist
+    class ChrootPathDoesNotExistError < NoNode
+      def initialize(host_string, chroot_path)
+        super("Chrooted connection to #{host_string} at #{chroot_path} requested, but path did not exist")
+      end
+    end
+
+    class ChrootMustStartWithASlashError < ArgumentError
+      def initialize(erroneous_string)
+        super("Chroot strings must start with a '/' you provided: #{erroneous_string.inspect}")
+      end
+    end
   end
 end
 

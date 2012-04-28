@@ -9,6 +9,7 @@ require 'set'
 require 'time'
 require 'date'
 
+require 'zk/core_ext'
 require 'zk/logging'
 require 'zk/exceptions'
 require 'zk/extensions'
@@ -95,20 +96,51 @@ module ZK
   #     is a comma-separated list of zookeeper servers and an optional chroot
   #     path.
   #
+  #   @option opts [:create,:check,:nothing,String] :chroot (:create) if a chrooted
+  #     `connection_str`, `:chroot` can have the following values:
+  #
+  #     * `:create` (the default), then we will use a secondary (short-lived)
+  #     un-chrooted connection to ensure that the path exists before returning
+  #     the chrooted connection. 
+  #
+  #     * `:check`, we will not attempt to create the connection, but rather
+  #     will raise a {Exceptions::ChrootPathDoesNotExistError
+  #     ChrootPathDoesNotExistError} if the path doesn't exist. 
+  #
+  #     * `:ignore`, we do not create the path and furthermore we do not
+  #     perform the check
+  #
+  #     * if a `String` is given, it is used as the chroot path, and we will follow
+  #     the same rules as if `:create` was given if `connection_str` also
+  #     contains a chroot path, we raise an `ArgumentError`
+  #
+  #     * if you don't like this for some reason, you can always use
+  #     {ZK::Client::Threaded.new} directly. You probably also hate unicorns.
+  #
+  #   @raise [ChrootPathDoesNotExistError] if a chroot path is specified,
+  #     `:chroot` is `:check`, and the path does not exist.
+  #
+  #   @raise [ArgumentError] if both a chrooted `connection_str` is given *and* a
+  #     `String` value for the `:chroot` option is given
+  #
   def self.new(*args, &block)
     opts = args.extract_options!
 
-    create_chroot = opts.fetch(:create_chroot, true)
+    chroot_opt = opts.fetch(:chroot, :create)
 
-    if args.empty?
-      args = [DEFAULT_SERVER] 
-    elsif args.first.kind_of?(String)
-      do_chroot_setup(args.first) if create_chroot
+    args = [DEFAULT_SERVER]  if args.empty?     # the ZK.new() case
+
+    logger.debug { "(1) args: #{args.inspect}" }
+
+    if args.first.kind_of?(String)
+      if new_cnx_str = do_chroot_setup(args.first, chroot_opt)
+        args[0] = new_cnx_str
+      end
     else
       raise ArgumentError, "cannot create a connection given args array: #{args}"
     end
 
-    opts.delete(:create_chroot)
+    opts.delete(:chroot_opt)
 
     args << opts
 
@@ -135,10 +167,55 @@ module ZK
   end
 
   private
-    def self.do_chroot_setup(host_str)
-      host, chroot = Client.split_chroot(host_str)
-      return unless chroot
-      open(host) { |zk| zk.mkdir_p(chroot) }
+    # @return [String] a possibly modified connection string (with chroot info
+    #   added)
+    #
+    def self.do_chroot_setup(cnx_str, chroot_opt=:create)
+      # "it should set up the chroot for us," they says. 
+      # "it's confusing if it doesn't do that for us," they says.
+      # sheesh, look at this...
+
+      host, chroot_path = Client.split_chroot(cnx_str)
+
+      case chroot_opt
+      when :ignore
+        return
+      when String
+        if chroot_path
+          raise ArgumentError, "You cannot give a connection_str with a chroot path (#{cnx_str}) *and* specify a :chroot => #{chroot_opt} too!"
+        else
+          # ok, cnx_str didn't have a chroot path on it, but the user
+          # specified :chroot => '/path'. we'll use that, then
+          chroot_path = chroot_opt.dup
+          chroot_opt  = :create
+
+          # oh, and return the correct string later
+          cnx_str = "#{host}#{chroot_path}"
+        end
+      when :create, :check
+        # no-op, valid options for later
+      else
+        raise ArgumentError, ":chroot must be one of :create, :check, :ignore, or a String, not: #{chroot_opt.inspect}" 
+      end
+
+      logger.debug { "#{name}.#{__method__} host: #{host}, chroot_path: #{chroot_path.inspect}" }
+
+      return cnx_str unless chroot_path  # if by this point, we don't have a chroot_path, then there isn't one to be had
+
+      # make sure the given path is kosher
+      Client.assert_valid_chroot_str!(chroot_path)
+
+      open(host) do |zk|                # do path stuff with the virgin connection
+        unless zk.exists?(chroot_path)  # someting must be done
+          if chroot_opt == :create      # here, let me...
+            zk.mkdir_p(chroot_path)     # ...get that for you
+          else                          # careful with that axe
+            raise Exceptions::ChrootPathDoesNotExistError.new(host, chroot_path)  # ...eugene
+          end                                                                               
+        end
+      end
+
+      cnx_str   # the possibly-modified connection string (with chroot info)
     end
 end
 
