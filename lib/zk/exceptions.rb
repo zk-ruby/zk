@@ -130,6 +130,12 @@ module ZK
     # Raised when you try to create! a group but it already exists
     class GroupAlreadyExistsError < NodeExists; end
 
+    # Raised if an operation is performed that assumes that a membership is active but it wasn't
+    class MemberDoesNotExistError < NoNode; end
+
+    # for symmetry with GroupAlreadyExistsError but in the base implementation, should probably never happen
+    class MemberAlreadyExistsError < NodeExists; end
+
     # raised when a chrooted conection is requested but the root doesn't exist
     class ChrootPathDoesNotExistError < NoNode
       def initialize(host_string, chroot_path)

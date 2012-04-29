@@ -9,10 +9,8 @@ module ZK
     module Common
       # the data my znode contains
       def data
-        translate_exceptions do
-          rval, self.last_stat = zk.get(path)
-          rval
-        end
+        rval, self.last_stat = zk.get(path)
+        rval
       end
 
       # Set the data in my group znode (the data at {#path})
@@ -23,17 +21,9 @@ module ZK
       # @param [String] val the data to set
       # @return [String] the data that was set
       def data=(val)
-        translate_exceptions do
-          self.last_stat = zk.set(path, val)
-          val
-        end
+        self.last_stat = zk.set(path, val)
+        val
       end
-
-      protected
-        # rescue underlying client exceptions and raise group-specific ones
-        def translate_exceptions
-          yield
-        end
     end
 
     # A simple proxy for catching client errors and re-raising them as Group specific
@@ -144,16 +134,26 @@ module ZK
       #
       # @return [Member] used to control a single member of the group
       def join
-        zk.create("#{path}/#{prefix}")
+        create_member(zk.create("#{path}/#{prefix}", :sequence => true, :ephemeral => true))
       end
 
       # @return [Array[String]] a list of the members of this group as strings
-      #   (with no path information)
-      def member_names
-        zk.children(path).sort
+      #
+      # @option opts [true,false] :absolute (false) return member information
+      #   as absolute znode paths.
+      def member_names(opts={})
+        zk.children(path).sort.tap do |rval|
+          rval.map! { |n| File.join(path, n) } if opts[:absolute]
+        end
       end
 
       protected
+        # Creates a Member instance for this Group. This its own method to allow
+        # subclasses to override. By default, uses MemberBase
+        def create_member(znode_path)
+          MemberBase.new(@orig_zk, self, znode_path)
+        end
+
         def ensure_root_exists!
           zk.mkdir_p(root)
         end
@@ -162,6 +162,27 @@ module ZK
           raise ArgumentError, "root must start with '/'" unless @root.start_with?('/')
         end
     end # GroupBase
+    
+    # A simple proxy for catching client errors and re-raising them as Group specific
+    # errors (for clearer error reporting...we hope)
+    #
+    # @private
+    class MemberExceptionTranslator
+      def initialize(zk)
+        @zk = zk
+      end
+
+      private
+        def method_missing(m, *a, &b)
+          super unless @zk.respond_to?(m)
+          @zk.__send__(m, *a, &b)
+        rescue Exceptions::NoNode
+          raise Exceptions::MemberDoesNotExistError, "group at #{path} has not been created yet", caller
+        rescue Exceptions::NodeExists
+          raise Exceptions::MemberAlreadyExistsError, "group at #{path} already exists", caller
+        end
+    end
+
     
     class MemberBase
       include Common
@@ -175,12 +196,21 @@ module ZK
       attr_reader :name
 
       # @return [String] the absolute path of this member
-      attr_reader :znode_path
+      attr_reader :path
 
-      def initialize(zk, group, znode_path)
+      def initialize(zk, group, path)
         @zk = zk
         @group = group
-        @znode_path = znode_path
+        @path = path
+        @name = File.basename(@path)
+      end
+
+      # probably poor choice of name, but does this member still an active membership
+      # to its group (i.e. is its path still good). 
+      #
+      # This will return false after leave is called.
+      def active?
+        zk.exists?(path)
       end
 
       # Leave the group this membership is associated with.
@@ -188,8 +218,8 @@ module ZK
       # out of the group.
       #
       # @abstract Implement 'leaving' behavior in subclasses
-      def leave!
-        raise NotImplementedError
+      def leave
+        zk.delete(path)
       end
     end # MemberBase
   end

@@ -46,5 +46,4 @@ describe ZK::Group::GroupBase do
       subject.member_names.should == member_names.sort
     end
   end
-
 end # ZK::Group::Base
