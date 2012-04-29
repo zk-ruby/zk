@@ -31,8 +31,9 @@ module ZK
     #
     # @private
     class GroupExceptionTranslator
-      def initialize(zk)
+      def initialize(zk, group)
         @zk = zk
+        @group = group
       end
 
       private
@@ -40,9 +41,9 @@ module ZK
           super unless @zk.respond_to?(m)
           @zk.__send__(m, *a, &b)
         rescue Exceptions::NoNode
-          raise Exceptions::GroupDoesNotExistError, "group at #{path} has not been created yet", caller
+          raise Exceptions::GroupDoesNotExistError, "group at #{@group.path} has not been created yet", caller
         rescue Exceptions::NodeExists
-          raise Exceptions::GroupAlreadyExistsError, "group at #{path} already exists", caller
+          raise Exceptions::GroupAlreadyExistsError, "group at #{@group.path} already exists", caller
         end
     end
    

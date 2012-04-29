@@ -37,7 +37,7 @@ module ZK
 
       def initialize(zk, name, opts={})
         @orig_zk    = zk
-        @zk         = GroupExceptionTranslator.new(zk)
+        @zk         = GroupExceptionTranslator.new(zk, self)
         @name       = name.to_s
         @root       = opts.fetch(:root, DEFAULT_ROOT)
         @prefix     = opts.fetch(:prefix, DEFAULT_PREFIX)
@@ -55,10 +55,10 @@ module ZK
       # @return [String,nil] String containing the path of this group if
       #   created, nil if group already exists
       #
-      # @overload create(opts={})
+      # @overload create(}
       #   creates this group with empty data
       #
-      # @overload create(data, opts={})
+      # @overload create(data)
       #   creates this group with the given data. if the group already exists
       #   the data will not be written. 
       #
@@ -74,11 +74,11 @@ module ZK
       def create!(*args)
         ensure_root_exists!
 
-        opts = args.extract_options!
         data = args.empty? ? '' : args.first
 
-        zk.create(path, data, opts)
-        @last_stat = Stat.create_blank
+        zk.create(path, data).tap do
+          @last_stat = Stat.create_blank
+        end
       end
 
       # Creates a Member object that represents 'belonging' to this group.
@@ -99,6 +99,13 @@ module ZK
         zk.children(path).sort.tap do |rval|
           rval.map! { |n| File.join(path, n) } if opts[:absolute]
         end
+      end
+
+      # Register a block to be called back when the group membership changes
+      #
+      # @note Due to the way ZooKeeper works, it's possible that you may not see every 
+      #   change to the membership of the group. This is the best-effort.
+      def on_membership_change(&blk)
       end
 
       protected
