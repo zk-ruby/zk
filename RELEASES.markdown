@@ -6,6 +6,18 @@ This file notes feature differences and bugfixes contained between releases.
 
 * add zk.register(:all) to recevie node updates for all nodes (i.e. not filtered on path)
 
+* add 'interest' feature to zk.register, now you can indicate what kind of events should be delivered to the given block (previously you had to do that filtering inside the block). The default behavior is still the same, if no 'interest' is given, then all event types for the given path will be delivered to that block. 
+  
+    zk.register('/path', :created) do |event|
+      # event.node_created? will always be true
+    end
+
+    # or multiple kinds of events
+
+    zk.register('/path', [:created, :changed]) do |event|
+      # (event.node_created? or event.node_changed?) will always be true
+    end
+
 * create now allows you to pass a path and options, instead of requiring the blank string
 
     zk.create('/path', '', :sequential => true)
@@ -15,6 +27,7 @@ This file notes feature differences and bugfixes contained between releases.
     zk.create('/path', :sequential => true)
 
 * fix for shutdown: close! called from threadpool will do the right thing
+
 
 ### v0.9.1 ###
 
