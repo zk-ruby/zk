@@ -28,6 +28,18 @@ This file notes feature differences and bugfixes contained between releases.
 
 * fix for shutdown: close! called from threadpool will do the right thing
 
+* Chroot users rejoice! By default, ZK.new will create a chrooted path for you. 
+    
+    ZK.new('localhost:2181/path', :chroot => :create) # the default, create the path before returning connection
+
+    ZK.new('localhost:2181/path', :chroot => :check)  # make sure the chroot exists, raise if not
+
+    ZK.new('localhost:2181/path', :chroot => :ignore) # old default behavior
+
+    # and, just for kicks
+    
+    ZK.new('localhost:2181', :chroot => '/path') # equivalent to 'localhost:2181/path', :chroot => :create
+
 
 ### v0.9.1 ###
 
