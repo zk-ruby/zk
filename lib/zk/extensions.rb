@@ -114,6 +114,12 @@ module ZK
 
         alias :node_not_watching? :node_notwatching?
 
+        # used by the EventHandler
+        # @private
+        def interest_key
+          EVENT_TYPE_NAMES.fetch(@type).to_sym
+        end
+
         # has this watcher been called because of a change in connection state?
         def state_event?
           @type == ZOO_SESSION_EVENT

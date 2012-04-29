@@ -36,10 +36,10 @@ module ZK
     end
 
     # @see ZK::Client::Base#register
-    def register(path, &block)
+    def register(path, interests=nil, &block)
       path = ALL_NODE_EVENTS_KEY if path == :all
 
-      EventHandlerSubscription.new(self, path, block).tap do |subscription|
+      EventHandlerSubscription.new(self, path, block, interests).tap do |subscription|
         synchronize { @callbacks[path] << subscription }
       end
     end
@@ -126,6 +126,12 @@ module ZK
 
       cb_ary.flatten! # takes care of not modifying original arrays
       cb_ary.compact!
+
+      # we only filter for node events
+      if event.node_event?
+        interest_key = event.interest_key
+        cb_ary.select! { |sub| sub.interests.include?(interest_key) }
+      end
 
       safe_call(cb_ary, event)
     end
