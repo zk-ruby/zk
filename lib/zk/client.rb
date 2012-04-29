@@ -10,7 +10,7 @@ module ZK
   #   If anyone has suggestions, hints, use-cases, examples, etc. by all means please file a bug.
   #
   module Client
-    DEFAULT_TIMEOUT = 10
+    DEFAULT_TIMEOUT = 10 unless defined?(DEFAULT_TIMEOUT)
 
     # @private
     STATE_SYM_MAP = {
@@ -20,10 +20,33 @@ module ZK
       Zookeeper::ZOO_CONNECTING_STATE       => :connecting,
       Zookeeper::ZOO_CONNECTED_STATE        => :connected,
       Zookeeper::ZOO_ASSOCIATING_STATE      => :associating,
-    }.freeze
+    }.freeze unless defined?(STATE_SYM_MAP)
 
-    def self.new(*a, &b)
-      Threaded.new(*a, &b)
+    class << self
+      def new(*a, &b)
+        Threaded.new(*a, &b)
+      end
+
+      # @private
+      def assert_valid_chroot_str!(str)
+        return unless str
+        raise ChrootMustStartWithASlashError, str unless str.start_with?('/')
+      end
+
+      # Takes a connection string and returns an Array of [host, chroot_path].
+      # If the connection string is not chrooted, then chroot_path will be nil.
+      #
+      # @private
+      def split_chroot(str)
+        if idx = str.index('/')
+          host = str[0...idx]
+          chroot_path = str[idx..-1]
+
+          [host, chroot_path]
+        else
+          [str, nil]
+        end
+      end
     end
   end
 end

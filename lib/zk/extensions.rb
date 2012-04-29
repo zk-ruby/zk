@@ -74,7 +74,7 @@ module ZK
           4   => 'child',
           -1  => 'session',
           -2  => 'notwatching',
-        }.freeze
+        }.freeze unless defined?(EVENT_NAME_MAP)
 
         # XXX: remove this duplication here since this is available in ZookeeperConstants
         # @private
@@ -151,47 +151,6 @@ ZookeeperCallbacks::WatcherCallback.send(:include, ZK::Extensions::Callbacks::Wa
 [:ConnectionClosed, :NotConnected, :SessionExpired, :SessionMoved, :ConnectionLoss].each do |class_name|
   ZookeeperExceptions::ZookeeperException.const_get(class_name).tap do |klass|
     klass.__send__(:include, ZK::Exceptions::InterruptedSession)
-  end
-end
-
-class ::Exception
-  unless method_defined?(:to_std_format)
-    def to_std_format
-      ary = ["#{self.class}: #{message}"]
-      ary.concat(backtrace || [])
-      ary.join("\n\t")
-    end
-  end
-end
-
-class ::Thread
-  def zk_mongoid_lock_registry
-    self[:_zk_mongoid_lock_registry]
-  end
-
-  def zk_mongoid_lock_registry=(obj)
-    self[:_zk_mongoid_lock_registry] = obj
-  end
-end
-
-class ::Hash
-  # taken from ActiveSupport 3.0.12, but we don't replace it if it exists
-  unless method_defined?(:extractable_options?)
-    def extractable_options?
-      instance_of?(Hash)
-    end
-  end
-end
-
-class ::Array
-  unless method_defined?(:extract_options!)
-    def extract_options!
-      if last.is_a?(Hash) && last.extractable_options?
-        pop
-      else
-        {}
-      end
-    end
   end
 end
 

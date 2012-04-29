@@ -32,7 +32,6 @@ module ZK
     # It is recommended that you not run any possibly long-running work on the
     # event threadpool, as `close!` will attempt to shutdown the threadpool, and
     # **WILL NOT WAIT FOREVER**. (TODO: more on this)
-    # 
     #
     # @example Register on_connected callback.
     #   

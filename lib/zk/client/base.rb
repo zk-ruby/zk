@@ -779,6 +779,7 @@ module ZK
       #
       # @see ZooKeeper::WatcherEvent
       # @see ZK::EventHandlerSubscription
+      # @see https://github.com/slyphon/zk/wiki/Events the wiki page on using events effectively
       #
       def register(path, &block)
         event_handler.register(path, &block)
