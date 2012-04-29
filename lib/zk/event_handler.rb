@@ -151,7 +151,6 @@ module ZK
         end
       end
 
-
     public
 
     # used during shutdown to clear registered listeners
@@ -161,7 +160,7 @@ module ZK
         @callbacks.clear
         nil
       end
-    end
+    end 
 
     # @private
     def synchronize
@@ -195,8 +194,9 @@ module ZK
     # fired. This prevents one event delivery to *every* callback per :watch => true
     # argument.
     #
-    # due to somewhat poor design, we destructively modify opts before we yield
-    # and the client implictly knows this
+    # due to arguably poor design, we destructively modify opts before we yield
+    # and the client implictly knows this (this method constitutes some of the option
+    # parsing for the base class methods)
     #
     # @private
     def setup_watcher!(watch_type, opts)
