@@ -54,9 +54,11 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 
 ## Caveats
 
-ZK strives to be a complete, correct, and convenient way of interacting with ZooKeeper. There are a few weak points in the implementation:
+ZK strives to be a complete, correct, and convenient way of interacting with ZooKeeper. There are a few things to be aware of:
 
-* Starting with 0.9 there is only *one* event dispatch thread (in 0.8 there are 5). It is *very important* that you don't block the event delivery thread.
+* In versions &lte; 0.9 there is only *one* event dispatch thread. It is *very important* that you don't block the event delivery thread. In 1.0, there is one delivery thread by default, but you can adjust the level of concurrency, allowing more control and convenience for building your event-driven app.
+
+* ZK uses threads. You will have to use synchronization primitives if you want to avoid getting hurt. There are use cases that do not require you to think about this, but as soon as you want to register for events, you're using multiple threads. 
 
 * If you're not familiar with developing solutions with zookeeper, you should read about [sessions][] and [watches][] in the Programmer's Guide. Even if you *are* familiar, you should probably go read it again. 
 
@@ -66,7 +68,7 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 
 * ZK::Client supports asynchronous calls of all basic methods (get, set, delete, etc.) however these versions are kind of inconvenient to use. For a fully evented stack, try [zk-eventmachine][], which is designed to be compatible and convenient to use in event-driven code.
 
-* ZooKeeper "chroot" [connection syntax][chroot] is currently being developed and should work for most cases. Right now we require that the root path exist before the chrooted client is used, but that may change [in the near future](https://github.com/slyphon/zk/issues/7).
+* ZooKeeper "chroot" [connection syntax][chroot] should work for most cases. Right now we require that the root path exist before the chrooted client is used, but that may change [in the near future](https://github.com/slyphon/zk/issues/7).
 
 [twitter/zookeeper]: https://github.com/twitter/zookeeper
 [async-branch]: https://github.com/slyphon/zk/tree/dev%2Fasync-conveniences
@@ -75,14 +77,21 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 [sessions]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkSessions 
 [watches]: http://zookeeper.apache.org/doc/r3.3.5/zookeeperProgrammers.html#ch_zkWatches
 
+## Users
+
+* [papertrail](http://papertrailapp.com/): Hosted log management service
+* [redis\_failover](https://github.com/ryanlecompte/redis_failover): Redis client/server failover managment system
+* [DCell](https://github.com/celluloid/dcell): Distributed ruby objects, built on top of the super cool [Celluloid](https://github.com/celluloid/celluloid) framework.
+
+
 ## Dependencies
 
-* The [slyphon-zookeeper gem][szk-gem] ([repo][szk-repo], branch with Gemfile [here][szk-repo-bundler]), which adds JRuby compatibility and a full suite of tests to the excellent [twitter/zookeeper][] project. _(I'm hoping to get this merged upstream, but it's a large change and, you know, people have day jobs)_. 
+* The [slyphon-zookeeper gem][szk-gem] ([repo][szk-repo]), which adds JRuby compatibility and a full suite of tests to the excellent [twitter/zookeeper][] project. 
 
 * For JRuby, the [slyphon-zookeeper\_jar gem][szk-jar-gem] ([repo][szk-jar-repo]), which just wraps the upstream zookeeper driver jar in a gem for easy installation
 
 [szk-gem]: https://rubygems.org/gems/slyphon-zookeeper
-[szk-repo]: https://github.com/slyphon/zookeeper/tree/dev/xplatform
+[szk-repo]: https://github.com/slyphon/zookeeper
 [szk-repo-bundler]: https://github.com/slyphon/zookeeper/tree/dev/gemfile/
 [szk-jar-gem]: https://rubygems.org/gems/slyphon-zookeeper_jar
 [szk-jar-repo]: https://github.com/slyphon/zookeeper_jar

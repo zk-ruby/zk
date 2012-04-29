@@ -116,7 +116,8 @@ module ZK
   #     contains a chroot path, we raise an `ArgumentError`
   #
   #     * if you don't like this for some reason, you can always use
-  #     {ZK::Client::Threaded.new} directly. You probably also hate unicorns.
+  #     {ZK::Client::Threaded.initialize Threaded.new} directly. You probably
+  #     also hate happiness and laughter.
   #
   #   @raise [ChrootPathDoesNotExistError] if a chroot path is specified,
   #     `:chroot` is `:check`, and the path does not exist.
