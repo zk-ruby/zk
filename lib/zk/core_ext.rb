@@ -41,6 +41,18 @@ class ::Array
       end
     end
   end
+
+  # backport this from 1.9.x to 1.8.7
+  #
+  # this obviously cannot replicate the copy-on-write semantics of the 
+  # 1.9.3 version, and only provides a naieve filtering functionality.
+  #
+  # also, does not handle the "returning an enumerator" case
+  unless method_defined?(:select!)
+    def select!(&b)
+      replace(select(&b))
+    end
+  end
 end
 
 # @private

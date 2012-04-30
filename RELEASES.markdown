@@ -2,6 +2,8 @@ This file notes feature differences and bugfixes contained between releases.
 
 ### v1.0.0 ###
 
+* Support for 1.8.7 WILL BE *DROPPED* in v1.1. You've been warned.
+
 * Threaded client (the default one) will now automatically reconnect (i.e. `reopen()`) if a `SESSION_EXPIRED` or `AUTH_FAILED` event is received. Thanks to @eric for pointing out the _nose-on-your-face obviousness_ and importance of this. If users want to handle these events themselves, and not automatically reopen, you can pass `:reconnect => false` to the constructor.
 
 * allow for both :sequence and :sequential arguments to create, because I always forget which one is the "right one"
