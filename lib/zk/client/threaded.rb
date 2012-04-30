@@ -187,7 +187,6 @@ module ZK
       end
 
       protected
-        # allows for the Mutliplexed client to wrap the connection in its ContinuationProxy
         # @private
         def create_connection(*args)
           ::Zookeeper.new(*args)
