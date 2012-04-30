@@ -186,19 +186,19 @@ describe ZK do
         before do
           @events = EventCatcher.new
 
-          @zk.register(@path, :created) do |event|
+          @zk.register(@path, :only => :created) do |event|
             @events.created << event
           end
 
-          @zk.register(@path, :changed) do |event|
+          @zk.register(@path, :only => :changed) do |event|
             @events.changed << event
           end
 
-          @zk.register(@path, :child) do |event|
+          @zk.register(@path, :only => :child) do |event|
             @events.child << event
           end
 
-          @zk.register(@path, :deleted) do |event|
+          @zk.register(@path, :only => :deleted) do |event|
             @events.deleted << event
           end
 
@@ -302,7 +302,7 @@ describe ZK do
       it %[should deliver interested events to a block registered for multiple deliveries] do
         @events = []
 
-        @zk.register(@path, [:created, :changed]) do |event|
+        @zk.register(@path, :only => [:created, :changed]) do |event|
           @events << event
         end
 
@@ -329,7 +329,7 @@ describe ZK do
 
       it %[should barf if an invalid event name is given] do
         lambda do
-          @zk.register(@path, :tripping) { }
+          @zk.register(@path, :only => :tripping) { }
         end.should raise_error(ArgumentError)
       end
     end # event interest

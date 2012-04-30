@@ -28,8 +28,6 @@ module ZK
       @zk = zookeeper_client
       @callbacks = Hash.new { |h,k| h[k] = [] }
 
-      @actor_subs = opts[:actor]
-
       @mutex = Monitor.new
 
       @outstanding_watches = VALID_WATCH_TYPES.inject({}) do |h,k|
@@ -38,10 +36,25 @@ module ZK
     end
 
     # @see ZK::Client::Base#register
-    def register(path, interests=nil, &block)
+    def register(path, opts={}, &block)
       path = ALL_NODE_EVENTS_KEY if path == :all
 
-      EventHandlerSubscription.new(self, path, block, interests, :actor => @actor_subs).tap do |subscription|
+      hash = {}
+
+      # gah, ok, handle the 1.0 form
+      case opts
+      when Array, Symbol
+        warn "Deprecated! #{self.class}#register use the :only option instead of passing a symbol or array"
+        hash[:only] = opts
+      when Hash
+        hash.replace(opts)
+      when nil
+        # no-op
+      else
+        raise ArgumentError, "don't know how to handle options: #{opts.inspect}" 
+      end
+
+      EventHandlerSubscription.new(self, path, block, hash).tap do |subscription|
         synchronize { @callbacks[path] << subscription }
       end
     end

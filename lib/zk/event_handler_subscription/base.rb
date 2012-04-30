@@ -1,6 +1,8 @@
 module ZK
   module EventHandlerSubscription
     class Base
+      include ZK::Logging
+
       # the event handler associated with this subscription
       # @return [EventHandler]
       attr_accessor :event_handler
@@ -14,6 +16,7 @@ module ZK
       attr_accessor :callback
 
       # an array of what kinds of events this handler is interested in receiving
+      # this is the :only option, essentially
       #
       # @return [Set] containing any combination of :create, :change, :delete,
       #   or :children
@@ -25,9 +28,9 @@ module ZK
       ALL_EVENT_SET = Set.new(ALL_EVENTS).freeze                    unless defined?(ALL_EVENT_SET)
 
       # @private
-      def initialize(event_handler, path, callback, interests)
+      def initialize(event_handler, path, callback, opts={})
         @event_handler, @path, @callback = event_handler, path, callback
-        @interests = prep_interests(interests)
+        @interests = prep_interests(opts[:only])
       end
 
       # unsubscribe from the path or state you were watching
@@ -44,6 +47,7 @@ module ZK
 
       protected
         def prep_interests(a)
+          logger.debug { "prep_interests: #{a.inspect}" }
           return ALL_EVENT_SET if a.nil?
 
           rval = 

@@ -5,7 +5,9 @@ module ZK
   module EventHandlerSubscription
     def self.new(*a, &b)
       opts = a.extract_options!
-      opts[:actor] ? Actor.new(*a, &b) : Base.new(*a, &b)
+      klass = opts.delete(:actor) ? Actor : Base
+      a << opts
+      klass.new(*a, &b)
     end
   end
 end
