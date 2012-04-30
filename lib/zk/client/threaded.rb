@@ -15,23 +15,11 @@ module ZK
     # unconfigurable, event dispatch thread. In 1.0 the number of event
     # delivery threads is configurable, but still defaults to 1. 
     #
-    # The configurability is intended to allow users to easily dispatch events to
-    # event handlers that will perform (application specific) work. Be aware,
-    # the default will give you the guarantee that only one event will be delivered
-    # at a time. The advantage to this is that you can be sure that no event will 
-    # be delivered "behind your back" while you're in an event handler. If you're
-    # comfortable with dealing with threads and concurrency, then feel free to 
-    # set the `:threadpool_size` option to the constructor to a value you feel is
-    # correct for your app. 
-    # 
     # If you use the threadpool/event callbacks to perform work, you may be
     # interested in registering an `on_exception` callback that will receive
     # all exceptions that occur on the threadpool that are not handled (i.e.
     # that bubble up to top of a block).
     #
-    # It is recommended that you not run any possibly long-running work on the
-    # event threadpool, as `close!` will attempt to shutdown the threadpool, and
-    # **WILL NOT WAIT FOREVER**. (TODO: more on this)
     #
     # @example Register on_connected callback.
     #   
@@ -77,16 +65,28 @@ module ZK
       #   case of an expired session, we will keep trying to reestablish the
       #   connection.
       #
-      # @option opts [Fixnum] :threadpool_size (1) the size of the threadpool that
-      #   should be used to deliver events. As of 1.0, this is the number of
-      #   event delivery threads and controls the amount of concurrency in your
-      #   app if you're doing work in the event callbacks.
+      # @option opts [:per_event,:single] :thread (:single) choose your event
+      # delivery model:
       #
-      # @option opts [true,false] :actor (false) if true, use the new (experimental)
-      #   Actor style callback dispatching code. This should be compatible with most
-      #   existing code, and presents a safer alternative to adjusting the `:threadpool_size`
-      #   option. see {ZK::EventHandlerSubscription::Actor Actor} for a discussion about 
-      #   the relative advantages of this strategy. 
+      #   * `:single`: There is one thread, and only one callback is called at
+      #     a time. This is the default mode (for now), and will provide the most
+      #     safety for your app. All events will be delivered as received, to
+      #     callbacks in the order they were registered. This safety has the
+      #     tradeoff that if one of your callbacks performs some action that blocks
+      #     the delivery thread, you will not recieve other events until it returns.
+      #     You're also limiting the concurrency of your app. This should be fine
+      #     for most simple apps, and is a good choice to start with when
+      #     developing your application
+      #
+      #   * `:per_callback`: This option will use a new-style Actor model (inspired by 
+      #     [Celluloid](https://github.com/celluloid/celluloid)) that uses a
+      #     per-callback queue and thread to allow for greater concurrency in
+      #     your app, whille still maintaining some kind of sanity. By choosing
+      #     this option your callbacks will receive events in order, and will
+      #     receive only one at a time, but in parallel with other callbacks.
+      #     This model has the advantage you can have all of your callbacks
+      #     making progress in parallel, and if one of them happens to block,
+      #     it will not affect the others.
       #
       # @option opts [Fixnum] :timeout how long we will wait for the connection
       #   to be established. If timeout is nil, we will wait forever *use
