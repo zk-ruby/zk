@@ -24,9 +24,11 @@ module ZK
 
     # @private
     # :nodoc:
-    def initialize(zookeeper_client)
+    def initialize(zookeeper_client, opts={})
       @zk = zookeeper_client
       @callbacks = Hash.new { |h,k| h[k] = [] }
+
+      @actor_subs = opts[:actor]
 
       @mutex = Monitor.new
 
@@ -39,7 +41,7 @@ module ZK
     def register(path, interests=nil, &block)
       path = ALL_NODE_EVENTS_KEY if path == :all
 
-      EventHandlerSubscription.new(self, path, block, interests).tap do |subscription|
+      EventHandlerSubscription.new(self, path, block, interests, :actor => @actor_subs).tap do |subscription|
         synchronize { @callbacks[path] << subscription }
       end
     end
@@ -65,7 +67,7 @@ module ZK
     # @deprecated use #unsubscribe on the subscription object
     # @see ZK::EventHandlerSubscription#unsubscribe
     def unregister_state_handler(*args)
-      if args.first.is_a?(EventHandlerSubscription)
+      if args.first.is_a?(EventHandlerSubscription::Base)
         unregister(args.first)
       else
         unregister(state_key(args.first), args[1])
@@ -75,9 +77,9 @@ module ZK
     # @deprecated use #unsubscribe on the subscription object
     # @see ZK::EventHandlerSubscription#unsubscribe
     def unregister(*args)
-      if args.first.is_a?(EventHandlerSubscription)
+      if args.first.is_a?(EventHandlerSubscription::Base)
         subscription = args.first
-      elsif args.first.is_a?(String) and args[1].is_a?(EventHandlerSubscription)
+      elsif args.first.is_a?(String) and args[1].is_a?(EventHandlerSubscription::Base)
         subscription = args[1]
       else
         path, index = args[0..1]
