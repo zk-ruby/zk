@@ -82,6 +82,12 @@ module ZK
       #   event delivery threads and controls the amount of concurrency in your
       #   app if you're doing work in the event callbacks.
       #
+      # @option opts [true,false] :actor (false) if true, use the new (experimental)
+      #   Actor style callback dispatching code. This should be compatible with most
+      #   existing code, and presents a safer alternative to adjusting the `:threadpool_size`
+      #   option. see {ZK::EventHandlerSubscription::Actor Actor} for a discussion about 
+      #   the relative advantages of this strategy. 
+      #
       # @option opts [Fixnum] :timeout how long we will wait for the connection
       #   to be established. If timeout is nil, we will wait forever *use
       #   carefully*.
@@ -101,7 +107,7 @@ module ZK
         @threadpool = Threadpool.new(tp_size)
 
         @session_timeout = opts.fetch(:timeout, DEFAULT_TIMEOUT) # maybe move this into superclass?
-        @event_handler   = EventHandler.new(self)
+        @event_handler   = EventHandler.new(self, opts)
 
         @reconnect = opts.fetch(:reconnect, true)
 
