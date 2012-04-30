@@ -737,6 +737,10 @@ module ZK
       # This method will return an {EventHandlerSubscription} instance that can be used
       # to remove the block from further updates by calling its `.unsubscribe` method.
       #
+      # You can specify a list of event types after the path that you wish to
+      # receive in your block. This allows you to register different blocks for
+      # different types of events.
+      #
       # @note All node watchers are one-shot handlers. After an event is delivered to
       #   your handler, you *must* re-watch the node to receive more events. This
       #   leads to a pattern you will find throughout ZK code that avoids races,
@@ -764,10 +768,30 @@ module ZK
       #     do_something_when_node_deleted  # call the callback
       #   end
       #
+      # @example only creation events
+      #
+      #   sub = zk.register('/path/to/znode', :created) do |event|
+      #     # do something when the node is created
+      #   end
+      #
+      # @example only changed or children events
+      #
+      #   sub = zk.register('/path/to/znode', [:changed, :child]) do |event|
+      #     if event.node_changed?
+      #       # do something on change
+      #     else
+      #       # we know it's a child event
+      #     end
+      #   end
       #
       # @param [String,:all] path the znode path you want to listen to, or the
       #   special value :all, that will cause the block to be delivered events
       #   for all znode paths
+      #
+      # @param [Array,Symbol,nil] interests a symbol or array-of-symbols indicating
+      #   which events you would like the block to be called for. Valid events
+      #   are :created, :deleted, :changed, and :child. If nil, the block will
+      #   receive all events
       #
       # @param [Block] block the block to execute when a watch event happpens
       #
@@ -781,8 +805,8 @@ module ZK
       # @see ZK::EventHandlerSubscription
       # @see https://github.com/slyphon/zk/wiki/Events the wiki page on using events effectively
       #
-      def register(path, &block)
-        event_handler.register(path, &block)
+      def register(path, interests=nil, &block)
+        event_handler.register(path, interests, &block)
       end
 
       # returns true if the caller is calling from the event dispatch thread

@@ -36,10 +36,10 @@ module ZK
     end
 
     # @see ZK::Client::Base#register
-    def register(path, &block)
+    def register(path, interests=nil, &block)
       path = ALL_NODE_EVENTS_KEY if path == :all
 
-      EventHandlerSubscription.new(self, path, block).tap do |subscription|
+      EventHandlerSubscription.new(self, path, block, interests).tap do |subscription|
         synchronize { @callbacks[path] << subscription }
       end
     end
@@ -127,6 +127,12 @@ module ZK
       cb_ary.flatten! # takes care of not modifying original arrays
       cb_ary.compact!
 
+      # we only filter for node events
+      if event.node_event?
+        interest_key = event.interest_key
+        cb_ary.select! { |sub| sub.interests.include?(interest_key) }
+      end
+
       safe_call(cb_ary, event)
     end
 
@@ -145,7 +151,6 @@ module ZK
         end
       end
 
-
     public
 
     # used during shutdown to clear registered listeners
@@ -155,7 +160,7 @@ module ZK
         @callbacks.clear
         nil
       end
-    end
+    end 
 
     # @private
     def synchronize
@@ -189,8 +194,9 @@ module ZK
     # fired. This prevents one event delivery to *every* callback per :watch => true
     # argument.
     #
-    # due to somewhat poor design, we destructively modify opts before we yield
-    # and the client implictly knows this
+    # due to arguably poor design, we destructively modify opts before we yield
+    # and the client implictly knows this (this method constitutes some of the option
+    # parsing for the base class methods)
     #
     # @private
     def setup_watcher!(watch_type, opts)

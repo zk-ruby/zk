@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe ZK do
-  describe do
+  describe 'watchers' do
     before do
       mute_logger do
         @cnx_str = "localhost:#{ZK_TEST_PORT}"
@@ -180,8 +180,160 @@ describe ZK do
         wait_until { events.length == 2 }.should be_true
       end
     end
-  end
 
+    describe %[event interest] do
+      context do # event catcher scope
+        before do
+          @events = EventCatcher.new
+
+          @zk.register(@path, :created) do |event|
+            @events.created << event
+          end
+
+          @zk.register(@path, :changed) do |event|
+            @events.changed << event
+          end
+
+          @zk.register(@path, :child) do |event|
+            @events.child << event
+          end
+
+          @zk.register(@path, :deleted) do |event|
+            @events.deleted << event
+          end
+
+          # this will catch all events, that way we don't have to wait for an
+          # event to *not* be delivered to one of the other callbacks (which is
+          # kinda stupid)
+          @zk.register(@path) do |event|
+            @events.all << event
+          end
+        end
+
+        it %[should deliver only the created event to the created block] do
+          @zk.stat(@path, :watch => true).should_not exist
+
+          @zk.create(@path)
+          wait_while { @events.created.empty? }.should be_false
+          @events.created.first.should be_node_created
+
+          @zk.stat(@path, :watch => true).should exist
+
+          @events.all.length.should == 1
+
+          @zk.delete(@path)
+
+          wait_until { @events.all.length > 1 }
+
+          # :deleted event was delivered, make sure it didn't get delivered to the :created block
+          @events.created.length.should == 1
+        end
+
+        it %[should deliver only the changed event to the changed block] do
+          @zk.create(@path)
+
+          @zk.stat(@path, :watch => true).should exist
+
+          @zk.set(@path, 'data')
+
+          wait_while { @events.changed.empty? }
+
+          @events.changed.first.should be_node_changed
+
+          @zk.stat(@path, :watch => true).should exist
+
+          @events.all.length.should == 1
+
+          @zk.delete(@path)
+
+          wait_until { @events.all.length > 1 }
+
+          # :deleted event was delivered, make sure it didn't get delivered to the :changed block
+          @events.changed.length.should == 1
+        end
+
+        it %[should deliver only the child event to the child block] do
+          @zk.create(@path)
+
+          @zk.children(@path, :watch => true).should be_empty
+
+          child_path = @zk.create("#{@path}/m", '', :sequence => true)
+
+          wait_while { @events.child.empty? }
+
+          @events.child.first.should be_node_child
+
+          @zk.stat(@path, :watch => true).should exist
+
+          @events.all.length.should == 1
+
+          @zk.set(@path, '') # equivalent to a 'touch'
+
+          wait_until { @events.all.length > 1 }
+
+          # :changed event was delivered, make sure it didn't get delivered to the :child block
+          @events.child.length.should == 1
+        end
+
+        it %[should deliver only the deleted event to the deleted block] do
+          @zk.create(@path)
+
+          @zk.stat(@path, :watch => true).should exist
+
+          @zk.delete(@path)
+
+          wait_while { @events.deleted.empty? }
+
+          @events.deleted.first.should be_node_deleted
+
+          @zk.stat(@path, :watch => true).should_not exist
+
+          @events.all.length.should == 1
+
+          @zk.create(@path)
+
+          wait_until { @events.all.length > 1 }
+
+          # :deleted event was delivered, make sure it didn't get delivered to the :created block
+          @events.deleted.length.should == 1
+        end
+      end # event catcher scope
+
+      it %[should deliver interested events to a block registered for multiple deliveries] do
+        @events = []
+
+        @zk.register(@path, [:created, :changed]) do |event|
+          @events << event
+        end
+
+        @zk.stat(@path, :watch => true).should_not exist
+
+        @zk.create(@path)
+
+        wait_while { @events.empty? }
+
+        @events.length.should == 1
+
+        @events.first.should be_node_created
+
+        @zk.stat(@path, :watch => true).should exist
+
+        @zk.set(@path, 'blah')
+
+        wait_until { @events.length > 1 }
+
+        @events.length.should == 2
+
+        @events.last.should be_node_changed
+      end
+
+      it %[should barf if an invalid event name is given] do
+        lambda do
+          @zk.register(@path, :tripping) { }
+        end.should raise_error(ArgumentError)
+      end
+    end # event interest
+  end # watchers
 
   describe 'state watcher' do
     describe 'live-fire test' do
@@ -210,7 +362,7 @@ describe ZK do
           m.should_receive(:state).and_return(ZookeeperConstants::ZOO_CONNECTED_STATE)
         end
       end
-    end
+    end # registered listeners
   end
 end
 
