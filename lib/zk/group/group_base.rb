@@ -43,6 +43,9 @@ module ZK
         @prefix     = opts.fetch(:prefix, DEFAULT_PREFIX)
 
         @last_stat = nil
+        @known_members = []
+
+        @mutex = Monitor.new
 
         @path = File.join(@root, @name)
 
@@ -76,8 +79,10 @@ module ZK
 
         data = args.empty? ? '' : args.first
 
-        zk.create(path, data).tap do
-          @last_stat = Stat.create_blank
+        synchronize do
+          zk.create(path, data).tap do
+            @last_stat = Stat.create_blank
+          end
         end
       end
 
@@ -91,21 +96,64 @@ module ZK
         create_member(zk.create("#{path}/#{prefix}", :sequence => true, :ephemeral => true))
       end
 
-      # @return [Array[String]] a list of the members of this group as strings
+      # @return two lists of arrays, one is the last known list of members, the second
+      #   is the current list of members
       #
       # @option opts [true,false] :absolute (false) return member information
       #   as absolute znode paths.
+      #
+      # @option opts [true,false] :watch (true) causes a watch to be set on
+      #   this group's znode for child changes. This will cause the on_membership_change
+      #   callback to be triggered, when delivered.
+      #
       def member_names(opts={})
-        zk.children(path).sort.tap do |rval|
-          rval.map! { |n| File.join(path, n) } if opts[:absolute]
+        watch    = opts.fetch(:watch, true)
+        absolute = opts.fetch(:absolute, false)
+
+        rval = synchronize do 
+          last_members, @known_members = @known_members, zk.children(path, :watch => watch).sort
+          [last_members, @known_members.dup]
         end
+
+        if absolute
+          rval.each { |a| a.map! { |n| File.join(path, n) } }
+        end
+
+        rval
       end
 
-      # Register a block to be called back when the group membership changes
+      # Register a block to be called back when the group membership changes. 
+      # In the case of a connection loss (recoverable, i.e. not
+      # SESSION_EXPIRED), on reconnect your block will be called as if a child event
+      # had occurred. This is because when we reconnect, we cannot be sure all
+      # watches will be delivered, so to be safe we call.
+      #
       #
       # @note Due to the way ZooKeeper works, it's possible that you may not see every 
-      #   change to the membership of the group. This is the best-effort.
-      def on_membership_change(&blk)
+      #   change to the membership of the group.
+      #
+      # @options opts [true,false] :absolute (false) block will be called with members
+      #   as absolute paths
+      #
+      # @yield [last_members,current_members] called when membership of the
+      #   current group changes.
+      #
+      # @yieldparam [Array] last_members the last known membership list of the group
+      #
+      # @yieldparam [Array] current_members the list of members just retrieved from zookeeper
+      #
+      def on_membership_change(opts={}, &blk)
+        opts = opts.dup
+        opts.delete(:watch) # this would prevent the re-setting of the watch in member_names
+
+        sub = zk.register(path, :child) do |event|
+          
+          blk.call(member_names(opts))
+        end
+
+        member_names(opts)
+
+        sub
       end
 
       protected
@@ -121,6 +169,12 @@ module ZK
 
         def validate!
           raise ArgumentError, "root must start with '/'" unless @root.start_with?('/')
+        end
+
+        # delegates to the #synchronize method of a monitor we set up in the constructor
+        # use to protect access to shared state like @last_stat and @known_members
+        def synchronize
+          @mutex.synchronize { yield }
         end
     end # GroupBase
   end # Group

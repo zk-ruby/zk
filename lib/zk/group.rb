@@ -9,7 +9,8 @@ module ZK
     module Common
       # the data my znode contains
       def data
-        rval, self.last_stat = zk.get(path)
+        rval = nil
+        synchronize { rval, self.last_stat = zk.get(path) }
         rval
       end
 
@@ -21,7 +22,7 @@ module ZK
       # @param [String] val the data to set
       # @return [String] the data that was set
       def data=(val)
-        self.last_stat = zk.set(path, val)
+        synchronize { self.last_stat = zk.set(path, val) }
         val
       end
     end
