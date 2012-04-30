@@ -34,7 +34,7 @@ This file notes feature differences and bugfixes contained between releases.
 
     ZK.new('localhost:2181/path', :chroot => :check)  # make sure the chroot exists, raise if not
 
-    ZK.new('localhost:2181/path', :chroot => :ignore) # old default behavior
+    ZK.new('localhost:2181/path', :chroot => :do_nothing) # old default behavior
 
     # and, just for kicks
     

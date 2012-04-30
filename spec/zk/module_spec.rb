@@ -90,9 +90,9 @@ describe ZK do
             end
           end
 
-          describe %[and :chroot => :ignore] do
+          describe %[and :chroot => :do_nothing] do
             it %[should return a connection in a weird state] do
-              @zk = ZK.new("localhost:2181#{chroot_path}", :chroot => :ignore)
+              @zk = ZK.new("localhost:2181#{chroot_path}", :chroot => :do_nothing)
               lambda { @zk.get('/') }.should raise_error(ZK::Exceptions::NoNode)
             end
           end
@@ -160,9 +160,9 @@ describe ZK do
             end
           end
 
-          describe %[and :chroot => :ignore] do
+          describe %[and :chroot => :do_nothing] do
             it %[should totally work] do
-              @zk = ZK.new("localhost:2181#{chroot_path}", :chroot => :ignore)
+              @zk = ZK.new("localhost:2181#{chroot_path}", :chroot => :do_nothing)
               lambda { @zk.get('/') }.should_not raise_error
             end
           end

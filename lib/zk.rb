@@ -27,11 +27,19 @@ require 'zk/pool'
 require 'zk/find'
 
 module ZK
-  ZK_ROOT = File.expand_path('../..', __FILE__) unless defined?(ZK_ROOT)
+  silence_warnings do
+    # @private
+    ZK_ROOT = File.expand_path('../..', __FILE__).freeze
+    
+    # @private
+    DEFAULT_SERVER = 'localhost:2181'.freeze
+  end
 
-  KILL_TOKEN = Object.new unless defined?(KILL_TOKEN) 
+  unless defined?(KILL_TOKEN) 
+    # @private
+    KILL_TOKEN = Object.new 
+  end
 
-  DEFAULT_SERVER = 'localhost:2181'.freeze unless defined?(DEFAULT_SERVER)
 
   unless @logger
     @logger = Logger.new($stderr).tap { |n| n.level = Logger::ERROR }
@@ -80,24 +88,36 @@ module ZK
   #
   #   zk = ZK.new('localhost:2181')
   #
-  # @example Connection to a single server with a chroot
+  # @example Connection to a single server with a chroot (automatically created)
   #
-  #   zk = ZK.new('localhost:2181/you/are/over/here')
+  #   zk = ZK.new('localhost:2181/look/around/you')
   #
   # @example Connection to multiple servers (a cluster)
   #   
   #   zk = ZK.new('server1:2181,server2:2181,server3:2181')
   #
-  # @example Connection to multiple servers with a chroot
+  # @example Connection to multiple servers with a chroot (chroot will automatically be creatd)
   #
-  #   zk = ZK.new('server1:2181,server2:2181,server3:2181/you/are/over/here')
+  #   zk = ZK.new('server1:2181,server2:2181,server3:2181/look/around/you')
+  #
+  # @example Connection to a single server, assert that chroot path exists, but do not create it
+  #
+  #   zk = ZK.new('localhost:2181/look/around/you', :chroot => :check)
+  #
+  # @example Connection to a single server, use a chrooted connection, do not check for validity, do not create
+  # 
+  #   zk = ZK.new('localhost:2181/look/around/you', :chroot => :do_nothing)
+  #
+  # @example Connection to a single server, chroot path specified as an option
+  #
+  #   zk = ZK.new('localhost:2181', :chroot => '/look/around/you')
   #
   # @overload new(connection_str, opts={}, &block)
   #   @param [String] connection_str A zookeeper host connection string, which
   #     is a comma-separated list of zookeeper servers and an optional chroot
   #     path.
   #
-  #   @option opts [:create,:check,:nothing,String] :chroot (:create) if a chrooted
+  #   @option opts [:create,:check,:do_nothing,String] :chroot (:create) if a chrooted
   #     `connection_str`, `:chroot` can have the following values:
   #
   #     * `:create` (the default), then we will use a secondary (short-lived)
@@ -108,15 +128,15 @@ module ZK
   #     will raise a {Exceptions::ChrootPathDoesNotExistError
   #     ChrootPathDoesNotExistError} if the path doesn't exist. 
   #
-  #     * `:ignore`, we do not create the path and furthermore we do not
-  #     perform the check
+  #     * `:do_nothing`, we do not create the path and furthermore we do not
+  #     perform the check (the `<= 0.9` behavior).
   #
   #     * if a `String` is given, it is used as the chroot path, and we will follow
   #     the same rules as if `:create` was given if `connection_str` also
   #     contains a chroot path, we raise an `ArgumentError`
   #
   #     * if you don't like this for some reason, you can always use
-  #     {ZK::Client::Threaded.initialize Threaded.new} directly. You probably
+  #     {ZK::Client::Threaded#initialize Threaded.new} directly. You probably
   #     also hate happiness and laughter.
   #
   #   @raise [ChrootPathDoesNotExistError] if a chroot path is specified,
@@ -178,7 +198,7 @@ module ZK
       host, chroot_path = Client.split_chroot(cnx_str)
 
       case chroot_opt
-      when :ignore
+      when :do_nothing
         return
       when String
         if chroot_path
@@ -195,7 +215,7 @@ module ZK
       when :create, :check
         # no-op, valid options for later
       else
-        raise ArgumentError, ":chroot must be one of :create, :check, :ignore, or a String, not: #{chroot_opt.inspect}" 
+        raise ArgumentError, ":chroot must be one of :create, :check, :do_nothing, or a String, not: #{chroot_opt.inspect}" 
       end
 
       return cnx_str unless chroot_path  # if by this point, we don't have a chroot_path, then there isn't one to be had
