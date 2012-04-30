@@ -2,8 +2,6 @@ This file notes feature differences and bugfixes contained between releases.
 
 ### v1.0.0 ###
 
-* Support for 1.8.7 WILL BE *DROPPED* in v1.1. You've been warned.
-
 * Threaded client (the default one) will now automatically reconnect (i.e. `reopen()`) if a `SESSION_EXPIRED` or `AUTH_FAILED` event is received. Thanks to @eric for pointing out the _nose-on-your-face obviousness_ and importance of this. If users want to handle these events themselves, and not automatically reopen, you can pass `:reconnect => false` to the constructor.
 
 * allow for both :sequence and :sequential arguments to create, because I always forget which one is the "right one"
@@ -45,6 +43,8 @@ This file notes feature differences and bugfixes contained between releases.
     ZK.new('localhost:2181', :chroot => '/path') # equivalent to 'localhost:2181/path', :chroot => :create
 
 * Most of the event functionality used is now in a ZK::Event module. This is still mixed into the underlying slyphon-zookeeper class, but now all of the important and relevant methods are documented, and Event appears as a first-class citizen.
+
+* Support for 1.8.7 WILL BE *DROPPED* in v1.1. You've been warned.
 
 ### v0.9.1 ###
 
