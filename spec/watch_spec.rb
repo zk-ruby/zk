@@ -312,13 +312,13 @@ describe ZK do
 
         wait_while { @events.empty? }
 
+        @events.length.should == 1
+
         @events.first.should be_node_created
 
         @zk.stat(@path, :watch => true).should exist
 
         @zk.set(@path, 'blah')
-
-        @events.length.should == 1
 
         wait_until { @events.length > 1 }
 
