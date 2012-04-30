@@ -55,6 +55,12 @@ module ZK
 
       DEFAULT_THREADPOOL_SIZE = 1
 
+      # no, really, don't touch this.
+      # I need this in my tests, you should not need this
+      # if you want access to the threadpool go see Conveniences#defer
+      # @private
+      attr_reader :threadpool
+
       # Construct a new threaded client.
       #
       # @note The `:timeout` argument here is *not* the session_timeout for the

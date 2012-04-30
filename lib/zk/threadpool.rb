@@ -1,7 +1,12 @@
 module ZK
   # a simple threadpool for running blocks of code off the main thread
   class Threadpool
+    extend Forwardable
     include Logging
+    include OnExceptionMixin
+
+    def_delegators :@mutex, :synchronize
+    protected :synchronize
 
     DEFAULT_SIZE = 5
 
@@ -20,7 +25,7 @@ module ZK
       @threadpool = []
       @threadqueue = ::Queue.new
 
-      @mutex = Mutex.new
+      @mutex = Monitor.new
 
       @error_callbacks = []
 
@@ -45,18 +50,18 @@ module ZK
     end
 
     def running?
-      @mutex.synchronize { @running }
+      synchronize { @running }
     end
 
     # returns true if the current thread is one of the threadpool threads
     def on_threadpool?
-      tp = @mutex.synchronize { @threadpool.dup }
+      tp = synchronize { @threadpool.dup }
       tp and tp.respond_to?(:include?) and tp.include?(Thread.current)
     end
 
     # starts the threadpool if not already running
     def start!
-      @mutex.synchronize do
+      synchronize do
         return false if @running
         @running = true
         spawn_threadpool
@@ -64,15 +69,18 @@ module ZK
       true
     end
 
-    # register a block to be called back with unhandled exceptions that occur
-    # in the threadpool. 
-    # 
-    # @note if your exception callback block itself raises an exception, I will
-    #   make fun of you.
+    # increase the size of the threadpool. if new_size == size, we return
+    # without making changes. this method only works if we're currently running?
+    # you cannot start the threadpool with this method
     #
-    def on_exception(&blk)
-      @mutex.synchronize do
-        @error_callbacks << blk
+    # @raise [ArgumentError] if new_size < size
+    def grow!(new_size)
+      synchronize do
+        return unless @running
+        return if new_size == @size
+        raise ArgumentError, "new_size must be larger than current size, cannot shrink" if new_size < @size
+        @size = new_size
+        spawn_threadpool
       end
     end
 
@@ -84,7 +92,7 @@ module ZK
     # the default timeout is 2 seconds per thread
     # 
     def shutdown(timeout=2)
-      @mutex.synchronize do
+      synchronize do
         return unless @running
 
         @running = false
@@ -110,36 +118,6 @@ module ZK
     end
 
     private
-      def dispatch_to_error_handler(e)
-        # make a copy that will be free from thread manipulation
-        # and doesn't require holding the lock
-        cbs = @mutex.synchronize { @error_callbacks.dup }
-
-        if cbs.empty?
-          default_exception_handler(e)
-        else
-          while cb = cbs.shift
-            begin
-              cb.call(e)
-            rescue Exception => e
-              msg = [ 
-                "Exception caught in user supplied on_exception handler.", 
-                "Just meditate on the irony of that for a moment. There. Good.",
-                "The callback that errored was: #{cb.inspect}, the exception was",
-                ""
-              ]
-
-              default_exception_handler(e, msg.join("\n"))
-            end
-          end
-        end
-      end
-
-      def default_exception_handler(e, msg=nil)
-        msg ||= 'Exception caught in threadpool'
-        logger.error { "#{msg}: #{e.to_std_format}" }
-      end
-
       def spawn_threadpool #:nodoc:
         until @threadpool.size >= @size.to_i
           thread = Thread.new do

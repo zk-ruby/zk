@@ -9,9 +9,7 @@ module ZK
     module Common
       # the data my znode contains
       def data
-        rval = nil
-        synchronize { rval, self.last_stat = zk.get(path) }
-        rval
+        zk.get(path).first
       end
 
       # Set the data in my group znode (the data at {#path})
@@ -22,7 +20,7 @@ module ZK
       # @param [String] val the data to set
       # @return [String] the data that was set
       def data=(val)
-        synchronize { self.last_stat = zk.set(path, val) }
+        zk.set(path, val)
         val
       end
     end
@@ -70,6 +68,7 @@ module ZK
   end
 end
 
+require 'zk/group/membership_subscription'
 require 'zk/group/group_base'
 require 'zk/group/member_base'
 
