@@ -40,6 +40,7 @@ This file notes feature differences and bugfixes contained between releases.
     
     ZK.new('localhost:2181', :chroot => '/path') # equivalent to 'localhost:2181/path', :chroot => :create
 
+* Most of the event functionality used is now in a ZK::Event module. This is still mixed into the underlying slyphon-zookeeper class, but now all of the important and relevant methods are documented, and Event appears as a first-class citizen.
 
 ### v0.9.1 ###
 
