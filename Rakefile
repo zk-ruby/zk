@@ -1,4 +1,3 @@
-require 'benchmark'
 gemset_name = 'zk'
 
 # this nonsense with the Gemfile symlinks is a bundler optimization
@@ -43,6 +42,7 @@ GEMSPEC_NAME = 'zk.gemspec'
 end
 
 task 'mb:test_all' do
+  require 'benchmark'
   tm = Benchmark.realtime do
     Rake::Task['mb:test_all_rubies'].invoke
   end
