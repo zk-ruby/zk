@@ -1,14 +1,16 @@
 require 'spec_helper'
 
 describe ZK::Election do
+  include_context 'connection opts'
+
   before do
-    ZK.open('localhost:2181') do |cnx| 
+    ZK.open(connection_host) do |cnx| 
       ZK.logger.debug { "REMOVING /_zkelection" }
       cnx.rm_rf('/_zkelection')
     end
 
-    @zk = ZK.new('localhost:2181')
-    @zk2 = ZK.new('localhost:2181')
+    @zk = ZK.new(connection_host)
+    @zk2 = ZK.new(connection_host)
     @election_name = '2012'
     @data1 = 'obama'
     @data2 = 'palin'
@@ -18,7 +20,7 @@ describe ZK::Election do
     @zk.close!
     @zk2.close!
 
-    ZK.open('localhost:2181') { |cnx| cnx.rm_rf('/_zkelection') }
+    ZK.open(connection_host) { |cnx| cnx.rm_rf('/_zkelection') }
   end
 
   describe 'Candidate', 'following next_node' do
@@ -186,7 +188,7 @@ describe ZK::Election do
 
   describe :Observer do
     before do
-      @zk3 = ZK.new('localhost:2181')
+      @zk3 = ZK.new(connection_host)
 
       @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
 

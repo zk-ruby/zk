@@ -1,11 +1,12 @@
 require 'spec_helper'
 
 describe ZK do
+  include_context 'connection opts'
+
   describe 'watchers' do
     before do
       mute_logger do
-        @cnx_str = "localhost:#{ZK_TEST_PORT}"
-        @zk = ZK.new(@cnx_str)
+        @zk = ZK.new(*connection_args)
 
         @path = "/_testWatch"
         wait_until { @zk.connected? }
@@ -20,7 +21,7 @@ describe ZK do
           wait_until { !@zk.connected? }
         end
 
-        ZK.open(@cnx_str) { |zk| zk.rm_rf(@path) }
+        ZK.open(*connection_args) { |zk| zk.rm_rf(@path) }
       end
     end
 
@@ -341,7 +342,7 @@ describe ZK do
         @event = nil
         @cnx_str = "localhost:#{ZK_TEST_PORT}"
 
-        @zk = ZK.new(@cnx_str) do |zk|
+        @zk = ZK.new(*connection_args) do |zk|
           @cnx_reg = zk.on_connected { |event| @event = event }
         end
       end

@@ -4,11 +4,12 @@ require 'spec_helper'
 # from ZK::Client#locker
 #
 describe 'ZK::Client#locker' do
+  include_context 'connection opts'
 
   before(:each) do
-    @zk = ZK.new("localhost:#{ZK_TEST_PORT}")
-    @zk2 = ZK.new("localhost:#{ZK_TEST_PORT}")
-    @zk3 = ZK.new("localhost:#{ZK_TEST_PORT}")
+    @zk = ZK.new("localhost:#{ZK_TEST_PORT}", connection_opts)
+    @zk2 = ZK.new("localhost:#{ZK_TEST_PORT}", connection_opts)
+    @zk3 = ZK.new("localhost:#{ZK_TEST_PORT}", connection_opts)
     @connections = [@zk, @zk2, @zk3]
     wait_until { @connections.all? { |c| c.connected? } }
     @path_to_lock = "/lock_tester"
@@ -406,9 +407,11 @@ end # shared-exclusive interaction
 
 
 describe ZK::Locker do
-  let(:zk)  { ZK.new("localhost:#{ZK_TEST_PORT}") }
-  let(:zk2) { ZK.new("localhost:#{ZK_TEST_PORT}") }
-  let(:zk3) { ZK.new("localhost:#{ZK_TEST_PORT}") }
+  include_context 'connection opts'
+
+  let(:zk)  { ZK.new("localhost:#{ZK_TEST_PORT}", connection_opts) }
+  let(:zk2) { ZK.new("localhost:#{ZK_TEST_PORT}", connection_opts) }
+  let(:zk3) { ZK.new("localhost:#{ZK_TEST_PORT}", connection_opts) }
 
   let(:connections) { [zk, zk2, zk3] }
 
@@ -430,13 +433,15 @@ describe ZK::Locker do
 end # ZK::Locker
 
 describe "ZK::Locker chrooted" do
+  include_context 'connection opts'
+
   let(:chroot_path) { '/_zk_chroot_' }
 
-  let(:zk)  { ZK.new("localhost:#{ZK_TEST_PORT}#{chroot_path}") }
+  let(:zk)  { ZK.new("localhost:#{ZK_TEST_PORT}#{chroot_path}", connection_opts) }
 
   describe 'when the chroot exists' do
-    let(:zk2) { ZK.new("localhost:#{ZK_TEST_PORT}#{chroot_path}") }
-    let(:zk3) { ZK.new("localhost:#{ZK_TEST_PORT}#{chroot_path}") }
+    let(:zk2) { ZK.new("localhost:#{ZK_TEST_PORT}#{chroot_path}", connection_opts) }
+    let(:zk3) { ZK.new("localhost:#{ZK_TEST_PORT}#{chroot_path}", connection_opts) }
 
     let(:connections) { [zk, zk2, zk3] }
 

@@ -108,7 +108,7 @@ module ZK
       # Asynchronously call the block when the leader has acknowledged its
       # role. The given block will *always* be called on a background thread. 
       def on_leader_ack(&block)
-        creation_sub = @zk.watcher.register(leader_ack_path) do |event|
+        creation_sub = @zk.register(leader_ack_path) do |event|
           case event.type
           when Zookeeper::ZOO_CREATED_EVENT, Zookeeper::ZOO_CHANGED_EVENT
             begin
@@ -279,7 +279,7 @@ module ZK
 
             logger.info { "ZK: following #{next_ballot} for changes, #{@data.inspect}" }
 
-            @next_node_ballot_sub ||= @zk.watcher.register(next_ballot) do |event| 
+            @next_node_ballot_sub ||= @zk.register(next_ballot) do |event| 
               if event.node_deleted? 
                 logger.debug { "#{next_ballot} was deleted, voting, #{@data.inspect}" }
                 vote! 
@@ -350,7 +350,7 @@ module ZK
           return if @observing 
           @observing = true
 
-          @leader_ack_sub ||= @zk.watcher.register(leader_ack_path) do |event|
+          @leader_ack_sub ||= @zk.register(leader_ack_path) do |event|
             logger.debug { "leader_ack_callback, event.node_deleted? #{event.node_deleted?}, event.node_created? #{event.node_created?}" }
 
             if event.node_deleted?
