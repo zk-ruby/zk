@@ -106,39 +106,38 @@ module ZK
       end
 
       # Asynchronously call the block when the leader has acknowledged its
-      # role. The given block will *always* be called on a background thread. 
+      # role. 
       def on_leader_ack(&block)
-        creation_sub = @zk.register(leader_ack_path) do |event|
-          case event.type
-          when Zookeeper::ZOO_CREATED_EVENT, Zookeeper::ZOO_CHANGED_EVENT
+        creation_sub = @zk.register(leader_ack_path, :only => [:created, :changed]) do |event|
+          begin
+            logger.debug { "in #{leader_ack_path} watcher, got creation event, notifying" }
+            safe_call(block)
+          ensure
+            creation_sub.unregister
+          end
+        end
+
+        deletion_sub = @zk.register(leader_ack_path, :only => [:deleted, :child]) do |event|
+          if @zk.exists?(leader_ack_path, :watch => true)
             begin
-              logger.debug { "in #{leader_ack_path} watcher, got creation event, notifying" }
-              block.call
+              logger.debug { "in #{leader_ack_path} watcher, node created behind our back, notifying" }
+              safe_call(block)
             ensure
               creation_sub.unregister
             end
           else
-            if @zk.exists?(leader_ack_path, :watch => true)
-              begin
-                logger.debug { "in #{leader_ack_path} watcher, node created behind our back, notifying" }
-                block.call
-              ensure
-                creation_sub.unregister
-              end
-            else
-              logger.debug { "in #{leader_ack_path} watcher, got non-creation event, re-watching" }
-            end
+            logger.debug { "in #{leader_ack_path} watcher, got non-creation event, re-watching" }
           end
         end
 
-        @zk.defer do
-          if @zk.exists?(leader_ack_path, :watch => true)
-            logger.debug { "on_leader_ack, #{leader_ack_path} exists, calling block" }
-            begin
-              block.call
-            ensure
-              creation_sub.unregister if creation_sub
-            end
+        subs = [creation_sub, deletion_sub]
+
+        if @zk.exists?(leader_ack_path, :watch => true)
+          logger.debug { "on_leader_ack, #{leader_ack_path} exists, calling block" }
+          begin
+            safe_call(block)
+          ensure
+            subs.each { |s| s.unregister }
           end
         end
       end
@@ -154,7 +153,6 @@ module ZK
 
         def digit(path)
           path[/\d+$/].to_i
-
         end
 
         def safe_call(*callbacks)
@@ -166,6 +164,12 @@ module ZK
               logger.error { e.to_std_format }
             end
           end
+        end
+
+        def synchronize
+#           call_line = caller[0..-2]
+#           logger.debug { "synchronizing, backtrace:\n#{call_line.join("\n")}" }
+          @mutex.synchronize { yield }
         end
     end
 
@@ -225,7 +229,7 @@ module ZK
       #
       # +data+ will be placed in the znode representing our vote
       def vote!
-        @mutex.synchronize do
+        synchronize do
           clear_next_node_ballot_sub!
           cast_ballot!(@data) unless @vote_path
           check_election_results!
@@ -282,14 +286,14 @@ module ZK
             @next_node_ballot_sub ||= @zk.register(next_ballot) do |event| 
               if event.node_deleted? 
                 logger.debug { "#{next_ballot} was deleted, voting, #{@data.inspect}" }
-                vote! 
+                @zk.defer { vote! }
               else
                 # this takes care of the race condition where the leader ballot would
                 # have been deleted before we could re-register to receive updates
                 # if zk.stat returns false, it means the path was deleted
                 unless @zk.exists?(next_ballot, :watch => true)
                   logger.debug { "#{next_ballot} was deleted (detected on re-watch), voting, #{@data.inspect}" }
-                  vote! 
+                  @zk.defer { vote! }
                 end
               end
             end
@@ -298,7 +302,7 @@ module ZK
             # our callback has fired. In this case, retry and do this procedure again
             unless @zk.stat(next_ballot, :watch => true).exists?
               logger.debug { "#{@data.inspect}: the node #{next_ballot} did not exist, retrying" }
-              vote!
+              @zk.defer { vote! }
             end
           end
         end
@@ -331,7 +335,7 @@ module ZK
 
       # our current idea about the state of the election
       def leader_alive #:nodoc:
-        @mutex.synchronize { @leader_alive }
+        synchronize { @leader_alive }
       end
 
       # register callbacks that should be fired when a leader dies
@@ -346,7 +350,7 @@ module ZK
       end
 
       def observe!
-        @mutex.synchronize do
+        synchronize do
           return if @observing 
           @observing = true
 
@@ -379,7 +383,7 @@ module ZK
       end
 
       def close
-        @mutex.synchronize do
+        synchronize do
           return unless @observing
 
           @deletion_sub.unregister if @deletion_sub
@@ -397,7 +401,7 @@ module ZK
 
       protected
         def the_king_is_dead
-          @mutex.synchronize do
+          synchronize do
             safe_call(*@leader_death_cbs)
             @leader_alive = false
           end
@@ -406,7 +410,7 @@ module ZK
         end
 
         def long_live_the_king
-          @mutex.synchronize do
+          synchronize do
             safe_call(*@new_leader_cbs)
             @leader_alive = true
           end
@@ -414,5 +418,5 @@ module ZK
           the_king_is_dead unless leader_acked?(true)
         end
     end
-  end
-end
+  end # Election
+end # ZK

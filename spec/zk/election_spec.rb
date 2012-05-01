@@ -9,8 +9,8 @@ describe ZK::Election do
       cnx.rm_rf('/_zkelection')
     end
 
-    @zk = ZK.new(connection_host)
-    @zk2 = ZK.new(connection_host)
+    @zk = ZK.new(*connection_args)
+    @zk2 = ZK.new(*connection_args)
     @election_name = '2012'
     @data1 = 'obama'
     @data2 = 'palin'
@@ -164,7 +164,7 @@ describe ZK::Election do
             @obama.zk.close!
             wait_until { @palin_won }
 
-            ZK.open('localhost:2181') do |zk|
+            ZK.open(*connection_args) do |zk|
               newbama = ZK::Election::Candidate.new(zk, @election_name, :data => @data1)
 
               win_again = false
@@ -188,7 +188,7 @@ describe ZK::Election do
 
   describe :Observer do
     before do
-      @zk3 = ZK.new(connection_host)
+      @zk3 = ZK.new(*connection_args)
 
       @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
 
