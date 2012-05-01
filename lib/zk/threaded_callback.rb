@@ -4,6 +4,8 @@ module ZK
   # You will not have a useful return value from `call` so this is only useful
   # for background processing.
   class ThreadedCallback
+    include ZK::Logging
+
     attr_reader :callback
 
     def initialize(callback)
@@ -25,7 +27,7 @@ module ZK
         @queue.push(KILL_TOKEN)
         return unless @thread 
         unless @thread.join(2)
-          logger.error { "#{self.class} timed out waiting for dispatch thread, path: #{path.inspect}, interests: #{interests}" }
+          logger.error { "#{self.class} timed out waiting for dispatch thread, callback: #{callback.inspect}" }
         end
       end
     end

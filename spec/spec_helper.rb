@@ -22,11 +22,10 @@ RSpec.configure do |config|
   config.mock_with :flexmock
   config.include(FlexMock::ArgumentTypes)
 
-  config.include(WaitWatchers)
-  config.extend(WaitWatchers)
-
-  config.include(SpecGlobalLogger)
-  config.extend(SpecGlobalLogger)
+  [WaitWatchers, SpecGlobalLogger, Pendings].each do |mod|
+    config.include(mod)
+    config.extend(mod)
+  end
 end
 
 class ::Thread

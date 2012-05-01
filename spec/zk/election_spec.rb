@@ -148,6 +148,8 @@ describe ZK::Election do
           end
 
           it %[should take over as leader when the current leader goes away] do
+            pending_187("1.8.7's AWESOEM thread scheduler makes this test deadlock")
+
             @obama.zk.close!
             wait_until { @palin_won }
 
@@ -161,6 +163,7 @@ describe ZK::Election do
           end
 
           it %[should remain leader if the original leader comes back] do
+            pending_187("1.8.7's AWESOEM thread scheduler makes this test deadlock")
             @obama.zk.close!
             wait_until { @palin_won }
 
@@ -262,16 +265,9 @@ describe ZK::Election do
         end
       end
 
-      def pending_192(msg)
-        if RUBY_VERSION == '1.9.2' and not defined?(::JRUBY_VERSION)
-          pending(msg) { yield }
-        else
-          yield
-        end
-      end
-
       describe 'leadership transition' do
         before do
+          pending_187("1.8.7's AWESOEM thread scheduler makes this test deadlock")
           @obama.vote!
           wait_until { @obama.leader? }
 
