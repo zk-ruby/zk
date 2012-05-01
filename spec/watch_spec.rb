@@ -333,6 +333,9 @@ describe ZK do
         end.should raise_error(ArgumentError)
       end
     end # event interest
+
+    describe 'Actor' do
+    end
   end # watchers
 
   describe 'state watcher' do

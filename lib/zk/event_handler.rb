@@ -8,16 +8,22 @@ module ZK
     include org.apache.zookeeper.Watcher if defined?(JRUBY_VERSION)
     include ZK::Logging
 
+    # @private
     VALID_WATCH_TYPES = [:data, :child].freeze
 
+    # @private
     ALL_NODE_EVENTS_KEY = :all_node_events
 
+    # @private
     ZOOKEEPER_WATCH_TYPE_MAP = {
       Zookeeper::ZOO_CREATED_EVENT => :data,
       Zookeeper::ZOO_DELETED_EVENT => :data,
       Zookeeper::ZOO_CHANGED_EVENT => :data,
       Zookeeper::ZOO_CHILD_EVENT   => :child,
     }.freeze
+
+    # @private
+    VALID_THREAD_OPTS = [:single, :per_callback].freeze
 
     # @private
     attr_accessor :zk
@@ -27,6 +33,12 @@ module ZK
     def initialize(zookeeper_client, opts={})
       @zk = zookeeper_client
       @callbacks = Hash.new { |h,k| h[k] = [] }
+
+      @thread_opt = opts.fetch(:thread, :single)
+
+      # this is side-effecty, will raise an ArgumentError if given a bad
+      # value. 
+      EventHandlerSubscription.class_for_thread_option(@thread_opt)
 
       @mutex = Monitor.new
 
@@ -39,7 +51,7 @@ module ZK
     def register(path, opts={}, &block)
       path = ALL_NODE_EVENTS_KEY if path == :all
 
-      hash = {}
+      hash = {:thread => @thread_opt}
 
       # gah, ok, handle the 1.0 form
       case opts
@@ -47,7 +59,7 @@ module ZK
         warn "Deprecated! #{self.class}#register use the :only option instead of passing a symbol or array"
         hash[:only] = opts
       when Hash
-        hash.replace(opts)
+        hash.merge!(opts)
       when nil
         # no-op
       else

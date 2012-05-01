@@ -139,11 +139,15 @@ module ZK
   #     {ZK::Client::Threaded#initialize Threaded.new} directly. You probably
   #     also hate happiness and laughter.
   #
+  #   @option opts [:single,:per_callback] :thread (:single) see {ZK::Client::Threaded#initialize} 
+  #     for a discussion of what these options mean
+  #
   #   @raise [ChrootPathDoesNotExistError] if a chroot path is specified,
   #     `:chroot` is `:check`, and the path does not exist.
   #
   #   @raise [ArgumentError] if both a chrooted `connection_str` is given *and* a
   #     `String` value for the `:chroot` option is given
+  #
   #
   def self.new(*args, &block)
     opts = args.extract_options!

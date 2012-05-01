@@ -65,8 +65,8 @@ module ZK
       #   case of an expired session, we will keep trying to reestablish the
       #   connection.
       #
-      # @option opts [:per_event,:single] :thread (:single) choose your event
-      # delivery model:
+      # @option opts [:single,:per_callback] :thread (:single) choose your event
+      #   delivery model:
       #
       #   * `:single`: There is one thread, and only one callback is called at
       #     a time. This is the default mode (for now), and will provide the most

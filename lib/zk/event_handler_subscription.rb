@@ -3,9 +3,24 @@ module ZK
   # to events.
   # @see ZK::Client::Base#register
   module EventHandlerSubscription
+
+    # @private
+    def self.class_for_thread_option(thopt)
+      case thopt
+      when :single
+        Base
+      when :per_callback
+        Actor
+      else
+        raise ArgumentError, "Unrecognized :thread option: #{thopt}"
+      end
+    end
+
     def self.new(*a, &b)
       opts = a.extract_options!
-      klass = opts.delete(:actor) ? Actor : Base
+ 
+      klass = class_for_thread_option(opts.delete(:thread))
+
       a << opts
       klass.new(*a, &b)
     end

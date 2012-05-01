@@ -823,12 +823,6 @@ module ZK
       #     are :created, :deleted, :changed, and :child. If nil, the block will
       #     receive all events
       #
-      #   @option opts [true,false] :actor (false) if true, use the new (experimental)
-      #     Actor style callback dispatching code. This should be compatible with most
-      #     existing code, and presents a safer alternative to adjusting the `:threadpool_size`
-      #     option. see {ZK::EventHandlerSubscription::Actor Actor} for a discussion about 
-      #     the relative advantages of this strategy. 
-      #
       # @see ZooKeeper::WatcherEvent
       # @see ZK::EventHandlerSubscription
       # @see https://github.com/slyphon/zk/wiki/Events the wiki page on using events effectively
