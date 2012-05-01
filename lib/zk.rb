@@ -191,6 +191,26 @@ module ZK
     File.join(*paths)
   end
 
+  # @private
+  def self.ruby_19x?
+    (RUBY_VERSION =~ /\A1\.9\.[2-9]\Z/) and not jruby? or rubinius?
+  end
+
+  # @private
+  def self.ruby_187?
+    (RUBY_VERSION == '1.8.7') and not jruby? or rubinius?
+  end
+
+  # @private
+  def self.jruby?
+    defined?(::JRUBY_VERSION)
+  end
+
+  # @private
+  def self.rubinius?
+    defined?(::Rubinius)
+  end
+
   private
     # @return [String] a possibly modified connection string (with chroot info
     #   added)
