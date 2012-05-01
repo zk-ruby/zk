@@ -16,46 +16,19 @@ module ZK
     # guarantees), just perhaps at different times.
     #
     class Actor < Base
+      extend Forwardable
+
+      def_delegators :@threaded_callback, :call
+
       def initialize(*a)
         super
-        @mutex = Monitor.new
-        @queue = Queue.new
-        @running = true
-        setup_dispatch_thread
+        @threaded_callback = ThreadedCallback.new(@callback)
       end
 
       def unsubscribe
-        @mutex.synchronize do
-          @running = false
-          @queue.push(KILL_TOKEN)
-          return unless @thread 
-          unless @thread.join(2)
-            logger.error { "#{self.class} timed out waiting for dispatch thread, path: #{path.inspect}, interests: #{interests}" }
-          end
-        end
-
+        @threaded_callback.shutdown
         super
       end
-
-      def call(event)
-        @queue.push(event)
-      end
-
-      protected
-        def setup_dispatch_thread
-          @thread ||= Thread.new do
-            while @running
-              event = @queue.pop
-              break if event == KILL_TOKEN
-              begin
-                callback.call(event)
-              rescue Exception => e
-                logger.error { "error caught in handler for path: #{path.inspect}, interests: #{interests.inspect}" }
-                logger.error { e.to_std_format }
-              end
-            end
-          end
-        end
     end
   end
 end
