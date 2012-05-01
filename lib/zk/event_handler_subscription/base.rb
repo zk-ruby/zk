@@ -45,6 +45,12 @@ module ZK
         callback.call(event)
       end
 
+      # the Actor returns true for this
+      # @private
+      def async?
+        false
+      end
+
       protected
         def prep_interests(a)
           logger.debug { "prep_interests: #{a.inspect}" }

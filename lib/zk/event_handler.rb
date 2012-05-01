@@ -285,7 +285,11 @@ module ZK
         callbacks.each do |cb|
           next unless cb.respond_to?(:call)
 
-          zk.defer { cb.call(*args) }
+          if cb.async?
+            cb.call(*args)
+          else
+            zk.defer { cb.call(*args) }
+          end
         end
       end
 

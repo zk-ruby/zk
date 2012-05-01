@@ -29,6 +29,10 @@ module ZK
         @threaded_callback.shutdown
         super
       end
+
+      def async?
+        true
+      end
     end
   end
 end
