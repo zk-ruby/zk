@@ -55,8 +55,18 @@ module ZK
       # @note The documentation for 0.9.0 was incorrect in stating the number
       #   of threads used to deliver events. There was one, unconfigurable,
       #   event dispatch thread. In 1.0 the number of event delivery threads is
-      #   configurable, but still defaults to 1. (The Management apologizes for
-      #   any confusion this may have caused).
+      #   configurable, but still defaults to 1 and users are discouraged from
+      #   adjusting the value due to the complexity this introduces. In 1.1
+      #   there is a better option for achieving higher concurrency (see the
+      #   `:thread` option)
+      #
+      #   The Management apologizes for any confusion this may have caused. 
+      #
+      # @since __1.1__: Instead of adjusting the threadpool, users are _strongly_ encouraged
+      #   to use the `:thread => :per_callback` option to increase the
+      #   parallelism of event delivery safely and sanely. Please see 
+      #   [this wiki article](https://github.com/slyphon/zk/wiki/EventDeliveryModel) for more
+      #   information and a demonstration.
       #
       # @param [String] host (see ZK::Client::Base#initialize)
       #
@@ -87,9 +97,12 @@ module ZK
       #     This model has the advantage you can have all of your callbacks
       #     making progress in parallel, and if one of them happens to block,
       #     it will not affect the others.
+      #    
+      #   * see {https://github.com/slyphon/zk/wiki/EventDeliveryModel the wiki} for a
+      #     discussion and demonstration of the effect of this setting.
       #
       # @option opts [Fixnum] :timeout how long we will wait for the connection
-      #   to be established. If timeout is nil, we will wait forever *use
+      #   to be established. If timeout is nil, we will wait forever: *use
       #   carefully*.
       #
       # @yield [self] calls the block with the new instance after the event
