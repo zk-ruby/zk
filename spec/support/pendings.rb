@@ -1,6 +1,6 @@
 module Pendings
   def pending_192(msg)
-    if RUBY_VERSION == '1.9.2' and not (jruby? or rubinius?)
+    if ZK.ruby_19x?
       if block_given?
         pending(msg) { yield }
       else
@@ -12,7 +12,7 @@ module Pendings
   end
 
   def pending_187(msg)
-    if RUBY_VERSION == '1.8.7' and not (jruby? or rubinius?)
+    if ZK.ruby_187?
       if block_given?
         pending(msg) { yield }
       else
