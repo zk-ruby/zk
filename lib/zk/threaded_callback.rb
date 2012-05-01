@@ -8,8 +8,8 @@ module ZK
 
     attr_reader :callback
 
-    def initialize(callback)
-      @callback = callback
+    def initialize(callback=nil, &blk)
+      @callback = callback || blk
       @mutex = Monitor.new
       @queue = Queue.new
       @running = true
