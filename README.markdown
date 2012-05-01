@@ -24,39 +24,51 @@ Development is sponsored by [Snapfish][] and has been generously released to the
 
 * add zk.register(:all) to recevie node updates for all nodes (i.e. not filtered on path)
 
-* add 'interest' feature to zk.register, now you can indicate what kind of events should be delivered to the given block (previously you had to do that filtering inside the block). The default behavior is still the same, if no 'interest' is given, then all event types for the given path will be delivered to that block. 
+* add 'interest' feature to zk.register, now you can indicate what kind of events should be delivered to the given block (previously you had to do that filtering inside the block). The default behavior is still the same, if no 'interest' is given, then all event types for the given path will be delivered to that block.
   
-    zk.register('/path', :created) do |event|
-      # event.node_created? will always be true
-    end
+```ruby
+zk.register('/path', :created) do |event|
+  # event.node_created? will always be true
+end
 
-    # or multiple kinds of events
+# or multiple kinds of events
 
-    zk.register('/path', [:created, :changed]) do |event|
-      # (event.node_created? or event.node_changed?) will always be true
-    end
+zk.register('/path', [:created, :changed]) do |event|
+  # (event.node_created? or event.node_changed?) will always be true
+end
+
+# this will, however, be changed in 1.1 to (backwards compatible, with a deprecation warning)
+
+zk.register('/path', :only => :created) do |event|
+end
+
+```
 
 * create now allows you to pass a path and options, instead of requiring the blank string
 
-    zk.create('/path', '', :sequential => true)
+```ruby
+zk.create('/path', '', :sequential => true)
 
-    # now also
+# now also
 
-    zk.create('/path', :sequential => true)
+zk.create('/path', :sequential => true)
+```
 
 * fix for shutdown: close! called from threadpool will do the right thing
 
 * Chroot users rejoice! By default, ZK.new will create a chrooted path for you. 
     
-    ZK.new('localhost:2181/path', :chroot => :create) # the default, create the path before returning connection
+```ruby
+ZK.new('localhost:2181/path', :chroot => :create) # the default, create the path before returning connection
 
-    ZK.new('localhost:2181/path', :chroot => :check)  # make sure the chroot exists, raise if not
+ZK.new('localhost:2181/path', :chroot => :check)  # make sure the chroot exists, raise if not
 
-    ZK.new('localhost:2181/path', :chroot => :do_nothing) # old default behavior
+ZK.new('localhost:2181/path', :chroot => :do_nothing) # old default behavior
 
-    # and, just for kicks
-    
-    ZK.new('localhost:2181', :chroot => '/path') # equivalent to 'localhost:2181/path', :chroot => :create
+# and, just for kicks
+
+ZK.new('localhost:2181', :chroot => '/path') # equivalent to 'localhost:2181/path', :chroot => :create
+```
 
 * Most of the event functionality used is now in a ZK::Event module. This is still mixed into the underlying slyphon-zookeeper class, but now all of the important and relevant methods are documented, and Event appears as a first-class citizen.
 
