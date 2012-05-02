@@ -24,19 +24,16 @@ module Pendings
   end
 
   def pending_in_travis(msg)
-    if travis?
+    # defined in the somewhat ill-named 00_test_port_attr.rb
+    if ZK.travis?
       if block_given?
-        pending(msg) { yield }
+        pending("TRAVIS: #{msg}") { yield }
       else
-        pending(msg)
+        pending("TRAVIS: #{msg}")
       end
     else
       yield if block_given?
     end
-  end
-
-  def travis?
-    !!ENV['TRAVIS']
   end
 end
 

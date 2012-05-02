@@ -12,7 +12,7 @@ require 'benchmark'
 
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
-Dir[File.expand_path("../{support,shared}/**/*.rb", __FILE__)].each {|f| require f}
+Dir[File.expand_path("../{support,shared}/**/*.rb", __FILE__)].sort.each {|f| require f}
 
 $stderr.sync = true
 

@@ -18,6 +18,11 @@ module WaitWatchers
   #   wait_until(2) { @a }.should == :fudge
   #
   def wait_until(timeout=2)
+    if ZK.travis? and timeout and timeout < 5
+      ZK.logger.debug { "TRAVIS: adjusting wait_until timeout from #{timeout} to 5 sec" }
+      timeout = 5
+    end
+
     time_to_stop = Time.now + timeout
     while true
       rval = yield
@@ -29,6 +34,11 @@ module WaitWatchers
 
   # inverse of wait_until
   def wait_while(timeout=2)
+    if ZK.travis? and timeout and timeout < 5
+      ZK.logger.debug { "TRAVIS: adjusting wait_while timeout from #{timeout} to 5 sec" }
+      timeout = 5
+    end
+
     time_to_stop = Time.now + timeout
     while true
       rval = yield
@@ -44,5 +54,4 @@ module WaitWatchers
     $stderr.puts "#{what}: %0.3f" % [t.to_f]
   end
 end
-
 

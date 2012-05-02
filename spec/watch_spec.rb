@@ -43,78 +43,84 @@ describe ZK do
       callback_called.should be_true
     end
 
-    # this is stupid, and a bad test, but we have to check that events 
-    # don't get re-delivered to a single registered callback just because 
-    # :watch => true was called twice
-    #
-    # again, we're testing a negative here, so consider this a regression check
-    #
-    def wait_for_events_to_not_be_delivered(events)
-      lambda { wait_until(0.2) { events.length >= 2 } }.should raise_error(WaitWatchers::TimeoutError)
-    end
-
-    it %[should only deliver an event once to each watcher registered for exists?] do
-      events = []
-
-      sub = @zk.register(@path) do |ev|
-        logger.debug "got event #{ev}"
-        events << ev
+    describe :regression do
+      before do
+        pending_in_travis("these tests take too long or time out")
       end
 
-      2.times do
-        @zk.exists?(@path, :watch => true).should_not be_true
+      # this is stupid, and a bad test, but we have to check that events 
+      # don't get re-delivered to a single registered callback just because 
+      # :watch => true was called twice
+      #
+      # again, we're testing a negative here, so consider this a regression check
+      #
+      def wait_for_events_to_not_be_delivered(events)
+        lambda { wait_until(0.2) { events.length >= 2 } }.should raise_error(WaitWatchers::TimeoutError)
       end
 
-      @zk.create(@path, '', :mode => :ephemeral)
+      it %[should only deliver an event once to each watcher registered for exists?] do
+        events = []
 
-      wait_for_events_to_not_be_delivered(events)
+        sub = @zk.register(@path) do |ev|
+          logger.debug "got event #{ev}"
+          events << ev
+        end
 
-      events.length.should == 1
-    end
+        2.times do
+          @zk.exists?(@path, :watch => true).should_not be_true
+        end
 
-    it %[should only deliver an event once to each watcher registered for get] do
-      events = []
+        @zk.create(@path, '', :mode => :ephemeral)
 
-      @zk.create(@path, 'one', :mode => :ephemeral)
+        wait_for_events_to_not_be_delivered(events)
 
-      sub = @zk.register(@path) do |ev|
-        logger.debug "got event #{ev}"
-        events << ev
+        events.length.should == 1
       end
 
-      2.times do
-        data, stat = @zk.get(@path, :watch => true)
-        data.should == 'one'
+      it %[should only deliver an event once to each watcher registered for get] do
+        events = []
+
+        @zk.create(@path, 'one', :mode => :ephemeral)
+
+        sub = @zk.register(@path) do |ev|
+          logger.debug "got event #{ev}"
+          events << ev
+        end
+
+        2.times do
+          data, stat = @zk.get(@path, :watch => true)
+          data.should == 'one'
+        end
+
+        @zk.set(@path, 'two')
+
+        wait_for_events_to_not_be_delivered(events)
+
+        events.length.should == 1
       end
 
-      @zk.set(@path, 'two')
 
-      wait_for_events_to_not_be_delivered(events)
+      it %[should only deliver an event once to each watcher registered for children] do
+        events = []
 
-      events.length.should == 1
-    end
+        @zk.create(@path, '')
 
+        sub = @zk.register(@path) do |ev|
+          logger.debug "got event #{ev}"
+          events << ev
+        end
 
-    it %[should only deliver an event once to each watcher registered for children] do
-      events = []
+        2.times do
+          children = @zk.children(@path, :watch => true)
+          children.should be_empty
+        end
 
-      @zk.create(@path, '')
+        @zk.create("#{@path}/pfx", '', :mode => :ephemeral_sequential)
 
-      sub = @zk.register(@path) do |ev|
-        logger.debug "got event #{ev}"
-        events << ev
+        wait_for_events_to_not_be_delivered(events)
+
+        events.length.should == 1
       end
-
-      2.times do
-        children = @zk.children(@path, :watch => true)
-        children.should be_empty
-      end
-
-      @zk.create("#{@path}/pfx", '', :mode => :ephemeral_sequential)
-
-      wait_for_events_to_not_be_delivered(events)
-
-      events.length.should == 1
     end
 
     it %[should restrict_new_watches_for? if a successul watch has been set] do

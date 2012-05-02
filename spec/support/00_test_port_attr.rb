@@ -3,6 +3,10 @@ module ZK
     !!ENV['SPAWN_ZOOKEEPER']
   end
 
+  def self.travis?
+    !!ENV['TRAVIS']
+  end
+
   @test_port ||= spawn_zookeeper? ? 21811 : 2181
 
   class << self
