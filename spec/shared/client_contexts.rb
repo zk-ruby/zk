@@ -17,11 +17,11 @@ shared_context 'threaded client connection' do
 
   after do
     @zk.reopen if @zk.closed?
-    wait_until(2) { @zk.connected? }
+    wait_until(5) { @zk.connected? }
     
     @zk.rm_rf(@base_path)
     @zk.close!
-    wait_until(2) { @zk.closed? }
+    wait_until(5) { @zk.closed? }
   end
 end
 

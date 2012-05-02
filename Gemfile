@@ -1,7 +1,6 @@
 source :rubygems
 
 # gem 'slyphon-zookeeper', :path => '~/zookeeper'
-# gem 'zk-server', :path => '~/mbox/zk-server', :group => :test
 
 gem 'rake', :group => [:development, :test]
 gem 'pry',  :group => [:development]
@@ -17,7 +16,8 @@ end
 group :test do
   gem 'rspec', '~> 2.8.0'
   gem 'flexmock', '~> 0.8.10'
-  gem 'zk-server', '~> 0.9.0'
+#   gem 'zk-server', :path => '~/mbox/zk-server'
+  gem 'zk-server', '~> 0.9.1'
 end
 
 # Specify your gem's dependencies in zk.gemspec

@@ -213,13 +213,21 @@ module ZK
   end
 
   # @private
-  def self.ruby_19x?
-    (RUBY_VERSION =~ /\A1\.9\.[2-9]\Z/) and not jruby? or rubinius?
+  def self.mri_19?
+    ruby_19? and not jruby? or rubinius?
+  end
+
+  def self.ruby_19?
+    (RUBY_VERSION =~ /\A1\.9\.[2-9]\Z/)
+  end
+
+  def self.ruby_187?
+    (RUBY_VERSION == '1.8.7')
   end
 
   # @private
-  def self.ruby_187?
-    (RUBY_VERSION == '1.8.7') and not jruby? or rubinius?
+  def self.mri_187?
+    ruby_187? and not jruby? or rubinius?
   end
 
   # @private

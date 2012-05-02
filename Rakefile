@@ -33,7 +33,7 @@ GEMSPEC_NAME = 'zk.gemspec'
   end
 
   task rspec_task_name => bundle_task_name do
-    sh "rvm #{ruby_with_gemset} do env BUNDLE_GEMFILE=#{phony_gemfile_link_name} bundle exec rspec spec --fail-fast"
+    sh "rvm #{ruby_with_gemset} do env JRUBY_OPTS='--1.9' BUNDLE_GEMFILE=#{phony_gemfile_link_name} bundle exec rspec spec --fail-fast"
   end
 
   task "mb:#{ns_name}" => rspec_task_name
