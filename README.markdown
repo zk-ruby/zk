@@ -149,7 +149,7 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 
 ## Dependencies
 
-* The [slyphon-zookeeper gem][szk-gem] ([repo][szk-repo]), which adds JRuby compatibility and a full suite of tests to the excellent [twitter/zookeeper][] project. 
+* The [slyphon-zookeeper gem][szk-gem] ([repo][szk-repo]).
 
 * For JRuby, the [slyphon-zookeeper\_jar gem][szk-jar-gem] ([repo][szk-jar-repo]), which just wraps the upstream zookeeper driver jar in a gem for easy installation
 
