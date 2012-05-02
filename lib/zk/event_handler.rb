@@ -8,10 +8,13 @@ module ZK
     include org.apache.zookeeper.Watcher if defined?(JRUBY_VERSION)
     include ZK::Logging
 
+    # @private
     VALID_WATCH_TYPES = [:data, :child].freeze
 
+    # @private
     ALL_NODE_EVENTS_KEY = :all_node_events
 
+    # @private
     ZOOKEEPER_WATCH_TYPE_MAP = {
       Zookeeper::ZOO_CREATED_EVENT => :data,
       Zookeeper::ZOO_DELETED_EVENT => :data,
@@ -20,13 +23,22 @@ module ZK
     }.freeze
 
     # @private
+    VALID_THREAD_OPTS = [:single, :per_callback].freeze
+
+    # @private
     attr_accessor :zk
 
     # @private
     # :nodoc:
-    def initialize(zookeeper_client)
+    def initialize(zookeeper_client, opts={})
       @zk = zookeeper_client
       @callbacks = Hash.new { |h,k| h[k] = [] }
+
+      @thread_opt = opts.fetch(:thread, :single)
+
+      # this is side-effecty, will raise an ArgumentError if given a bad
+      # value. 
+      EventHandlerSubscription.class_for_thread_option(@thread_opt)
 
       @mutex = Monitor.new
 
@@ -36,10 +48,25 @@ module ZK
     end
 
     # @see ZK::Client::Base#register
-    def register(path, interests=nil, &block)
+    def register(path, opts={}, &block)
       path = ALL_NODE_EVENTS_KEY if path == :all
 
-      EventHandlerSubscription.new(self, path, block, interests).tap do |subscription|
+      hash = {:thread => @thread_opt}
+
+      # gah, ok, handle the 1.0 form
+      case opts
+      when Array, Symbol
+        warn "Deprecated! #{self.class}#register use the :only option instead of passing a symbol or array"
+        hash[:only] = opts
+      when Hash
+        hash.merge!(opts)
+      when nil
+        # no-op
+      else
+        raise ArgumentError, "don't know how to handle options: #{opts.inspect}" 
+      end
+
+      EventHandlerSubscription.new(self, path, block, hash).tap do |subscription|
         synchronize { @callbacks[path] << subscription }
       end
     end
@@ -65,7 +92,7 @@ module ZK
     # @deprecated use #unsubscribe on the subscription object
     # @see ZK::EventHandlerSubscription#unsubscribe
     def unregister_state_handler(*args)
-      if args.first.is_a?(EventHandlerSubscription)
+      if args.first.is_a?(EventHandlerSubscription::Base)
         unregister(args.first)
       else
         unregister(state_key(args.first), args[1])
@@ -75,9 +102,9 @@ module ZK
     # @deprecated use #unsubscribe on the subscription object
     # @see ZK::EventHandlerSubscription#unsubscribe
     def unregister(*args)
-      if args.first.is_a?(EventHandlerSubscription)
+      if args.first.is_a?(EventHandlerSubscription::Base)
         subscription = args.first
-      elsif args.first.is_a?(String) and args[1].is_a?(EventHandlerSubscription)
+      elsif args.first.is_a?(String) and args[1].is_a?(EventHandlerSubscription::Base)
         subscription = args[1]
       else
         path, index = args[0..1]
@@ -258,7 +285,11 @@ module ZK
         callbacks.each do |cb|
           next unless cb.respond_to?(:call)
 
-          zk.defer { cb.call(*args) }
+          if cb.async?
+            cb.call(*args)
+          else
+            zk.defer { cb.call(*args) }
+          end
         end
       end
 

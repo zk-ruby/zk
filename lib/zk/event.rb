@@ -26,6 +26,14 @@ module ZK
       EVENT_TYPES = %w[created deleted changed child session notwatching].freeze 
     end
 
+    # for testing, create a new ZookeeperCallbacks::WatcherCallback and return it
+    # @private
+    def self.new(hash)
+      ZookeeperCallbacks::WatcherCallback.new.tap do |wc|
+        wc.call(hash)
+      end
+    end
+
     # The numeric constant (one of `ZOO_*_EVENT`) that ZooKeeper sets to
     # indicate the type of event this is. Users are advised to use the '?'
     # methods below instead of using this value.

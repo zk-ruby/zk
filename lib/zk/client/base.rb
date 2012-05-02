@@ -770,11 +770,21 @@ module ZK
       #
       # @example only creation events
       #
-      #   sub = zk.register('/path/to/znode', :created) do |event|
+      #   sub = zk.register('/path/to/znode', :only => :created) do |event|
       #     # do something when the node is created
       #   end
       #
       # @example only changed or children events
+      #
+      #   sub = zk.register('/path/to/znode', :only => [:changed, :child]) do |event|
+      #     if event.node_changed?
+      #       # do something on change
+      #     else
+      #       # we know it's a child event
+      #     end
+      #   end
+      #
+      # @example deprecated 1.0 style interests
       #
       #   sub = zk.register('/path/to/znode', [:changed, :child]) do |event|
       #     if event.node_changed?
@@ -787,12 +797,6 @@ module ZK
       # @param [String,:all] path the znode path you want to listen to, or the
       #   special value :all, that will cause the block to be delivered events
       #   for all znode paths
-      #
-      # @param [Array,Symbol,nil] interests a symbol or array-of-symbols indicating
-      #   which events you would like the block to be called for. Valid events
-      #   are :created, :deleted, :changed, and :child. If nil, the block will
-      #   receive all events
-      #
       # @param [Block] block the block to execute when a watch event happpens
       #
       # @yield [event] We will call your block with the watch event object (which
@@ -801,12 +805,30 @@ module ZK
       # @return [EventHandlerSubscription] the subscription object
       #   you can use to to unsubscribe from an event
       #
+      # @overload register(path, interests=nil, &block)
+      #   @since 1.0
+      #
+      #   @deprecated use the `:only => :created` form
+      #
+      #   @param [Array,Symbol,nil] interests a symbol or array-of-symbols indicating
+      #     which events you would like the block to be called for. Valid events
+      #     are :created, :deleted, :changed, and :child. If nil, the block will
+      #     receive all events
+      #
+      # @overload register(path, opts={}, &block)
+      #   @since 1.1
+      #
+      #   @option opts [Array,Symbol,nil] :only (nil) a symbol or array-of-symbols indicating
+      #     which events you would like the block to be called for. Valid events
+      #     are :created, :deleted, :changed, and :child. If nil, the block will
+      #     receive all events
+      #
       # @see ZooKeeper::WatcherEvent
       # @see ZK::EventHandlerSubscription
       # @see https://github.com/slyphon/zk/wiki/Events the wiki page on using events effectively
       #
-      def register(path, interests=nil, &block)
-        event_handler.register(path, interests, &block)
+      def register(path, opts={}, &block)
+        event_handler.register(path, opts, &block)
       end
 
       # returns true if the caller is calling from the event dispatch thread

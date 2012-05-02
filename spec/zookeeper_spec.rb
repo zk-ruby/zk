@@ -39,7 +39,7 @@ shared_examples_for 'ZK basic' do
       wait_until(2) { !@zk.connected? }
       @zk.should_not be_connected
 
-      @zk = ZK.new("localhost:#{ZK_TEST_PORT}")
+      @zk = ZK.new(*connection_args)
       wait_until{ @zk.connected? }
       @zk.exists?("#{@base_path}/test").should be_false
     end
@@ -50,7 +50,7 @@ shared_examples_for 'ZK basic' do
       @zk.exists?(created).should_not be_nil
       @zk.close!
 
-      @zk = ZK.new("localhost:#{ZK_TEST_PORT}")
+      @zk = ZK.new(*connection_args)
       wait_until{ @zk.connected? }
       @zk.exists?(created).should be_false
     end

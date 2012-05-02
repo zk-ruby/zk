@@ -16,6 +16,7 @@ require 'zk/extensions'
 require 'zk/event'
 require 'zk/stat'
 require 'zk/threadpool'
+require 'zk/threaded_callback'
 require 'zk/event_handler_subscription'
 require 'zk/event_handler'
 require 'zk/message_queue'
@@ -139,11 +140,15 @@ module ZK
   #     {ZK::Client::Threaded#initialize Threaded.new} directly. You probably
   #     also hate happiness and laughter.
   #
+  #   @option opts [:single,:per_callback] :thread (:single) see {ZK::Client::Threaded#initialize} 
+  #     for a discussion of what these options mean
+  #
   #   @raise [ChrootPathDoesNotExistError] if a chroot path is specified,
   #     `:chroot` is `:check`, and the path does not exist.
   #
   #   @raise [ArgumentError] if both a chrooted `connection_str` is given *and* a
   #     `String` value for the `:chroot` option is given
+  #
   #
   def self.new(*args, &block)
     opts = args.extract_options!
@@ -184,6 +189,26 @@ module ZK
   # @private
   def self.join(*paths)
     File.join(*paths)
+  end
+
+  # @private
+  def self.ruby_19x?
+    (RUBY_VERSION =~ /\A1\.9\.[2-9]\Z/) and not jruby? or rubinius?
+  end
+
+  # @private
+  def self.ruby_187?
+    (RUBY_VERSION == '1.8.7') and not jruby? or rubinius?
+  end
+
+  # @private
+  def self.jruby?
+    defined?(::JRUBY_VERSION)
+  end
+
+  # @private
+  def self.rubinius?
+    defined?(::Rubinius)
   end
 
   private

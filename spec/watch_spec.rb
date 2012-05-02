@@ -1,11 +1,12 @@
 require 'spec_helper'
 
 describe ZK do
+  include_context 'connection opts'
+
   describe 'watchers' do
     before do
       mute_logger do
-        @cnx_str = "localhost:#{ZK_TEST_PORT}"
-        @zk = ZK.new(@cnx_str)
+        @zk = ZK.new(*connection_args)
 
         @path = "/_testWatch"
         wait_until { @zk.connected? }
@@ -20,7 +21,7 @@ describe ZK do
           wait_until { !@zk.connected? }
         end
 
-        ZK.open(@cnx_str) { |zk| zk.rm_rf(@path) }
+        ZK.open(*connection_args) { |zk| zk.rm_rf(@path) }
       end
     end
 
@@ -186,19 +187,19 @@ describe ZK do
         before do
           @events = EventCatcher.new
 
-          @zk.register(@path, :created) do |event|
+          @zk.register(@path, :only => :created) do |event|
             @events.created << event
           end
 
-          @zk.register(@path, :changed) do |event|
+          @zk.register(@path, :only => :changed) do |event|
             @events.changed << event
           end
 
-          @zk.register(@path, :child) do |event|
+          @zk.register(@path, :only => :child) do |event|
             @events.child << event
           end
 
-          @zk.register(@path, :deleted) do |event|
+          @zk.register(@path, :only => :deleted) do |event|
             @events.deleted << event
           end
 
@@ -302,7 +303,7 @@ describe ZK do
       it %[should deliver interested events to a block registered for multiple deliveries] do
         @events = []
 
-        @zk.register(@path, [:created, :changed]) do |event|
+        @zk.register(@path, :only => [:created, :changed]) do |event|
           @events << event
         end
 
@@ -329,7 +330,7 @@ describe ZK do
 
       it %[should barf if an invalid event name is given] do
         lambda do
-          @zk.register(@path, :tripping) { }
+          @zk.register(@path, :only => :tripping) { }
         end.should raise_error(ArgumentError)
       end
     end # event interest
@@ -339,9 +340,9 @@ describe ZK do
     describe 'live-fire test' do
       before do
         @event = nil
-        @cnx_str = "localhost:#{ZK_TEST_PORT}"
+        @cnx_str = "localhost:#{ZK.test_port}"
 
-        @zk = ZK.new(@cnx_str) do |zk|
+        @zk = ZK.new(*connection_args) do |zk|
           @cnx_reg = zk.on_connected { |event| @event = event }
         end
       end

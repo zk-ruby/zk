@@ -20,7 +20,7 @@ module ZK
       @threadpool = []
       @threadqueue = ::Queue.new
 
-      @mutex = Mutex.new
+      @mutex = Monitor.new
 
       @error_callbacks = []
 
@@ -86,9 +86,7 @@ module ZK
     def shutdown(timeout=2)
       @mutex.synchronize do
         return unless @running
-
         @running = false
-
         @threadqueue.clear
         @size.times { @threadqueue << KILL_TOKEN }
 

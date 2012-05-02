@@ -1,14 +1,16 @@
 require 'spec_helper'
 
 describe ZK::Election do
+  include_context 'connection opts'
+
   before do
-    ZK.open('localhost:2181') do |cnx| 
+    ZK.open(connection_host) do |cnx| 
       ZK.logger.debug { "REMOVING /_zkelection" }
       cnx.rm_rf('/_zkelection')
     end
 
-    @zk = ZK.new('localhost:2181')
-    @zk2 = ZK.new('localhost:2181')
+    @zk = ZK.new(*connection_args)
+    @zk2 = ZK.new(*connection_args)
     @election_name = '2012'
     @data1 = 'obama'
     @data2 = 'palin'
@@ -18,7 +20,7 @@ describe ZK::Election do
     @zk.close!
     @zk2.close!
 
-    ZK.open('localhost:2181') { |cnx| cnx.rm_rf('/_zkelection') }
+    ZK.open(connection_host) { |cnx| cnx.rm_rf('/_zkelection') }
   end
 
   describe 'Candidate', 'following next_node' do
@@ -146,6 +148,8 @@ describe ZK::Election do
           end
 
           it %[should take over as leader when the current leader goes away] do
+            pending_187("1.8.7's AWESOEM thread scheduler makes this test deadlock")
+
             @obama.zk.close!
             wait_until { @palin_won }
 
@@ -159,10 +163,11 @@ describe ZK::Election do
           end
 
           it %[should remain leader if the original leader comes back] do
+            pending_187("1.8.7's AWESOEM thread scheduler makes this test deadlock")
             @obama.zk.close!
             wait_until { @palin_won }
 
-            ZK.open('localhost:2181') do |zk|
+            ZK.open(*connection_args) do |zk|
               newbama = ZK::Election::Candidate.new(zk, @election_name, :data => @data1)
 
               win_again = false
@@ -186,7 +191,7 @@ describe ZK::Election do
 
   describe :Observer do
     before do
-      @zk3 = ZK.new('localhost:2181')
+      @zk3 = ZK.new(*connection_args)
 
       @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
 
@@ -260,16 +265,9 @@ describe ZK::Election do
         end
       end
 
-      def pending_192(msg)
-        if RUBY_VERSION == '1.9.2' and not defined?(::JRUBY_VERSION)
-          pending(msg) { yield }
-        else
-          yield
-        end
-      end
-
       describe 'leadership transition' do
         before do
+          pending_187("1.8.7's AWESOEM thread scheduler makes this test deadlock")
           @obama.vote!
           wait_until { @obama.leader? }
 
