@@ -1,5 +1,7 @@
 # ZK
 
+[![Build Status (master)](https://secure.travis-ci.org/slyphon/zk.png?branch=master)](http://travis-ci.org/slyphon/zk)
+
 ZK is a high-level interface to the Apache [ZooKeeper][] server. It is based on the [zookeeper gem][] which is a multi-Ruby low-level driver. Currently MRI 1.8.7, 1.9.2, 1.9.3, and JRuby are supported, rubinius 2.0.testing is supported-ish (it's expected to work, but upstream is unstable, so YMMV). 
 
 ZK is licensed under the [MIT][] license. 
