@@ -133,8 +133,6 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 
 * ZK::Client supports asynchronous calls of all basic methods (get, set, delete, etc.) however these versions are kind of inconvenient to use. For a fully evented stack, try [zk-eventmachine][], which is designed to be compatible and convenient to use in event-driven code.
 
-* ZooKeeper "chroot" [connection syntax][chroot] should work for most cases. Right now we require that the root path exist before the chrooted client is used, but that may change [in the near future](https://github.com/slyphon/zk/issues/7).
-
 [twitter/zookeeper]: https://github.com/twitter/zookeeper
 [async-branch]: https://github.com/slyphon/zk/tree/dev%2Fasync-conveniences
 [chroot]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkSessions
