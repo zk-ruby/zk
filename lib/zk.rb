@@ -198,6 +198,8 @@ module ZK
     yield cnx
   ensure
     cnx.close! if cnx
+    # XXX: need some way of waiting for the connection to reach closed? state
+    #      ensure there's no leakage
   end
 
   # creates a new ZK::Pool::Bounded with the default options.
