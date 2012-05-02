@@ -3,11 +3,10 @@ source :rubygems
 # gem 'slyphon-zookeeper', :path => '~/zookeeper'
 # gem 'zk-server', :path => '~/mbox/zk-server', :group => :test
 
-group :development do
-  gem 'rake'
-end
 
-gem 'pry', :group => [:development, :test]
+gem 'rake', :group => [:development, :test]
+
+gem 'pry',  :group => [:development]
 
 group :docs do
   gem 'yard', '~> 0.7.5'
