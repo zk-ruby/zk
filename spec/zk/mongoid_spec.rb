@@ -1,8 +1,10 @@
 require 'spec_helper'
 
 describe ZK::Mongoid::Locking do
+  include_context 'connection opts'
+
   before do
-    ZK::Mongoid::Locking.zk_lock_pool = ZK.new_pool('localhost:2181', :min_clients => 1, :max_clients => 5)
+    ZK::Mongoid::Locking.zk_lock_pool = ZK.new_pool(connection_host, :min_clients => 1, :max_clients => 5)
 
     @doc        = BogusMongoid.new
     @other_doc  = BogusMongoid.new

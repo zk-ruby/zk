@@ -23,12 +23,20 @@ module Pendings
     end
   end
 
-  def jruby?
-    defined?(::JRUBY_VERSION)
+  def pending_in_travis(msg)
+    if travis?
+      if block_given?
+        pending(msg) { yield }
+      else
+        pending(msg)
+      end
+    else
+      yield if block_given?
+    end
   end
 
-  def rubinius?
-    defined?(::Rubinius)
+  def travis?
+    !!ENV['TRAVIS']
   end
 end
 

@@ -3,9 +3,7 @@ source :rubygems
 # gem 'slyphon-zookeeper', :path => '~/zookeeper'
 # gem 'zk-server', :path => '~/mbox/zk-server', :group => :test
 
-
 gem 'rake', :group => [:development, :test]
-
 gem 'pry',  :group => [:development]
 
 group :docs do

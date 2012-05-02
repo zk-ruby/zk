@@ -4,6 +4,8 @@ require 'spec_helper'
 
 describe ZK do
   describe :new do
+    include_context 'connection opts'
+
     let(:chroot_path) { '/zktest/path/to/chroot' }
 
     after do
@@ -14,7 +16,7 @@ describe ZK do
 
     describe %[with a chrooted connection string and a :chroot => '/path'] do
       it %[should raise an ArgumentError] do
-        lambda { @zk = ZK.new('localhost:2181/zktest', :chroot => '/zktest') }.should raise_error(ArgumentError)
+        lambda { @zk = ZK.new("#{connection_host}/zktest", :chroot => '/zktest') }.should raise_error(ArgumentError)
       end
     end
 
@@ -57,7 +59,7 @@ describe ZK do
         describe %[as a connection string] do
           describe %[and no explicit option] do
             before do
-              @zk = ZK.new("localhost:2181#{chroot_path}")    # implicit create
+              @zk = ZK.new("#{connection_host}#{chroot_path}")    # implicit create
             end
 
             it %[should create the chroot path and then return the connection] do
@@ -70,7 +72,7 @@ describe ZK do
 
           describe %[and an explicit :chroot => :create] do
             before do
-              @zk = ZK.new("localhost:2181#{chroot_path}", :chroot => :create)
+              @zk = ZK.new("#{connection_host}#{chroot_path}", :chroot => :create)
             end
 
             it %[should create the chroot path and then return the connection] do
@@ -85,20 +87,20 @@ describe ZK do
             it %[should barf with a ChrootPathDoesNotExistError] do
               lambda do
                 # assign in case of a bug, that way this connection will get torn down
-                @zk = ZK.new("localhost:2181#{chroot_path}", :chroot => :check)
+                @zk = ZK.new("#{connection_host}#{chroot_path}", :chroot => :check)
               end.should raise_error(ZK::Exceptions::ChrootPathDoesNotExistError)
             end
           end
 
           describe %[and :chroot => :do_nothing] do
             it %[should return a connection in a weird state] do
-              @zk = ZK.new("localhost:2181#{chroot_path}", :chroot => :do_nothing)
+              @zk = ZK.new("#{connection_host}#{chroot_path}", :chroot => :do_nothing)
               lambda { @zk.get('/') }.should raise_error(ZK::Exceptions::NoNode)
             end
           end
 
           describe %[and :chroot => '/path'] do
-            before { @zk = ZK.new("localhost:2181", :chroot => chroot_path) }
+            before { @zk = ZK.new(connection_host, :chroot => chroot_path) }
 
             it %[should create the chroot path and then return the connection] do
               @zk.exists?('/').should be_true
@@ -127,7 +129,7 @@ describe ZK do
         describe %[as a connection string] do
           describe %[and no explicit option] do
             before do
-              @zk = ZK.new("localhost:2181#{chroot_path}")    # implicit create
+              @zk = ZK.new("#{connection_host}#{chroot_path}")    # implicit create
             end
 
             it %[should totally work] do
@@ -140,7 +142,7 @@ describe ZK do
 
           describe %[and an explicit :chroot => :create] do
             before do
-              @zk = ZK.new("localhost:2181#{chroot_path}", :chroot => :create)
+              @zk = ZK.new("#{connection_host}#{chroot_path}", :chroot => :create)
             end
 
             it %[should totally work] do
@@ -155,20 +157,20 @@ describe ZK do
             it %[should totally work] do
               lambda do
                 # assign in case of a bug, that way this connection will get torn down
-                @zk = ZK.new("localhost:2181#{chroot_path}", :chroot => :check)
+                @zk = ZK.new("#{connection_host}#{chroot_path}", :chroot => :check)
               end.should_not raise_error
             end
           end
 
           describe %[and :chroot => :do_nothing] do
             it %[should totally work] do
-              @zk = ZK.new("localhost:2181#{chroot_path}", :chroot => :do_nothing)
+              @zk = ZK.new("#{connection_host}#{chroot_path}", :chroot => :do_nothing)
               lambda { @zk.get('/') }.should_not raise_error
             end
           end
 
           describe %[and :chroot => '/path'] do
-            before { @zk = ZK.new("localhost:2181", :chroot => chroot_path) }
+            before { @zk = ZK.new(connection_host, :chroot => chroot_path) }
 
             it %[should totally work] do
               @zk.exists?('/').should be_true
