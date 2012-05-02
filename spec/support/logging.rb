@@ -4,7 +4,9 @@ module ZK
 #   LOG_FILE = $stderr
 end
 
-ZK.logger = Logger.new(ZK::LOG_FILE).tap { |log| log.level = Logger::DEBUG }
+ZK.logger = ENV['TRAVIS'] ? Logger.new($stderr) : Logger.new(ZK::LOG_FILE)
+
+ZK.logger.level = Logger::DEBUG
 
 # Zookeeper.logger = ZK.logger
 # Zookeeper.set_debug_level(4)
