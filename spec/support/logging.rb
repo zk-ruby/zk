@@ -4,7 +4,7 @@ module ZK
 #   LOG_FILE = $stderr
 end
 
-ZK.logger = ENV['TRAVIS'] ? Logger.new($stderr) : Logger.new(ZK::LOG_FILE)
+# ZK.logger = ENV['TRAVIS'] ? Logger.new($stderr) : Logger.new(ZK::LOG_FILE)
 
 ZK.logger.level = Logger::DEBUG
 
