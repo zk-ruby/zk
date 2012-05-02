@@ -6,7 +6,6 @@ require 'bundler/setup'
 Bundler.require(:development, :test)
 
 require 'zk'
-require 'zk-server'
 require 'benchmark'
 
 # Requires supporting ruby files with custom matchers and macros, etc,
@@ -27,6 +26,8 @@ RSpec.configure do |config|
   end
 
   if ZK.spawn_zookeeper?
+    require 'zk-server'
+
     config.before(:suite) do 
       ZK.logger.debug { "Starting zookeeper service" }
       ZK::Server.run do |c|
