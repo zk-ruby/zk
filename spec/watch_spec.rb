@@ -193,113 +193,120 @@ describe ZK do
         before do
           @events = EventCatcher.new
 
-          @zk.register(@path, :only => :created) do |event|
-            @events.created << event
-          end
+          [:created, :changed, :child, :deleted].each do |ev_name|
 
-          @zk.register(@path, :only => :changed) do |event|
-            @events.changed << event
-          end
+            @zk.register(@path, :only => ev_name) do |event|
+              @events.add(ev_name, event)
+            end
 
-          @zk.register(@path, :only => :child) do |event|
-            @events.child << event
-          end
-
-          @zk.register(@path, :only => :deleted) do |event|
-            @events.deleted << event
-          end
-
-          # this will catch all events, that way we don't have to wait for an
-          # event to *not* be delivered to one of the other callbacks (which is
-          # kinda stupid)
-          @zk.register(@path) do |event|
-            @events.all << event
           end
         end
 
         it %[should deliver only the created event to the created block] do
-          @zk.stat(@path, :watch => true).should_not exist
+          @events.synchronize do
+            @zk.stat(@path, :watch => true).should_not exist
 
-          @zk.create(@path)
-          wait_while { @events.created.empty? }.should be_false
-          @events.created.first.should be_node_created
+            @zk.create(@path)
 
-          @zk.stat(@path, :watch => true).should exist
+            @events.wait_for_created
 
-          @events.all.length.should == 1
+            @events.created.should_not be_empty
+            @events.created.first.should be_node_created
+            @events.all.should_not be_empty
 
-          @zk.delete(@path)
+            @zk.stat(@path, :watch => true).should exist
 
-          wait_until { @events.all.length > 1 }
+            @events.all.length.should == 1
+
+            @zk.delete(@path)
+
+            @events.wait_for_all
+          end
+
+          @events.all.length.should == 2
 
           # :deleted event was delivered, make sure it didn't get delivered to the :created block
           @events.created.length.should == 1
         end
 
         it %[should deliver only the changed event to the changed block] do
-          @zk.create(@path)
+          @events.synchronize do
+            @zk.create(@path)
 
-          @zk.stat(@path, :watch => true).should exist
+            @zk.stat(@path, :watch => true).should exist
 
-          @zk.set(@path, 'data')
+            @zk.set(@path, 'data')
 
-          wait_while { @events.changed.empty? }
+            @events.wait_for_changed
+          end
 
+          @events.changed.should_not be_empty
+          @events.changed.length.should == 1
           @events.changed.first.should be_node_changed
-
-          @zk.stat(@path, :watch => true).should exist
 
           @events.all.length.should == 1
 
-          @zk.delete(@path)
+          @events.synchronize do
+            @zk.stat(@path, :watch => true).should exist
+            @zk.delete(@path)
+            @events.wait_for_all
+          end
 
-          wait_until { @events.all.length > 1 }
+          @events.all.length.should == 2
 
           # :deleted event was delivered, make sure it didn't get delivered to the :changed block
           @events.changed.length.should == 1
         end
 
         it %[should deliver only the child event to the child block] do
-          @zk.create(@path)
+          child_path = nil
 
-          @zk.children(@path, :watch => true).should be_empty
+          @events.synchronize do
+            @zk.create(@path)
+            @zk.children(@path, :watch => true).should be_empty
 
-          child_path = @zk.create("#{@path}/m", '', :sequence => true)
+            child_path = @zk.create("#{@path}/m", '', :sequence => true)
 
-          wait_while { @events.child.empty? }
+            @events.wait_for_child
 
-          @events.child.first.should be_node_child
+            @events.child.length.should == 1
+            @events.child.first.should be_node_child
 
-          @zk.stat(@path, :watch => true).should exist
+            @zk.stat(@path, :watch => true).should exist
 
-          @events.all.length.should == 1
+            @events.all.length.should == 1
 
-          @zk.set(@path, '') # equivalent to a 'touch'
+            @zk.set(@path, '') # equivalent to a 'touch'
+            @events.wait_for_all
+          end
 
-          wait_until { @events.all.length > 1 }
+          @events.all.length.should == 2
 
           # :changed event was delivered, make sure it didn't get delivered to the :child block
           @events.child.length.should == 1
         end
 
         it %[should deliver only the deleted event to the deleted block] do
-          @zk.create(@path)
+          @events.synchronize do
+            @zk.create(@path)
+            @zk.stat(@path, :watch => true).should exist
+            @zk.delete(@path)
 
-          @zk.stat(@path, :watch => true).should exist
+            @events.wait_for_deleted
+            @events.wait_while_all { |all| all.empty? }
 
-          @zk.delete(@path)
+            @events.deleted.should_not be_empty
+            @events.deleted.first.should be_node_deleted
+            @events.all.length.should == 1
 
-          wait_while { @events.deleted.empty? }
+            @zk.stat(@path, :watch => true).should_not exist
 
-          @events.deleted.first.should be_node_deleted
+            @zk.create(@path)
 
-          @zk.stat(@path, :watch => true).should_not exist
+            @events.wait_for_all
+          end
 
-          @events.all.length.should == 1
-
-          @zk.create(@path)
-
-          wait_until { @events.all.length > 1 }
+          @events.all.length.should be > 1
 
           # :deleted event was delivered, make sure it didn't get delivered to the :created block
           @events.deleted.length.should == 1
@@ -308,29 +315,34 @@ describe ZK do
 
       it %[should deliver interested events to a block registered for multiple deliveries] do
         @events = []
+        @events.extend(MonitorMixin)
+        @cond = @events.new_cond
 
         @zk.register(@path, :only => [:created, :changed]) do |event|
-          @events << event
+          @events.synchronize do
+            @events << event
+            @cond.broadcast
+          end
         end
 
-        @zk.stat(@path, :watch => true).should_not exist
+        @events.synchronize do
+          @zk.stat(@path, :watch => true).should_not exist
 
-        @zk.create(@path)
+          @zk.create(@path)
 
-        wait_while { @events.empty? }
+          @cond.wait(5)
 
-        @events.length.should == 1
+          @events.should_not be_empty
+          @events.length.should == 1
+          @events.first.should be_node_created
 
-        @events.first.should be_node_created
+          @zk.stat(@path, :watch => true).should exist
+          @zk.set(@path, 'blah')
 
-        @zk.stat(@path, :watch => true).should exist
-
-        @zk.set(@path, 'blah')
-
-        wait_until { @events.length > 1 }
+          @cond.wait(5)
+        end
 
         @events.length.should == 2
-
         @events.last.should be_node_changed
       end
 

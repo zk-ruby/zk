@@ -53,7 +53,7 @@ module ZK
 
       protected
         def prep_interests(a)
-          logger.debug { "prep_interests: #{a.inspect}" }
+#           logger.debug { "prep_interests: #{a.inspect}" }
           return ALL_EVENT_SET if a.nil?
 
           rval = 
