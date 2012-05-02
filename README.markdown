@@ -16,7 +16,13 @@ Development is sponsored by [Snapfish][] and has been generously released to the
 [MIT]: http://www.gnu.org/licenses/license-list.html#Expat "MIT (Expat) License"
 [Snapfish]: http://www.snapfish.com/ "Snapfish"
 
-## New in 1.0 !! ##
+## New in 1.1 !! ##
+
+* NEW! Thread-per-Callback event delivery model! [Read all about it!](https://github.com/slyphon/zk/wiki/EventDeliveryModel). Provides a simple, sane way to increase the concurrency in your ZK-based app while maintaining the ordering guarantees ZooKeeper makes. Each callback can perform whatever work it needs to without blocking other callbacks from receiving events. Inspired by [Celluloid's](https://github.com/celluloid/celluloid) actor model.
+
+* Use the [zk-server](https://github.com/slyphon/zk-server) gem to run a standalone ZooKeeper server for tests (`rake SPAWN_ZOOKEEPER=1`). Makes live-fire testing of any project that uses ZK easy to run anywhere!
+
+## New in 1.0 ##
 
 * Threaded client (the default one) will now automatically reconnect (i.e. `reopen()`) if a `SESSION_EXPIRED` or `AUTH_FAILED` event is received. Thanks to @eric for pointing out the _nose-on-your-face obviousness_ and importance of this. If users want to handle these events themselves, and not automatically reopen, you can pass `:reconnect => false` to the constructor.
 
