@@ -175,7 +175,7 @@ shared_examples_for 'client' do
 
   describe 'session_id and session_passwd' do
     it %[should expose the underlying session_id] do
-      @zk.session_id.should be_kind_of(Fixnum)
+      @zk.session_id.should be_kind_of(Integer)
     end
 
     it %[should expose the underlying session_passwd] do
