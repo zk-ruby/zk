@@ -70,7 +70,7 @@ namespace :spec do
     require 'rspec/core/rake_task'
 
     RSpec::Core::RakeTask.new('spec:runner') do |t|
-      rspec.opts = '-f d --fail-fast'
+      t.opts = '-f d --fail-fast'
     end
   end
 
