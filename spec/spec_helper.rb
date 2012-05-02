@@ -9,7 +9,6 @@ require 'zk'
 require 'zk-server'
 require 'benchmark'
 
-
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
 Dir[File.expand_path("../{support,shared}/**/*.rb", __FILE__)].sort.each {|f| require f}
