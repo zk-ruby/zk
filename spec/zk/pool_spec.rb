@@ -6,7 +6,7 @@ describe ZK::Pool do
     before do
       report_realtime('opening pool') do
         @pool_size = 2
-        @connection_pool = ZK::Pool::Simple.new("localhost:#{ZK_TEST_PORT}", @pool_size, :watcher => :default)
+        @connection_pool = ZK::Pool::Simple.new("localhost:#{ZK.test_port}", @pool_size, :watcher => :default)
         @connection_pool.should be_open
       end
     end
@@ -27,7 +27,7 @@ describe ZK::Pool do
       end
 
       report_realtime("closing") do
-        ZK.open("localhost:#{ZK_TEST_PORT}") do |zk|
+        ZK.open("localhost:#{ZK.test_port}") do |zk|
           zk.delete('/test_pool') rescue ZK::Exceptions::NoNode
         end
       end
@@ -197,7 +197,7 @@ describe ZK::Pool do
     before do
       @min_clients = 1
       @max_clients = 2
-      @connection_pool = ZK::Pool::Bounded.new("localhost:#{ZK_TEST_PORT}", :min_clients => @min_clients, :max_clients => @max_clients, :timeout => @timeout)
+      @connection_pool = ZK::Pool::Bounded.new("localhost:#{ZK.test_port}", :min_clients => @min_clients, :max_clients => @max_clients, :timeout => @timeout)
       @connection_pool.should be_open
       wait_until(2) { @connection_pool.available_size > 0 }
     end

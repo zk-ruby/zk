@@ -1,6 +1,6 @@
 shared_context 'connection opts' do
   let(:connection_opts) { { :thread => :per_callback } }
-  let(:connection_host) { "localhost:#{ZK_TEST_PORT}" }
+  let(:connection_host) { "localhost:#{ZK.test_port}" }
   let(:connection_args) { [connection_host, connection_opts] }
 end
 
@@ -8,7 +8,7 @@ shared_context 'threaded client connection' do
   include_context 'connection opts'
 
   before do
-    @connection_string = "localhost:#{ZK_TEST_PORT}"
+    @connection_string = "localhost:#{ZK.test_port}"
     @base_path = '/zktests'
     @zk = ZK::Client::Threaded.new(*connection_args).tap { |z| wait_until { z.connected? } }
     @zk.on_exception { |e| raise e }

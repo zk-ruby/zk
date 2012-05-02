@@ -340,7 +340,7 @@ describe ZK do
     describe 'live-fire test' do
       before do
         @event = nil
-        @cnx_str = "localhost:#{ZK_TEST_PORT}"
+        @cnx_str = "localhost:#{ZK.test_port}"
 
         @zk = ZK.new(*connection_args) do |zk|
           @cnx_reg = zk.on_connected { |event| @event = event }

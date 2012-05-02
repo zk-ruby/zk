@@ -6,9 +6,9 @@ require 'bundler/setup'
 Bundler.require(:development, :test)
 
 require 'zk'
+require 'zk-server'
 require 'benchmark'
 
-ZK_TEST_PORT = 2181 unless defined?(ZK_TEST_PORT)
 
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
@@ -25,6 +25,22 @@ RSpec.configure do |config|
   [WaitWatchers, SpecGlobalLogger, Pendings].each do |mod|
     config.include(mod)
     config.extend(mod)
+  end
+
+  if ZK.spawn_zookeeper?
+    config.before(:suite) do 
+      ZK.logger.debug { "Starting zookeeper service" }
+      ZK::Server.run do |c|
+        c.client_port = ZK.test_port
+        c.force_sync  = false
+        c.snap_count  = 1_000_000
+      end
+    end
+
+    config.after(:suite) do
+      ZK.logger.debug { "stopping zookeeper service" }
+      ZK::Server.shutdown
+    end
   end
 end
 
