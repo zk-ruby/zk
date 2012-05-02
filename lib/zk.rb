@@ -31,9 +31,6 @@ module ZK
   silence_warnings do
     # @private
     ZK_ROOT = File.expand_path('../..', __FILE__).freeze
-    
-    # @private
-    DEFAULT_SERVER = 'localhost:2181'.freeze
   end
 
   unless defined?(KILL_TOKEN) 
@@ -41,9 +38,31 @@ module ZK
     KILL_TOKEN = Object.new 
   end
 
-
   unless @logger
     @logger = Logger.new($stderr).tap { |n| n.level = Logger::ERROR }
+  end
+ 
+  @default_host   = 'localhost' unless @default_host
+  @default_port   = 2181        unless @default_port
+  @default_chroot = ''          unless @default_chroot
+
+  class << self
+    # what host should ZK.new connect to when given no options
+    attr_accessor :default_host
+
+    # what port should ZK.new connect to when given no options
+    attr_accessor :default_port
+
+    # what chroot path should ZK.new connect to when given no options
+    attr_accessor :default_chroot
+  end
+
+  # @private
+  def self.default_connection_string
+    "#{default_host}:#{default_port}".tap do |str|
+      # XXX: this is seriously blech
+      str.replace(File.join(str, default_chroot)) if default_chroot != ''
+    end
   end
 
   # The logger used by the ZK library. uses a Logger stderr with Logger::ERROR
@@ -155,7 +174,7 @@ module ZK
 
     chroot_opt = opts.fetch(:chroot, :create)
 
-    args = [DEFAULT_SERVER]  if args.empty?     # the ZK.new() case
+    args = [default_connection_string]  if args.empty?     # the ZK.new() case
 
     if args.first.kind_of?(String)
       if new_cnx_str = do_chroot_setup(args.first, chroot_opt)
@@ -251,6 +270,7 @@ module ZK
       open(host) do |zk|                # do path stuff with the virgin connection
         unless zk.exists?(chroot_path)  # someting must be done
           if chroot_opt == :create      # here, let me...
+            logger.debug { "creating chroot path #{chroot_path}" }
             zk.mkdir_p(chroot_path)     # ...get that for you
           else                          # careful with that axe
             raise Exceptions::ChrootPathDoesNotExistError.new(host, chroot_path)  # ...eugene

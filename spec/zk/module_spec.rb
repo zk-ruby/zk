@@ -8,9 +8,14 @@ describe ZK do
 
     let(:chroot_path) { '/zktest/path/to/chroot' }
 
+    before do
+      ZK.open(*connection_args) { |z| z.rm_rf('/zktest') }
+    end
+
     after do
       mute_logger do
         @zk.close! if @zk and not @zk.closed?
+        ZK.open(*connection_args) { |z| z.rm_rf('/zktest') }
       end
     end
 
@@ -31,7 +36,7 @@ describe ZK do
     describe %[with a chroot] do
       before do
         mute_logger do
-          @unchroot = ZK.new
+          @unchroot = ZK.new(*connection_args)
         end
       end
 
@@ -60,6 +65,7 @@ describe ZK do
           describe %[and no explicit option] do
             before do
               @zk = ZK.new("#{connection_host}#{chroot_path}")    # implicit create
+              wait_until { @zk.connected? }
             end
 
             it %[should create the chroot path and then return the connection] do
