@@ -5,7 +5,7 @@ module ZK
   #
   # you never really need to initialize this yourself
   class EventHandler
-    include org.apache.zookeeper.Watcher if defined?(JRUBY_VERSION)
+    include Java::OrgApacheZookeeper::Watcher if defined?(JRUBY_VERSION)
     include ZK::Logging
 
     # @private

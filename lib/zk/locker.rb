@@ -118,7 +118,6 @@ module ZK
     # @private
     class WeAreTheLowestLockNumberException < StandardError
     end
-
   end # Locker
 end # ZK
 

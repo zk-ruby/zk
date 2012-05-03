@@ -8,10 +8,10 @@ module ZK
     # * lock_path = `zk.create("/_zklocking/dingus/ex", :sequential => true, :ephemeral => true)`
     # * extract the digit from the lock path
     # * of all the children under '/_zklocking/dingus', do we have the lowest digit?
-    #   * __yes__: then we hold the lock
+    #   * __yes__: then we hold the lock, if we're non-blocking, return true
     #   * __no__: is the lock blocking?
     #       * __yes__: then set a watch on the next-to-lowest node and sleep the current thread until that node has been deleted
-    #       * __no__: return false, you're done
+    #       * __no__: return false, you lose
     # 
     class ExclusiveLocker < LockerBase
       # obtain an exclusive lock.
