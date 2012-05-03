@@ -23,6 +23,7 @@ module ZK
     }.freeze unless defined?(STATE_SYM_MAP)
 
     class << self
+      # (see Threaded#initialize)
       def new(*a, &b)
         Threaded.new(*a, &b)
       end

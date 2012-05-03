@@ -1,8 +1,10 @@
 module ZK
   module Client
-    # EXTENSIONS
+    # Convenience methods for creating instances of the cluster coordination
+    # objects ZK provides, using the current connection.
     #
-    # convenience methods for dealing with zookeeper (rm -rf, mkdir -p, etc)
+    # Mixed into {ZK::Client::Threaded}
+    #
     module Conveniences
       # Queue an operation to be run on an internal threadpool. You may either
       # provide an object that responds_to?(:call) or pass a block. There is no
@@ -18,6 +20,7 @@ module ZK
       # @yield [] the block that should be run in the threadpool, if `callable`
       #   isn't given
       #
+      # @private
       def defer(callable=nil, &block)
         @threadpool.defer(callable, &block)
       end
@@ -33,20 +36,15 @@ module ZK
         false
       end
 
-      # creates a new locker based on the name you send in
+      # Creates a new locker based on the name you provide, using this client
+      # as the connection.
       #
-      # @see ZK::Locker::ExclusiveLocker
+      # @param name [String] the name of the lock you wish to use. see
+      #   {ZK::Locker} for a description of how the name is used to generate a
+      #   key.
       #
-      # returns a ZK::Locker::ExclusiveLocker instance using this Client and provided
-      # lock name
-      #
-      # ==== Arguments
-      # * <tt>name</tt> name of the lock you wish to use
-      #
-      # ==== Examples
-      #
-      #   zk.locker("blah")
-      #   # => #<ZK::Locker::ExclusiveLocker:0x102034cf8 ...>
+      # @return [Locker::ExclusiveLocker] instance using this Client and
+      #   provided lock name. 
       #
       def locker(name)
         Locker.exclusive_locker(self, name)
@@ -55,33 +53,35 @@ module ZK
 
       # create a new shared locking instance based on the name given
       #
-      # returns a ZK::Locker::SharedLocker instance using this Client and provided
-      # lock name
+      # @param name (see #locker)
       #
-      # ==== Arguments
-      # * <tt>name</tt> name of the lock you wish to use
-      #
-      # ==== Examples
-      #
-      #   zk.shared_locker("blah")
-      #   # => #<ZK::Locker::SharedLocker:0x102034cf8 ...>
+      # @return [Locker::SharedLocker] instance using this Client and provided
+      #   lock name. 
       #
       def shared_locker(name)
         Locker.shared_locker(self, name)
       end
 
       # Convenience method for acquiring a lock then executing a code block. This
-      # will block the caller until the lock is acquired.
+      # will block the caller until the lock is acquired, and release the lock
+      # when the block is exited.
       #
-      # ==== Arguments
-      # * <tt>name</tt>: the name of the lock to use
-      # * <tt>:mode</tt>: either :shared or :exclusive, defaults to :exclusive
+      # @param name (see #locker)
       #
-      # ==== Examples
+      # @option opts [:shared,:exclusive] :mode (:exclusive) the type of lock
+      #   to create and then call with_lock on
+      #
+      # @return the return value of the given block
+      #
+      # @yield calls the block once the lock has been acquired
+      #
+      # @example
       #
       #   zk.with_lock('foo') do
       #     # this code is executed while holding the lock
       #   end
+      #
+      # @raise [ArgumentError] if `opts[:mode]` is not one of the expected values
       #
       def with_lock(name, opts={}, &b)
         mode = opts[:mode] || :exclusive
@@ -95,29 +95,38 @@ module ZK
         end
       end
 
-      # Convenience method for constructing a ZK::Election::Candidate object using this 
-      # Client connection, the given election +name+ and +data+.
+      # Constructs an {Election::Candidate} object using self as the connection
       #
+      # @param [String] name the name of the election to participate in
+      # @param [String] data the data we will write to the leadership node if/when we win
+      #
+      # @return [Election::Candidate] the candidate instance using self as a connection
       def election_candidate(name, data, opts={})
         opts = opts.merge(:data => data)
         ZK::Election::Candidate.new(self, name, opts)
       end
 
-      # Convenience method for constructing a ZK::Election::Observer object using this 
-      # Client connection, and the given election +name+.
+      # Constructs an {Election::Observer} object using self as the connection
+      # 
+      # @param name (see #election_candidate)
       #
+      # @reutn [Election::Observer] the candidate instance using self as a connection
       def election_observer(name, opts={})
         ZK::Election::Observer.new(self, name, opts)
       end
 
-      # creates a new message queue of name +name+
+      # creates a new message queue of name `name`
+      # 
+      # @note The message queue has some scalability limitations. For
+      #   heavy-duty message processing, the author recommends investigating 
+      #   a purpose-built solution.
       #
-      # returns a ZK::MessageQueue object
+      # @return [MessageQueue] the new instance using self as its
+      #   client
       #
-      # ==== Arguments
-      # * <tt>name</tt> the name of the queue
+      # @param [String] name the name of the queue
       #
-      # ==== Examples
+      # @example
       #
       #   zk.queue("blah").publish({:some_data => "that is yaml serializable"})
       #

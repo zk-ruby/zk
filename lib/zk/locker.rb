@@ -1,11 +1,39 @@
 module ZK
-  # Implements locking primitives [described here](http://hadoop.apache.org/zookeeper/docs/current/recipes.html#sc_recipes_Locks)
+  # The most convenient way to create instances of locks is by using the methods
+  #
+  # This module contains implementations of the locking primitives [described here][recipes], 
+  # that allow a user to implement cluster-wide global locks (with both
+  # blocking and non-blocking semantics).
   #
   # There are both shared and exclusive lock implementations.
   #
-  # NOTE: These lock instances are _not_ safe for use across threads. If you
-  # want to use the same Locker instance between threads, it is your
-  # responsibility to synchronize operations.
+  # The implementation is fairly true to the description in the [recipes][], and
+  # the key is generated using a combination of the name provided, and a
+  # `root_lock_node` path whose default value is `/_zklocking`. If you look
+  # below at the 'Key path creation' example, you'll see that we do a very
+  # simple escaping of the name given. There was a distinct tradeoff to be made
+  # between making the locks easy to debug in zookeeper and making them more
+  # collision tolerant. If the key naming causees issues, please [file a bug] and
+  # we'll try to work out a solution (hearing about use cases is incredibly halpful
+  # in guiding development).
+  #
+  # If you're interested in how the algorithm works, have a look at
+  # {ZK::Locker::ExclusiveLocker}'s documentation.
+  #
+  # [recipes]: http://zookeeper.apache.org/doc/r3.3.5/recipes.html#sc_recipes_Locks
+  # [file a bug]: https://github.com/slyphon/zk/issues
+  #
+  # @example Key path creation
+  #
+  #   "#{root_lock_node}/#{name.gsub('/', '__')}/#{shared_or_exclusive_prefix}"
+  #  
+  # @note These lock instances are _not_ safe for use across threads. If you
+  #   want to use the same Locker instance between threads, it is your
+  #   responsibility to synchronize operations.
+  #
+  # @note Lockers are *instances* that hold the lock. A single connection may
+  #   have many instances trying to lock the same path and only *one* (in the
+  #   case of an ExclusiveLocker) will hold the lock.
   #
   module Locker
     SHARED_LOCK_PREFIX  = 'sh'.freeze
@@ -19,12 +47,21 @@ module ZK
       ExclusiveLocker.new(zk, name)
     end
     
-    class NoWriteLockFoundException < StandardError #:nodoc:
+    # @private
+    class NoWriteLockFoundException < StandardError
     end
 
-    class WeAreTheLowestLockNumberException < StandardError #:nodoc:
+    # @private
+    class WeAreTheLowestLockNumberException < StandardError
     end
 
+    # Common code for the shared and exclusive lock implementations
+    # 
+    # One thing to note about this implementation is that the API unfortunately
+    # __does not__ follow the convention where bang ('!') methods raise
+    # exceptions when they fail. This was an oversight on the part of the
+    # author, and it may be corrected sometime in the future.
+    #
     class LockerBase
       include ZK::Logging
 
@@ -33,19 +70,35 @@ module ZK
 
       # our absolute lock node path
       #
-      # ex. '/_zklocking/foobar/__blah/lock000000007'
+      # @example 
       #
-      # @private
+      #   '/_zklocking/foobar/__blah/lock000000007'
+      #
+      # @returns [String]
       attr_reader :lock_path
 
       # @private
       attr_reader :root_lock_path
 
+      # Extracts the integer from the zero-padded sequential lock path
+      #
+      # @return [Integer] our digit
       # @private
       def self.digit_from_lock_path(path)
         path[/0*(\d+)$/, 1].to_i
       end
 
+      # Create a new lock instance.
+      #
+      # @param [Client::Threaded] zookeeper_client a client instance
+      #
+      # @param [String] name Unique name that will be used to generate a key.
+      #   All instances created with the same `root_lock_node` and `name` will be
+      #   holding the same lock.
+      #
+      # @param [String] root_lock_node the root path on the server under which all
+      #   locks will be generated
+      #
       def initialize(zookeeper_client, name, root_lock_node = "/_zklocking") 
         @zk = zookeeper_client
         @root_lock_node = root_lock_node
@@ -56,6 +109,9 @@ module ZK
       end
       
       # block caller until lock is aquired, then yield
+      #
+      # there is no non-blocking version of this method
+      #
       def with_lock
         lock!(true)
         yield
@@ -73,15 +129,20 @@ module ZK
         lock_path and File.basename(lock_path)
       end
 
+      # @return [true,false] true if we hold the lock
       def locked?
         false|@locked
       end
       
+      # @return [true,false] true if we held the lock and this method has
+      #   unlocked it successfully
       def unlock!
         if @locked
           cleanup_lock_path!
           @locked = false
           true
+        else
+          false # i know, i know, but be explicit
         end
       end
 
@@ -209,6 +270,18 @@ module ZK
     end # SharedLocker
 
     # An exclusive lock implementation
+    #
+    # If the name 'dingus' is given, then in the case of an exclusive lock, the
+    # algorithm works like:
+    #
+    # * lock_path = `zk.create("/_zklocking/dingus/ex", :sequential => true, :ephemeral => true)`
+    # * extract the digit from the lock path
+    # * of all the children under '/_zklocking/dingus', do we have the lowest digit?
+    #   * __yes__: then we hold the lock
+    #   * __no__: is the lock blocking?
+    #       * __yes__: then set a watch on the next-to-lowest node and sleep the current thread until that node has been deleted
+    #       * __no__: return false, you're done
+    # 
     class ExclusiveLocker < LockerBase
       def lock!(blocking=false)
         return true if @locked

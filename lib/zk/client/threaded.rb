@@ -3,7 +3,7 @@ module ZK
     # This is the default client that ZK will use. In the zk-eventmachine gem,
     # there is an Evented client.
     #
-    # If you want to register `on_*` callbacks (see ZK::Client::StateMixin)
+    # If you want to register `on_*` callbacks (see {ZK::Client::StateMixin})
     # then you should pass a block, which will be called before the
     # connection is set up (this way you can get the `on_connected` event). See
     # the 'Register on_connected callback' example.
@@ -26,7 +26,7 @@ module ZK
     #   # the nice thing about this pattern is that in the case of a call to #reopen
     #   # all your watches will be re-established
     #
-    #   ZK::Client::Threaded.new('localhsot:2181') do |zk|
+    #   ZK::Client::Threaded.new('localhost:2181') do |zk|
     #     # do not do anything in here except register callbacks
     #     
     #     zk.on_connected do |event|
@@ -44,6 +44,12 @@ module ZK
       DEFAULT_THREADPOOL_SIZE = 1
 
       # Construct a new threaded client.
+      #
+      # Pay close attention to the `:threaded` option, and have a look at the
+      # [EventDeliveryModel](https://github.com/slyphon/zk/wiki/EventDeliveryModel)
+      # page in the wiki for a discussion of the relative advantages and
+      # disadvantages of the choices available. The default is safe, but the
+      # alternative will likely provide better performance.
       #
       # @note The `:timeout` argument here is *not* the session_timeout for the
       #   connection. rather it is the amount of time we wait for the connection
@@ -68,12 +74,15 @@ module ZK
       #   [this wiki article](https://github.com/slyphon/zk/wiki/EventDeliveryModel) for more
       #   information and a demonstration.
       #
-      # @param [String] host (see ZK::Client::Base#initialize)
+      # @param host (see Base#initialize)
       #
       # @option opts [true,false] :reconnect (true) if true, we will register
       #   the equivalent of `on_session_expired { zk.reopen }` so that in the
       #   case of an expired session, we will keep trying to reestablish the
-      #   connection.
+      #   connection. You *almost definately* want to leave this at the default.
+      #   The only reason not to is if you already have a handler registered 
+      #   that does something application specific, and you want to avoid a 
+      #   conflict.
       #
       # @option opts [:single,:per_callback] :thread (:single) choose your event
       #   delivery model:
@@ -111,6 +120,8 @@ module ZK
       #   session events like `connected`. You *cannot* perform any other
       #   operations with the client as you will get a NoMethodError (the
       #   underlying connection is nil).
+      #
+      # @return [Threaded] a new client instance
       #
       # @see Base#initialize
       def initialize(host, opts={}, &b)
