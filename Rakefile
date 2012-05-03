@@ -59,6 +59,10 @@ namespace :yard do
   task :server => :clean do
     sh "yard server --reload"
   end
+
+  task :gems do
+    sh 'yard server --gems --port=8809'
+  end
 end
 
 task :clean => 'yard:clean'

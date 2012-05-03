@@ -6,7 +6,7 @@ gem 'rake', :group => [:development, :test]
 gem 'pry',  :group => [:development]
 
 group :docs do
-  gem 'yard', '~> 0.7.5'
+  gem 'yard', '~> 0.8.0'
 
   platform :mri_19 do
     gem 'redcarpet'
