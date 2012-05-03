@@ -20,8 +20,8 @@ describe ZK::ResqueCoalesce do
 
     uuids[0...-1].each do |uuid|
       rval = subject.maybe_run_job(uuid) { raise "NO NO! YOU FAIL!" }
-
       rval.should be_false
+      @zk.exists?(uuid).should be_true
     end
 
     block_called = false
