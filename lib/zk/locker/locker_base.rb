@@ -1,0 +1,161 @@
+module ZK
+  module Locker
+    # Common code for the shared and exclusive lock implementations
+    # 
+    # One thing to note about this implementation is that the API unfortunately
+    # __does not__ follow the convention where bang ('!') methods raise
+    # exceptions when they fail. This was an oversight on the part of the
+    # author, and it may be corrected sometime in the future.
+    #
+    class LockerBase
+      include ZK::Logging
+
+      # @private
+      attr_accessor :zk
+
+      # our absolute lock node path
+      #
+      # @example 
+      #
+      #   '/_zklocking/foobar/__blah/lock000000007'
+      #
+      # @return [String]
+      attr_reader :lock_path
+
+      # @private
+      attr_reader :root_lock_path
+
+      # Extracts the integer from the zero-padded sequential lock path
+      #
+      # @return [Integer] our digit
+      # @private
+      def self.digit_from_lock_path(path)
+        path[/0*(\d+)$/, 1].to_i
+      end
+
+      # Create a new lock instance.
+      #
+      # @param [Client::Threaded] client a client instance
+      #
+      # @param [String] name Unique name that will be used to generate a key.
+      #   All instances created with the same `root_lock_node` and `name` will be
+      #   holding the same lock.
+      #
+      # @param [String] root_lock_node the root path on the server under which all
+      #   locks will be generated
+      #
+      def initialize(client, name, root_lock_node = "/_zklocking") 
+        @zk = client
+        @root_lock_node = root_lock_node
+        @path = name
+        @locked = false
+        @waiting = false
+        @root_lock_path = "#{@root_lock_node}/#{@path.gsub("/", "__")}"
+      end
+      
+      # block caller until lock is aquired, then yield
+      #
+      # there is no non-blocking version of this method
+      #
+      def with_lock
+        lock!(true)
+        yield
+      ensure
+        unlock!
+      end
+
+      # the basename of our lock path
+      #
+      # @example
+      #
+      #   > locker.lock_path
+      #   # => '/_zklocking/foobar/__blah/lock000000007'
+      #   > locker.lock_basename
+      #   # => 'lock000000007'
+      #
+      # @return [nil] if lock_path is not set
+      # @return [String] last path component of our lock path
+      def lock_basename
+        lock_path and File.basename(lock_path)
+      end
+
+      # @return [true,false] true if we hold the lock
+      def locked?
+        false|@locked
+      end
+      
+      # @return [true] if we held the lock and this method has
+      #   unlocked it successfully
+      #
+      # @return [false] we did not own the lock
+      #
+      def unlock!
+        if @locked
+          cleanup_lock_path!
+          @locked = false
+          true
+        else
+          false # i know, i know, but be explicit
+        end
+      end
+
+      # returns true if this locker is waiting to acquire lock 
+      #
+      # @private
+      def waiting? 
+        false|@waiting
+      end
+
+      protected 
+        # @private
+        def in_waiting_status
+          w, @waiting = @waiting, true
+          yield
+        ensure
+          @waiting = w
+        end
+
+        # @private
+        def digit_from(path)
+          self.class.digit_from_lock_path(path)
+        end
+
+        # @private
+        def lock_children(watch=false)
+          @zk.children(root_lock_path, :watch => watch)
+        end
+
+        # @private
+        def ordered_lock_children(watch=false)
+          lock_children(watch).tap do |ary|
+            ary.sort! { |a,b| digit_from(a) <=> digit_from(b) }
+          end
+        end
+
+        # @private
+        def create_root_path!
+          @zk.mkdir_p(@root_lock_path)
+        end
+
+        # prefix is the string that will appear in front of the sequence num,
+        # defaults to 'lock'
+        #
+        # @private
+        def create_lock_path!(prefix='lock')
+          @lock_path = @zk.create("#{root_lock_path}/#{prefix}", "", :mode => :ephemeral_sequential)
+          logger.debug { "got lock path #{@lock_path}" }
+          @lock_path
+        rescue Exceptions::NoNode
+          create_root_path!
+          retry
+        end
+
+        # @private
+        def cleanup_lock_path!
+          logger.debug { "removing lock path #{@lock_path}" }
+          @zk.delete(@lock_path)
+          @zk.delete(root_lock_path) rescue Exceptions::NotEmpty
+        end
+    end # LockerBase
+  end # Locker
+end # ZK
