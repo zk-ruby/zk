@@ -19,7 +19,6 @@ require 'zk/threadpool'
 require 'zk/threaded_callback'
 require 'zk/event_handler_subscription'
 require 'zk/event_handler'
-require 'zk/queue'
 require 'zk/message_queue'
 require 'zk/locker'
 require 'zk/election'
@@ -27,6 +26,7 @@ require 'zk/mongoid'
 require 'zk/client'
 require 'zk/pool'
 require 'zk/find'
+require 'zk/resque_coalesce'
 
 module ZK
   silence_warnings do

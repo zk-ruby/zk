@@ -11,8 +11,9 @@ shared_context 'threaded client connection' do
     @connection_string = "localhost:#{ZK.test_port}"
     @base_path = '/zktests'
     @zk = ZK::Client::Threaded.new(*connection_args).tap { |z| wait_until { z.connected? } }
-    @threadpool_exception = nil
-    @zk.on_exception { |e| @threadpool_exception = e }
+
+    @threadpool_exceptions = []
+    @zk.on_exception { |e| @threadpool_exceptions << e }
     @zk.rm_rf(@base_path)
   end
 
