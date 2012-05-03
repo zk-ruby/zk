@@ -2,6 +2,7 @@ module ZK
   module Client
     module Unixisms
       include ZookeeperConstants
+      include Exceptions
 
       # Creates all parent paths and 'path' in zookeeper as persistent nodes with
       # zero data.
@@ -21,12 +22,12 @@ module ZK
         # this could get expensive w/ psychotically long paths
 
         create(path, '', :mode => :persistent)
-      rescue Exceptions::NodeExists
+      rescue NodeExists
         return
-      rescue Exceptions::NoNode
+      rescue NoNode
         if File.dirname(path) == '/'
           # ok, we're screwed, blow up
-          raise Exceptions::NonExistentRootError, "could not create '/', are you chrooted into a non-existent path?", caller
+          raise NonExistentRootError, "could not create '/', are you chrooted into a non-existent path?", caller
         end
 
         mkdir_p(File.dirname(path))
@@ -43,7 +44,7 @@ module ZK
 
             delete(path)
             nil
-          rescue Exceptions::NoNode
+          rescue NoNode
           end
         end
       end
@@ -103,19 +104,27 @@ module ZK
         ZK::Find.find(self, *paths, &block)
       end
 
-      # Will _safely_ block the caller until `abs_node_path` has been removed.
-      # This is trickier than it first appears. This method will wake the caller
-      # if a session event occurs that would ensure the event would never be
-      # delivered, and also checks to make sure that the caller is not calling
-      # from the event distribution thread (which would cause a deadlock).
-      #
-      # @note this is dangerous to use in callbacks! there is only one
-      #   event-delivery thread, so if you use this method in a callback or
-      #   watcher, you *will* deadlock!
+      # Will _safely_ block the caller until `abs_node_path` has been removed
+      # (this is trickier than it appears at first). This method will wake the
+      # caller if a session event occurs that would ensure the event would
+      # never be delivered. 
       #
       # @raise [Exceptions::InterruptedSession] If a session event occurs while we're
       #   blocked waiting for the node to be deleted, an exception that
-      #   mixes in the InterruptedSession module will be raised. 
+      #   mixes in the InterruptedSession module will be raised, so for convenience,
+      #   users can just rescue {InterruptedSession}.
+      #
+      # @raise [ZookeeperExceptions::ZookeeperException::SessionExpired] raised
+      #   when we receive `ZOO_EXPIRED_SESSION_STATE` while blocking waiting for
+      #   a deleted event. Includes the {InterruptedSession} module.
+      #
+      # @raise [ZookeeperExceptions::ZookeeperException::NotConnected] raised
+      #   when we receive `ZOO_CONNECTING_STATE` while blocking waiting for
+      #   a deleted event. Includes the {InterruptedSession} module.
+      #
+      # @raise [ZookeeperExceptions::ZookeeperException::ConnectionClosed] raised
+      #   when we receive `ZOO_CLOSED_STATE` while blocking waiting for
+      #   a deleted event. Includes the {InterruptedSession} module.
       #
       def block_until_node_deleted(abs_node_path)
         subs = []

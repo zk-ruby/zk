@@ -110,7 +110,7 @@ module ZK
       # 
       # @param name (see #election_candidate)
       #
-      # @reutn [Election::Observer] the candidate instance using self as a connection
+      # @return [Election::Observer] the candidate instance using self as a connection
       def election_observer(name, opts={})
         ZK::Election::Observer.new(self, name, opts)
       end

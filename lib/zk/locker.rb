@@ -39,12 +39,22 @@ module ZK
     SHARED_LOCK_PREFIX  = 'sh'.freeze
     EXCLUSIVE_LOCK_PREFIX = 'ex'.freeze
 
-    def self.shared_locker(zk, name)
-      SharedLocker.new(zk, name)
+    # Create a {SharedLocker} instance
+    #
+    # @param client (see LockerBase#initialize)
+    # @param name (see LockerBase#initialize)
+    # @return [SharedLocker]
+    def self.shared_locker(client, name, *args)
+      SharedLocker.new(client, name, *args)
     end
 
-    def self.exclusive_locker(zk, name)
-      ExclusiveLocker.new(zk, name)
+    # Create an {ExclusiveLocker} instance
+    #
+    # @param client (see LockerBase#initialize)
+    # @param name (see LockerBase#initialize)
+    # @return [ExclusiveLocker]
+    def self.exclusive_locker(client, name, *args)
+      ExclusiveLocker.new(client, name, *args)
     end
     
     # @private
@@ -74,7 +84,7 @@ module ZK
       #
       #   '/_zklocking/foobar/__blah/lock000000007'
       #
-      # @returns [String]
+      # @return [String]
       attr_reader :lock_path
 
       # @private
@@ -90,7 +100,7 @@ module ZK
 
       # Create a new lock instance.
       #
-      # @param [Client::Threaded] zookeeper_client a client instance
+      # @param [Client::Threaded] client a client instance
       #
       # @param [String] name Unique name that will be used to generate a key.
       #   All instances created with the same `root_lock_node` and `name` will be
@@ -99,8 +109,8 @@ module ZK
       # @param [String] root_lock_node the root path on the server under which all
       #   locks will be generated
       #
-      def initialize(zookeeper_client, name, root_lock_node = "/_zklocking") 
-        @zk = zookeeper_client
+      def initialize(client, name, root_lock_node = "/_zklocking") 
+        @zk = client
         @root_lock_node = root_lock_node
         @path = name
         @locked = false
@@ -121,10 +131,15 @@ module ZK
 
       # the basename of our lock path
       #
-      # for the lock_path '/_zklocking/foobar/__blah/lock000000007'
-      # lock_basename is 'lock000000007'
+      # @example
       #
-      # returns nil if lock_path is not set
+      #   > locker.lock_path
+      #   # => '/_zklocking/foobar/__blah/lock000000007'
+      #   > locker.lock_basename
+      #   # => 'lock000000007'
+      #
+      # @return [nil] if lock_path is not set
+      # @return [String] last path component of our lock path
       def lock_basename
         lock_path and File.basename(lock_path)
       end
@@ -134,8 +149,11 @@ module ZK
         false|@locked
       end
       
-      # @return [true,false] true if we held the lock and this method has
+      # @return [true] if we held the lock and this method has
       #   unlocked it successfully
+      #
+      # @return [false] we did not own the lock
+      #
       def unlock!
         if @locked
           cleanup_lock_path!
@@ -147,11 +165,14 @@ module ZK
       end
 
       # returns true if this locker is waiting to acquire lock 
-      def waiting? #:nodoc:
+      #
+      # @private
+      def waiting? 
         false|@waiting
       end
 
       protected 
+        # @private
         def in_waiting_status
           w, @waiting = @waiting, true
           yield
@@ -159,26 +180,32 @@ module ZK
           @waiting = w
         end
 
+        # @private
         def digit_from(path)
           self.class.digit_from_lock_path(path)
         end
 
+        # @private
         def lock_children(watch=false)
           @zk.children(root_lock_path, :watch => watch)
         end
 
+        # @private
         def ordered_lock_children(watch=false)
           lock_children(watch).tap do |ary|
             ary.sort! { |a,b| digit_from(a) <=> digit_from(b) }
           end
         end
 
+        # @private
         def create_root_path!
           @zk.mkdir_p(@root_lock_path)
         end
 
         # prefix is the string that will appear in front of the sequence num,
         # defaults to 'lock'
+        #
+        # @private
         def create_lock_path!(prefix='lock')
           @lock_path = @zk.create("#{root_lock_path}/#{prefix}", "", :mode => :ephemeral_sequential)
           logger.debug { "got lock path #{@lock_path}" }
@@ -188,6 +215,7 @@ module ZK
           retry
         end
 
+        # @private
         def cleanup_lock_path!
           logger.debug { "removing lock path #{@lock_path}" }
           @zk.delete(@lock_path)
@@ -196,6 +224,25 @@ module ZK
     end
 
     class SharedLocker < LockerBase
+      include Exceptions
+
+      # obtain a shared lock.
+      #
+      # @param blocking [true,false] if true we block the caller until we can obtain
+      #   a lock on the resource
+      # 
+      # @return [true] if we're already obtained a shared lock, or if we were able to
+      #   obtain the lock in non-blocking mode.
+      #
+      # @return [false] if we did not obtain the lock in non-blocking mode
+      #
+      # @return [void] if we obtained the lock in blocking mode. 
+      #
+      # @raise [InterruptedSession] raised when blocked waiting for a lock and
+      #   the underlying client's session is interrupted. 
+      #
+      # @see ZK::Client::Unixisms#block_until_node_deleted more about possible execptions
+      # 
       def lock!(blocking=false)
         return true if @locked
         create_lock_path!(SHARED_LOCK_PREFIX)
@@ -214,7 +261,8 @@ module ZK
         end
       end
 
-      def lock_number #:nodoc:
+      # @private
+      def lock_number
         @lock_number ||= (lock_path and digit_from(lock_path))
       end
 
@@ -223,7 +271,8 @@ module ZK
       # raises NoWriteLockFoundException when there are no write nodes with a 
       # sequence less than ours
       #
-      def next_lowest_write_lock_num #:nodoc:
+      # @private
+      def next_lowest_write_lock_num
         digit_from(next_lowest_write_lock_name)
       end
 
@@ -238,7 +287,8 @@ module ZK
       # raises NoWriteLockFoundException if there were no write nodes with an
       # index lower than ours 
       #
-      def next_lowest_write_lock_name #:nodoc:
+      # @private
+      def next_lowest_write_lock_name
         ary = ordered_lock_children()
         my_idx = ary.index(lock_basename)   # our idx would be 2
 
@@ -247,7 +297,8 @@ module ZK
         ary[0..my_idx].reverse.find(not_found) { |n| n =~ /^#{EXCLUSIVE_LOCK_PREFIX}/ }
       end
 
-      def got_read_lock? #:nodoc:
+      # @private
+      def got_read_lock?
         false if next_lowest_write_lock_num 
       rescue NoWriteLockFoundException
         true
@@ -255,6 +306,7 @@ module ZK
 
       protected
         # TODO: make this generic, can either block or non-block
+        # @private
         def block_until_read_lock!
           begin
             path = [root_lock_path, next_lowest_write_lock_name].join('/')
@@ -283,6 +335,16 @@ module ZK
     #       * __no__: return false, you're done
     # 
     class ExclusiveLocker < LockerBase
+      # obtain an exclusive lock.
+      #
+      # @param blocking (see SharedLocker#lock!)
+      # @return (see SharedLocker#lock!)
+      #
+      # @raise [InterruptedSession] raised when blocked waiting for a lock and
+      #   the underlying client's session is interrupted. 
+      #
+      # @see ZK::Client::Unixisms#block_until_node_deleted more about possible execptions
+      # 
       def lock!(blocking=false)
         return true if @locked
         create_lock_path!(EXCLUSIVE_LOCK_PREFIX)
@@ -302,6 +364,7 @@ module ZK
       protected
         # the node that is next-lowest in sequence number to ours, the one we
         # watch for updates to
+        # @private
         def next_lowest_node
           ary = ordered_lock_children()
           my_idx = ary.index(lock_basename)
@@ -311,10 +374,12 @@ module ZK
           ary[(my_idx - 1)] 
         end
 
+        # @private
         def got_write_lock?
           ordered_lock_children.first == lock_basename
         end
 
+        # @private
         def block_until_write_lock!
           begin
             path = [root_lock_path, next_lowest_node].join('/')

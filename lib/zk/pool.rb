@@ -305,12 +305,13 @@ module ZK
     #   pool.checkout do |zk|
     #     zk.create("/mynew_path")
     #   end
+    #
     class Simple < Bounded
       # initialize a connection pool using the same optons as ZK.new
-      # @param String host the same arguments as ZK.new
-      # @param Integer number_of_connections the number of connections to put in the pool
-      # @param optional Hash opts Options to pass on to each connection
-      # @return ZK::ClientPool
+      # @param [String] host the same arguments as ZK.new
+      # @param [Integer] number_of_connections the number of connections to put in the pool
+      # @param [Hash] opts Options to pass on to each connection
+      # @return [ZK::ClientPool]
       def initialize(host, number_of_connections=10, opts = {})
         opts = opts.dup
         opts[:max_clients] = opts[:min_clients] = number_of_connections.to_i

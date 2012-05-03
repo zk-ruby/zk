@@ -74,27 +74,30 @@ module ZK
       include InterruptedSession
     end
 
-    ERROR_MAP = {
-      SYSTEMERROR             => SystemError,
-      RUNTIMEINCONSISTENCY    => RunTimeInconsistency,
-      DATAINCONSISTENCY       => DataInconsistency,
-      CONNECTIONLOSS          => ConnectionLoss,
-      MARSHALLINGERROR        => MarshallingError,
-      UNIMPLEMENTED           => Unimplemented,
-      OPERATIONTIMEOUT        => OperationTimeOut,
-      BADARGUMENTS            => BadArguments,
-      APIERROR                => ApiError,
-      NONODE                  => NoNode,
-      NOAUTH                  => NoAuth,
-      BADVERSION              => BadVersion,
-      NOCHILDRENFOREPHEMERALS => NoChildrenForEphemerals,
-      NODEEXISTS              => NodeExists,
-      NOTEMPTY                => NotEmpty,
-      SESSIONEXPIRED          => SessionExpired,
-      INVALIDCALLBACK         => InvalidCallback,
-      INVALIDACL              => InvalidACL,
-      AUTHFAILED              => AuthFailed,
-    }.freeze unless defined?(ERROR_MAP)
+    silence_warnings do
+      # @private
+      ERROR_MAP = {
+        SYSTEMERROR             => SystemError,
+        RUNTIMEINCONSISTENCY    => RunTimeInconsistency,
+        DATAINCONSISTENCY       => DataInconsistency,
+        CONNECTIONLOSS          => ConnectionLoss,
+        MARSHALLINGERROR        => MarshallingError,
+        UNIMPLEMENTED           => Unimplemented,
+        OPERATIONTIMEOUT        => OperationTimeOut,
+        BADARGUMENTS            => BadArguments,
+        APIERROR                => ApiError,
+        NONODE                  => NoNode,
+        NOAUTH                  => NoAuth,
+        BADVERSION              => BadVersion,
+        NOCHILDRENFOREPHEMERALS => NoChildrenForEphemerals,
+        NODEEXISTS              => NodeExists,
+        NOTEMPTY                => NotEmpty,
+        SESSIONEXPIRED          => SessionExpired,
+        INVALIDCALLBACK         => InvalidCallback,
+        INVALIDACL              => InvalidACL,
+        AUTHFAILED              => AuthFailed,
+      }.freeze
+    end
 
     # base class of ZK generated errors (not driver-level errors)
     class ZKError < StandardError; end
