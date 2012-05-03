@@ -51,6 +51,7 @@ module ZK
       def locker(name)
         Locker.exclusive_locker(self, name)
       end
+      alias exclusive_locker locker
 
       # create a new shared locking instance based on the name given
       #
