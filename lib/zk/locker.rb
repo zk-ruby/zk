@@ -13,8 +13,8 @@ module ZK
   # below at the 'Key path creation' example, you'll see that we do a very
   # simple escaping of the name given. There was a distinct tradeoff to be made
   # between making the locks easy to debug in zookeeper and making them more
-  # collision tolerant. If the key naming causees issues, please [file a bug] and
-  # we'll try to work out a solution (hearing about use cases is incredibly halpful
+  # collision tolerant. If the key naming causes issues, please [file a bug] and
+  # we'll try to work out a solution (hearing about use cases is incredibly helpful
   # in guiding development).
   #
   # If you're interested in how the algorithm works, have a look at
