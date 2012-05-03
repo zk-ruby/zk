@@ -1,9 +1,11 @@
 module ZK
-  # The most convenient way to create instances of locks is by using the methods
-  #
-  # This module contains implementations of the locking primitives [described here][recipes], 
-  # that allow a user to implement cluster-wide global locks (with both
-  # blocking and non-blocking semantics).
+  # This module contains implementations of the locking primitives described in
+  # [the ZooKeeper recipes][recipes] that allow a user to obtain cluster-wide
+  # global locks (with both blocking and non-blocking semantics).  One
+  # important (and attractive) attribute of these locks is that __they are
+  # automatically released when the connection closes__. You never have to
+  # worry about a stale lock mucking up coordination because some process was
+  # killed and couldn't clean up after itself.
   #
   # There are both shared and exclusive lock implementations.
   #
@@ -23,6 +25,34 @@ module ZK
   # [recipes]: http://zookeeper.apache.org/doc/r3.3.5/recipes.html#sc_recipes_Locks
   # [file a bug]: https://github.com/slyphon/zk/issues
   #
+  # ## Shared/Exclusive lock interaction ##
+  #
+  # The shared and exclusive locks can be used to create traditional read/write locks,
+  # and are designed to be fair in terms of ordering. Given the following children
+  # of a given lock node (where 'sh' is shared, and 'ex' is exclusive)
+  #
+  #     [ex00, sh01, sh02, sh03, ex04, ex05, sh06, sh07]
+  #
+  # Assuming all of these locks are blocking, the following is how the callers would 
+  # obtain the lock
+  #
+  # * `ex00` holds the lock, everyone else is blocked
+  # * `ex00` releases the lock 
+  #   * `[sh01, sh02, sh03]` all unblock and hold a shared lock
+  #   * `[ex04, ...]` are blocked
+  # * `[sh01, sh02, sh03]` all release
+  #   * `ex04` is unblocked, holds the lock
+  #   * `[ex05, ...]` are blocked
+  # * `ex04` releases the lock
+  #   * `ex05` unblocks, holds the lock
+  #   * `[sh06, sh07]` are blocked
+  # * `ex05` releases the lock
+  #   * `[sh06, sh07]` are unblocked, hold the lock
+  #
+  # 
+  # In this way, the locks are fair-queued (FIFO), and shared locks will not
+  # starve exclusive locks (all lock types have the same priority)
+  #
   # @example Key path creation
   #
   #   "#{root_lock_node}/#{name.gsub('/', '__')}/#{shared_or_exclusive_prefix}"
@@ -35,6 +65,30 @@ module ZK
   #   have many instances trying to lock the same path and only *one* (in the
   #   case of an ExclusiveLocker) will hold the lock.
   #
+  # @example Creating locks directly from a client instance
+  #
+  #   # this same example would work for zk.shared_locker('key_name') only
+  #   # the lock returned would be a shared lock, instead of an exclusive lock
+  #
+  #   ex_locker = zk.locker('key_name')
+  #
+  #   begin
+  #     if ex_locker.lock!
+  #       # do something while holding lock
+  #     else
+  #       raise "Oh noes, we didn't get teh lock!"
+  #     end
+  #   ensure
+  #     ex_locker.unlock!
+  #   end
+  #
+  # @example Creating a blocking lock around a cluster-wide critical section
+  #
+  #   zk.with_lock('key_name') do       # this will block us until we get the lock
+  #
+  #     # this is the critical section
+  #
+  #   end
   module Locker
     SHARED_LOCK_PREFIX  = 'sh'.freeze
     EXCLUSIVE_LOCK_PREFIX = 'ex'.freeze

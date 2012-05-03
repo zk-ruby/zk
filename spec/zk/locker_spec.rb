@@ -76,44 +76,6 @@ describe 'ZK::Client#locker' do
 
 end
 
-# describe 'Locker thread safety' do
-#   describe 'exception' do
-#     before do
-#       @path = '/zk_test'
-#       @zk = ZK.new("localhost:#{ZK.test_port}")
-#       @zk.create(@path) rescue ZK::Exceptions::NodeExists
-#     end
-
-#     after do
-#       @zk.rm_rf(@path)
-#       @zk.close!
-#     end
-
-#     it %[should raise an EventDispatchThreadException if called in the dispatch thread] do
-#       @exception = nil
-
-#       @zk.register(@path) do |event|
-#         @zk.event_dispatch_thread?.should be_true
-
-#         begin
-#           @zk.with_lock('boguslockname') do
-#             raise "Should never have gotten this far"
-#           end
-#         rescue Exception => e
-#           @exception = e
-#         end
-#       end
-
-#       @zk.exists?(@path, :watch => true)
-
-#       @zk.set(@path, 'blah')
-
-#       wait_until(2) { @exception }.should be_kind_of(ZK::Exceptions::EventDispatchThreadException)
-#     end
-#   end
-
-# end
-
 shared_examples_for 'SharedLocker' do
   before do
     @shared_locker  = ZK::Locker.shared_locker(zk, path)
