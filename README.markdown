@@ -18,6 +18,13 @@ Development is sponsored by [Snapfish][] and has been generously released to the
 [MIT]: http://www.gnu.org/licenses/license-list.html#Expat "MIT (Expat) License"
 [Snapfish]: http://www.snapfish.com/ "Snapfish"
 
+## Contacting the author
+
+* I'm usually hanging out in IRC on freenode.net in the BRAND NEW #zk-gem channel.
+* if you really want to, you can also reach me via twitter [@slyphon][]
+
+[@slyphon]: https://twitter.com/#!/slyphon
+
 ## New in 1.1 !! ##
 
 * NEW! Thread-per-Callback event delivery model! [Read all about it!](https://github.com/slyphon/zk/wiki/EventDeliveryModel). Provides a simple, sane way to increase the concurrency in your ZK-based app while maintaining the ordering guarantees ZooKeeper makes. Each callback can perform whatever work it needs to without blocking other callbacks from receiving events. Inspired by [Celluloid's](https://github.com/celluloid/celluloid) actor model.
@@ -161,11 +168,4 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 [szk-jar-gem]: https://rubygems.org/gems/slyphon-zookeeper_jar
 [szk-jar-repo]: https://github.com/slyphon/zookeeper_jar
 
-## Contacting the author
-
-* Send me a github message (slyphon)
-* I'm usually hanging out in IRC on freenode.net in #ruby-lang and in #zookeeper
-* if you really want to, you can also reach me via twitter [@slyphon][]
-
-[@slyphon]: https://twitter.com/#!/slyphon
 
