@@ -2,6 +2,13 @@ source :rubygems
 
 # gem 'slyphon-zookeeper', :path => '~/zookeeper'
 
+#gem 'zookeeper', :path => "~/zookeeper"
+
+git 'git://github.com/slyphon/zookeeper.git', :branch => 'rc/1.0' do
+  gem 'zookeeper', '>= 1.0.0'
+end
+
+
 gem 'rake', :group => [:development, :test]
 gem 'pry',  :group => [:development]
 
