@@ -1,4 +1,22 @@
 This file notes feature differences and bugfixes contained between releases. 
+### v1.1.1 ###
+
+* Documentation for Locker and ilk
+
+* Documentation cleanup
+
+* Fixes for Locker tests so that we can run specs against all supported ruby implementations on travis (relies on in-process zookeeper server in the zk-server-1.0.1 gem)
+
+* Support for 1.8.7 will be continued 
+
+## v1.1.0 ##
+
+(forgot to put this here, put it in the readme though)
+
+* NEW! Thread-per-Callback event delivery model! [Read all about it!](https://github.com/slyphon/zk/wiki/EventDeliveryModel). Provides a simple, sane way to increase the concurrency in your ZK-based app while maintaining the ordering guarantees ZooKeeper makes. Each callback can perform whatever work it needs to without blocking other callbacks from receiving events. Inspired by [Celluloid's](https://github.com/celluloid/celluloid) actor model.
+
+* Use the [zk-server](https://github.com/slyphon/zk-server) gem to run a standalone ZooKeeper server for tests (`rake SPAWN_ZOOKEEPER=1`). Makes live-fire testing of any project that uses ZK easy to run anywhere!
+
 
 ### v1.0.0 ###
 
