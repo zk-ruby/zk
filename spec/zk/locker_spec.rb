@@ -215,98 +215,80 @@ end # ExclusiveLocker
 
 shared_examples_for 'shared-exclusive interaction' do
   before do
+    zk.rm_rf('/_zklocking')
     @sh_lock = ZK::Locker.shared_locker(zk, path)
     @ex_lock = ZK::Locker.exclusive_locker(zk2, path)
   end
 
   describe 'shared lock acquired first' do
     it %[should block exclusive locks from acquiring until released] do
-      q1 = Queue.new
-      q2 = Queue.new
+      @sh_lock.lock!.should be_true
+      @ex_lock.lock!.should be_false
 
-      th1 = Thread.new do
-        @sh_lock.with_lock do
-          q1.enq(:got_lock)
-          Thread.current[:got_lock] = true
-          q2.pop
-        end
-      end
-
-      th2 = Thread.new do
-        q1.pop # wait for th1 to get the shared lock
-
-        Thread.current[:acquiring_lock] = true
-
+      mutex = Monitor.new
+      cond = mutex.new_cond
+      
+      th = Thread.new do
+        logger.debug { "@ex_lock trying to acquire acquire lock" }
         @ex_lock.with_lock do
-          Thread.current[:got_lock] = true
+          th[:got_lock] = @ex_lock.locked?
+          logger.debug { "@ex_lock.locked? #{@ex_lock.locked?}" }
+
+          mutex.synchronize do
+            cond.broadcast
+          end
         end
       end
 
-      th1.join_until { th1[:got_lock] }
-      th1[:got_lock].should be_true
+      mutex.synchronize do
+        logger.debug { "unlocking the shared lock" }
+        @sh_lock.unlock!.should be_true
+        cond.wait_until { th[:got_lock] }   # make sure they actually received the lock (avoid race)
+        th[:got_lock].should be_true
+        logger.debug { "ok, they got the lock" }
+      end
 
-      th2.join_until { th2[:acquiring_lock] }
-      th2[:acquiring_lock].should be_true
+      th.join(5).should == th
 
-      q2.num_waiting.should > 0
-      q2.enq(:release)
+      logger.debug { "thread joined, exclusive lock should be releasd" }
 
-      th1.join_until { q2.size == 0 }
-      q2.size.should == 0
-
-      th1.join(2).should == th1
-
-      th2.join_until { th2[:got_lock] }
-      th2[:got_lock].should be_true
-
-      th2.join(2).should == th2
+      @ex_lock.should_not be_locked
     end
   end
 
   describe 'exclusive lock acquired first' do
     it %[should block shared lock from acquiring until released] do
-      # same test as above but with the thread's locks switched, 
-      # th1 is the exclusive locker
+      @ex_lock.lock!.should be_true
+      @sh_lock.lock!.should be_false
 
-      q1 = Queue.new
-      q2 = Queue.new
-
-      th1 = Thread.new do
-        @ex_lock.with_lock do
-          q1.enq(:got_lock)
-          Thread.current[:got_lock] = true
-          q2.pop
-        end
-      end
-
-      th2 = Thread.new do
-        q1.pop # wait for th1 to get the shared lock
-
-        Thread.current[:acquiring_lock] = true
-
+      mutex = Monitor.new
+      cond = mutex.new_cond
+      
+      th = Thread.new do
+        logger.debug { "@ex_lock trying to acquire acquire lock" }
         @sh_lock.with_lock do
-          Thread.current[:got_lock] = true
+          th[:got_lock] = @sh_lock.locked?
+          logger.debug { "@sh_lock.locked? #{@sh_lock.locked?}" }
+
+          mutex.synchronize do
+            cond.broadcast
+          end
         end
       end
 
-      th1.join_until { th1[:got_lock] }
-      th1[:got_lock].should be_true
+      mutex.synchronize do
+        logger.debug { "unlocking the shared lock" }
+        @ex_lock.unlock!.should be_true
+        cond.wait_until { th[:got_lock] }   # make sure they actually received the lock (avoid race)
+        th[:got_lock].should be_true
+        logger.debug { "ok, they got the lock" }
+      end
 
-      th2.join_until { th2[:acquiring_lock] }
-      th2[:acquiring_lock].should be_true
+      th.join(5).should == th
 
-      q2.num_waiting.should > 0
-      q2.enq(:release)
+      logger.debug { "thread joined, exclusive lock should be releasd" }
 
-      th1.join_until { q2.size == 0 }
-      q2.size.should == 0
-
-      th1.join(2).should == th1
-
-      th2.join_until { th2[:got_lock] }
-      th2[:got_lock].should be_true
-
-      th2.join(2).should == th2
+      @sh_lock.should_not be_locked
     end
   end
 
