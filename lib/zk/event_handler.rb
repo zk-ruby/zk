@@ -257,7 +257,7 @@ module ZK
     protected
       # @private
       def watcher_callback
-        ZookeeperCallbacks::WatcherCallback.create { |event| process(event) }
+        Zookeeper::Callbacks::WatcherCallback.create { |event| process(event) }
       end
 
       # @private

@@ -30,49 +30,20 @@ module ZK
       end
     end
   end
-
-  module Extensions
-    # some extensions to the ZookeeperCallbacks classes, mainly convenience
-    # interrogators
-    module Callbacks
-      module Callback
-        extend Concern
-
-        # allow access to the connection that fired this callback
-        attr_accessor :zk
-
-        module ClassMethods
-          # allows for easier construction of a user callback block that will be
-          # called with the callback object itself as an argument. 
-          #
-          # *args, if given, will be passed on *after* the callback
-          #
-          # @example
-          #   
-          #   WatcherCallback.create do |cb|
-          #     puts "watcher callback called with argument: #{cb.inspect}"
-          #   end
-          #
-          #   "watcher callback called with argument: #<ZookeeperCallbacks::WatcherCallback:0x1018a3958 @state=3, @type=1, ...>"
-          #
-          #
-          def create(*args, &block)
-            cb_inst = new { block.call(cb_inst) }
-          end
-        end
-      end # Callback
-    end   # Callbacks
-  end # Extensions
 end # ZK
 
-# ZookeeperCallbacks::Callback.extend(ZK::Extensions::Callbacks::Callback)
-ZookeeperCallbacks::Callback.send(:include, ZK::Extensions::Callbacks::Callback)
+Zookeeper::Callbacks::Base.class_eval do
+  # allows us to stick a reference to the connection associated with the event
+  # on the event
+  attr_accessor :zk
+end
+
 
 # Include the InterruptedSession module in key ZookeeperExceptions to allow
 # clients to catch a single error type when waiting on a node (for example)
 
 [:ConnectionClosed, :NotConnected, :SessionExpired, :SessionMoved, :ConnectionLoss].each do |class_name|
-  ZookeeperExceptions::ZookeeperException.const_get(class_name).tap do |klass|
+  Zookeeper::Exceptions.const_get(class_name).tap do |klass|
     klass.__send__(:include, ZK::Exceptions::InterruptedSession)
   end
 end

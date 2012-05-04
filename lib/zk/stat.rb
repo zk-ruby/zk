@@ -109,7 +109,7 @@ module ZK
   end # Stat
 end # ZK
 
-class ZookeeperStat::Stat
+class Zookeeper::Stat
   include ZK::Stat
 end
 

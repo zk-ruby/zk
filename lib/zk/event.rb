@@ -170,7 +170,7 @@ module ZK
 end
 
 # @private
-class ZookeeperCallbacks::WatcherCallback
+Zookeeper::Callbacks::WatcherCallback.class_eval do
   include ::ZK::Event
 end
 

@@ -2,6 +2,7 @@ require 'rubygems'
 
 require 'logger'
 require 'zookeeper'
+require 'zookeeper/compatibility'
 require 'forwardable'
 require 'thread'
 require 'monitor'
