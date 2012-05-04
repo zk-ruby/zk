@@ -109,7 +109,7 @@ describe ZK::Pool do
 
         @connection_pool.force_close!
 
-        lambda { th.join(2) }.should raise_error(ZK::Exceptions::PoolIsShuttingDownException)
+        lambda { th.join(5) }.should raise_error(ZK::Exceptions::PoolIsShuttingDownException)
       end
     end
 
