@@ -62,7 +62,7 @@ shared_examples_for 'ZK basic' do
     end
 
     it "should return a stat" do
-      @zk.stat("#{@base_path}/test").should be_instance_of(ZookeeperStat::Stat)
+      @zk.stat("#{@base_path}/test").should be_instance_of(Zookeeper::Stat)
     end
 
     it "should return a boolean" do
@@ -72,7 +72,7 @@ shared_examples_for 'ZK basic' do
     it "should get data and stat" do
       data, stat = @zk.get("#{@base_path}/test")
       data.should == "test_data"
-      stat.should be_a_kind_of(ZookeeperStat::Stat)
+      stat.should be_a_kind_of(Zookeeper::Stat)
       stat.created_time.should_not == 0
     end
 

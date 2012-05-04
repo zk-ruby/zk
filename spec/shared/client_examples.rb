@@ -116,7 +116,7 @@ shared_examples_for 'client' do
       end
 
       it %[should return a Stat object] do
-        @zk.stat(@missing_path).should be_kind_of(ZookeeperStat::Stat)
+        @zk.stat(@missing_path).should be_kind_of(Zookeeper::Stat)
       end
 
       it %[should return a stat that not exists?] do
