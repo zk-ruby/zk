@@ -74,7 +74,7 @@ namespace :spec do
     require 'rspec/core/rake_task'
 
     RSpec::Core::RakeTask.new('spec:runner') do |t|
-      t.rspec_opts = '-f d'
+#       t.rspec_opts = '-f d'
     end
   end
 
