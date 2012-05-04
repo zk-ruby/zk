@@ -4,7 +4,7 @@ gemset_name = 'zk'
 
 GEMSPEC_NAME = 'zk.gemspec'
 
-%w[1.8.7 1.9.2 jruby rbx 1.9.3].each do |ns_name|
+%w[1.8.7 1.9.2 jruby rbx ree 1.9.3].each do |ns_name|
   rvm_ruby = (ns_name == 'rbx') ? "rbx-2.0.testing" : ns_name
 
   ruby_with_gemset        = "#{rvm_ruby}@#{gemset_name}"
@@ -74,7 +74,7 @@ namespace :spec do
     require 'rspec/core/rake_task'
 
     RSpec::Core::RakeTask.new('spec:runner') do |t|
-#       t.rspec_opts = '-f d'
+      t.rspec_opts = '-f d' if ENV['TRAVIS']
     end
   end
 
