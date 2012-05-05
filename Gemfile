@@ -4,8 +4,8 @@ source :rubygems
 
 #gem 'zookeeper', :path => "~/zookeeper"
 
-git 'git://github.com/slyphon/zookeeper.git', :branch => 'rc/1.0' do
-  gem 'zookeeper', '>= 1.0.0'
+git 'git://github.com/slyphon/zookeeper.git', :branch => 'master' do
+  gem 'zookeeper', '>= 1.0.0.beta.1'
 end
 
 
