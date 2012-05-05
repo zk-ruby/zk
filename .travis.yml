@@ -20,5 +20,5 @@ rvm:
 #   - jruby-18mode
 #   - jruby-19mode
 
-bundler_args: --without development docs
+bundler_args: --without development docs coverage
 
