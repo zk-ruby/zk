@@ -1,4 +1,3 @@
-
 RELEASE_OPS_PATH = File.expand_path('../releaseops/lib', __FILE__)
 
 # if the special submodule is availabe, use it
@@ -7,8 +6,8 @@ if File.exists?(RELEASE_OPS_PATH)
   $LOAD_PATH.unshift(RELEASE_OPS_PATH).uniq!
   require 'releaseops'
 
-  ReleaseOps.define_test_tasks_for(*%w[1.8.7 1.9.2 jruby rbx ree 1.9.3])
-  ReleaseOps.define_yard_tasks
+  ReleaseOps::TestTasks.define_for(*%w[1.8.7 1.9.2 jruby rbx ree 1.9.3])
+  ReleaseOps::YardTasks.define
 
   task :clean => 'yard:clean'
 end
