@@ -1,0 +1,3 @@
+[submodule "releaseops"]
+	path = releaseops
+	url = git://github.com/slyphon/releaseops.git
