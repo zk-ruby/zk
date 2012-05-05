@@ -69,13 +69,9 @@ module ZK
         ary = ordered_lock_children()
         my_idx = ary.index(lock_basename)   # our idx would be 2
 
-        not_found = lambda { raise NoWriteLockFoundException }
-
-        logger.debug { "ary: #{ary.inspect}, my_idx: #{my_idx}" }
-
-        rval = ary[0..my_idx].reverse.find(not_found) {|n| n.start_with?(EXCLUSIVE_LOCK_PREFIX) }
-        logger.debug { "rval: #{rval.inspect}" }
-        rval
+        ary[0..my_idx].reverse.find { |n| n.start_with?(EXCLUSIVE_LOCK_PREFIX) }.tap do |rv|
+          raise NoWriteLockFoundException if rv.nil?
+        end
       end
 
       # @private
