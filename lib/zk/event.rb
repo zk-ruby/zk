@@ -1,10 +1,10 @@
 module ZK
   # Provides most of the functionality ZK uses around events. Base class is actually
-  # [ZookeeperCallbacks::WatcherCallback](http://rubydoc.info/gems/slyphon-zookeeper/ZookeeperCallbacks/WatcherCallback),
+  # [Zookeeper::Callbacks::WatcherCallback](http://rubydoc.info/gems/slyphon-zookeeper/Zookeeper::Callbacks/WatcherCallback),
   # but this module is mixed in and provides a lot of useful syntactic sugar.
   #
   module Event
-    include ZookeeperConstants
+    include Zookeeper::Constants
 
     # unless defined? apparently messes up yard's ability to see the @private
     silence_warnings do
@@ -26,10 +26,10 @@ module ZK
       EVENT_TYPES = %w[created deleted changed child session notwatching].freeze 
     end
 
-    # for testing, create a new ZookeeperCallbacks::WatcherCallback and return it
+    # for testing, create a new Zookeeper::Callbacks::WatcherCallback and return it
     # @private
     def self.new(hash)
-      ZookeeperCallbacks::WatcherCallback.new.tap do |wc|
+      Zookeeper::Callbacks::WatcherCallback.new.tap do |wc|
         wc.call(hash)
       end
     end

@@ -1,5 +1,5 @@
 module ZK
-  # Included in ZookeeperStat::Stat, extends it with some conveniences for 
+  # Included in Zookeeper::Stat, extends it with some conveniences for 
   # dealing with Stat objects. Also provides docuemntation here for the meaning
   # of these values.
   #

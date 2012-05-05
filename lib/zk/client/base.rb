@@ -142,9 +142,9 @@ module ZK
       # @overload create(path, data, opts={})
       #   creates a znode at the absolute `path` with given data and options
       # 
-      # @option opts [Integer] :acl defaults to <tt>ZookeeperACLs::ZOO_OPEN_ACL_UNSAFE</tt>, 
+      # @option opts [Integer] :acl defaults to <tt>Zookeeper::Constants::ZOO_OPEN_ACL_UNSAFE</tt>, 
       #   otherwise the ACL for the node. Should be a `ZOO_*` constant defined under the 
-      #   ZookeeperACLs module in the zookeeper gem.
+      #   Zookeeper::ACLs module in the zookeeper gem.
       #
       # @option opts [bool] :ephemeral (false) if true, the created node will be ephemeral
       #
@@ -153,7 +153,7 @@ module ZK
       # @option opts [bool] :sequential (false) alias for :sequence option. if both are given
       #   an ArgumentError is raised
       #
-      # @option opts [ZookeeperCallbacks::StringCallback] :callback (nil) provide a callback object
+      # @option opts [Zookeeper::Callbacks::StringCallback] :callback (nil) provide a callback object
       #   that will be called when the znode has been created
       # 
       # @option opts [Object] :context (nil) an object passed to the `:callback`
@@ -309,24 +309,24 @@ module ZK
       # @option opts [bool] :watch (false) set to true if you want your registered
       #   callbacks for this node to be called on change
       #
-      # @option opts [ZookeeperCallbacks::DataCallback] :callback to make this call asynchronously
+      # @option opts [Zookeeper::Callbacks::DataCallback] :callback to make this call asynchronously
       #
       # @option opts [Object] :context an object passed to the `:callback`
       #   given as the `context` param
       #
-      # @return [Array] a two-element array of ['node data', #<ZookeeperStat::Stat>]
+      # @return [Array] a two-element array of ['node data', #<Zookeeper::Stat>]
       #
       # @raise [ZK::Exceptions::NoNode] if no node with the given path exists.
       #
       # @example get data for path
       #
       #   zk.get("/path")
-      #   # => ['this is the data', #<ZookeeperStat::Stat>]
+      #   # => ['this is the data', #<Zookeeper::Stat>]
       #   
       # @example get data and set watch on node
       #
       #   zk.get("/path", :watch => true)
-      #   # => ['this is the data', #<ZookeeperStat::Stat>]
+      #   # => ['this is the data', #<Zookeeper::Stat>]
       #
       # @hidden_example get data asynchronously
       #
@@ -359,7 +359,7 @@ module ZK
       # -1, it matches any node's versions). Passing the version allows you to
       # perform optimistic locking, in that if someone changes the node's
       # data "behind your back", your update will fail. Since #create does not
-      # return a ZookeeperStat::Stat object, you should be aware that nodes are
+      # return a Zookeeper::Stat object, you should be aware that nodes are
       # created with version == 0.
       # 
       # This operation, if successful, will trigger all the watches on the node
@@ -383,8 +383,8 @@ module ZK
       #   default is used, otherwise acts as an assertion that the znode has the 
       #   supplied version.
       #   
-      # @option opts [ZookeeperCallbacks::StatCallback] :callback will recieve the
-      #   ZookeeperStat::Stat object asynchronously
+      # @option opts [Zookeeper::Callbacks::StatCallback] :callback will recieve the
+      #   Zookeeper::Stat object asynchronously
       #
       # @option opts [Object] :context an object passed to the `:callback`
       #   given as the `context` param
@@ -434,13 +434,13 @@ module ZK
       # @option opts [bool] :watch (false) set to true if you want to enable
       #   registered watches on this node
       # 
-      # @option opts [ZookeeperCallbacks::StatCallback] :callback will recieve the
-      #   ZookeeperStat::Stat object asynchronously
+      # @option opts [Zookeeper::Callbacks::StatCallback] :callback will recieve the
+      #   Zookeeper::Stat object asynchronously
       #
       # @option opts [Object] :context an object passed to the `:callback`
       #   given as the `context` param
       #
-      # @return [ZookeeperStat::Stat] a stat object of the specified node
+      # @return [Zookeeper::Stat] a stat object of the specified node
       #
       # @example get stat for for path
       #   >> zk.stat("/path")
@@ -453,7 +453,7 @@ module ZK
       # @example exists for non existent path
       #
       #   >> stat = zk.stat("/non_existent_path")
-      #   # => #<ZookeeperStat::Stat:0x000001eb54 @exists=false>
+      #   # => #<Zookeeper::Stat:0x000001eb54 @exists=false>
       #   >> stat.exists?
       #   # => false
       #
@@ -518,7 +518,7 @@ module ZK
       # @option opts [bool] :watch (false) set to true if you want your registered
       #   callbacks for this node to be called on change
       #
-      # @option opts [ZookeeperCallbacks::StringsCallback] :callback to make this
+      # @option opts [Zookeeper::Callbacks::StringsCallback] :callback to make this
       #   call asynchronously
       #
       # @option opts [Object] :context an object passed to the `:callback`
@@ -586,7 +586,7 @@ module ZK
       #   default is used, otherwise acts as an assertion that the znode has the 
       #   supplied version.
       #
-      # @option opts [ZookeeperCallbacks::VoidCallback] :callback will be called
+      # @option opts [Zookeeper::Callbacks::VoidCallback] :callback will be called
       #   asynchronously when the operation is complete
       #
       # @option opts [Object] :context an object passed to the `:callback`
@@ -626,7 +626,7 @@ module ZK
       # 
       # @param [String] path absolute path of the znode
       #
-      # @option opts [ZookeeperStat::Stat] (nil) provide a Stat object that will
+      # @option opts [Zookeeper::Stat] (nil) provide a Stat object that will
       #   be set with the Stat information of the node path
       #
       # @option opts [ZookeeperCallback::AclCallback] (nil) :callback for an
@@ -675,13 +675,13 @@ module ZK
       # 
       # @param [String] path absolute path of the znode
       #
-      # @param [ZookeeperACLs] acls the acls to set on the znode
+      # @param [Zookeeper::ACLs] acls the acls to set on the znode
       # 
       # @option opts [Integer] :version (-1) matches all versions of a node if the
       #   default is used, otherwise acts as an assertion that the znode has the 
       #   supplied version.
       #
-      # @option opts [ZookeeperCallbacks::VoidCallback] :callback will be called
+      # @option opts [Zookeeper::Callbacks::VoidCallback] :callback will be called
       #   asynchronously when the operation is complete
       #
       # @option opts [Object] :context an object passed to the `:callback`
@@ -873,7 +873,7 @@ module ZK
           if cnx and cnx.session_id
             '0x%x' % cnx.session_id
           end
-        rescue ZookeeperExceptions::ZookeeperException, ZK::Exceptions::KeeperException
+        rescue Zookeeper::Exceptions::ZookeeperException, ZK::Exceptions::KeeperException
           nil
         end
     end # Base

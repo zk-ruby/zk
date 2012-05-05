@@ -8,7 +8,7 @@ ZK.logger = LOG
 Zookeeper.logger = LOG
 
 class CloseInEventThread
-  include ZookeeperConstants
+  include Zookeeper::Constants
 
   def initialize
     @zk = ZK.new

@@ -378,7 +378,7 @@ describe ZK do
           m.should_receive(:zk=).with(any())
           m.should_receive(:node_event?).and_return(false)
           m.should_receive(:state_event?).and_return(true)
-          m.should_receive(:state).and_return(ZookeeperConstants::ZOO_CONNECTED_STATE)
+          m.should_receive(:state).and_return(Zookeeper::Constants::ZOO_CONNECTED_STATE)
         end
       end
     end # registered listeners

@@ -1,7 +1,7 @@
 module ZK
   module Client
     module Unixisms
-      include ZookeeperConstants
+      include Zookeeper::Constants
       include Exceptions
 
       # Creates all parent paths and 'path' in zookeeper as persistent nodes with
@@ -114,15 +114,15 @@ module ZK
       #   mixes in the InterruptedSession module will be raised, so for convenience,
       #   users can just rescue {InterruptedSession}.
       #
-      # @raise [ZookeeperExceptions::ZookeeperException::SessionExpired] raised
+      # @raise [Zookeeper::Exceptions::SessionExpired] raised
       #   when we receive `ZOO_EXPIRED_SESSION_STATE` while blocking waiting for
       #   a deleted event. Includes the {InterruptedSession} module.
       #
-      # @raise [ZookeeperExceptions::ZookeeperException::NotConnected] raised
+      # @raise [Zookeeper::Exceptions::NotConnected] raised
       #   when we receive `ZOO_CONNECTING_STATE` while blocking waiting for
       #   a deleted event. Includes the {InterruptedSession} module.
       #
-      # @raise [ZookeeperExceptions::ZookeeperException::ConnectionClosed] raised
+      # @raise [Zookeeper::Exceptions::ConnectionClosed] raised
       #   when we receive `ZOO_CLOSED_STATE` while blocking waiting for
       #   a deleted event. Includes the {InterruptedSession} module.
       #
@@ -162,11 +162,11 @@ module ZK
         when :deleted
           true
         when ZOO_EXPIRED_SESSION_STATE
-          raise ZookeeperExceptions::ZookeeperException::SessionExpired
+          raise Zookeeper::Exceptions::SessionExpired
         when ZOO_CONNECTING_STATE
-          raise ZookeeperExceptions::ZookeeperException::NotConnected
+          raise Zookeeper::Exceptions::NotConnected
         when ZOO_CLOSED_STATE
-          raise ZookeeperExceptions::ZookeeperException::ConnectionClosed
+          raise Zookeeper::Exceptions::ConnectionClosed
         else
           raise "Hit unexpected case in block_until_node_deleted"
         end

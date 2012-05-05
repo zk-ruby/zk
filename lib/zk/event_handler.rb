@@ -265,7 +265,7 @@ module ZK
         int = 
           case arg
           when String, Symbol
-            ZookeeperConstants.const_get(:"ZOO_#{arg.to_s.upcase}_STATE")
+            Zookeeper::Constants.const_get(:"ZOO_#{arg.to_s.upcase}_STATE")
           when Integer
             arg
           else

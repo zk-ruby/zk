@@ -39,7 +39,7 @@ Zookeeper::Callbacks::Base.class_eval do
 end
 
 
-# Include the InterruptedSession module in key ZookeeperExceptions to allow
+# Include the InterruptedSession module in key Zookeeper::Exceptions to allow
 # clients to catch a single error type when waiting on a node (for example)
 
 [:ConnectionClosed, :NotConnected, :SessionExpired, :SessionMoved, :ConnectionLoss].each do |class_name|

@@ -3,7 +3,7 @@ require 'spec_helper'
 shared_examples_for 'session death' do
   def deliver_session_event_to(event_num, zk)
     # jeez, Zookeeper callbacks are so frustratingly stupid
-    bogus_event = ZookeeperCallbacks::WatcherCallback.new
+    bogus_event = Zookeeper::Callbacks::WatcherCallback.new
     bogus_event.initialize_context(:type => -1, :state => event_num, :path => '', :context => 'bogustestevent')
     # XXX: this is bad because we're in the wrong thread, but we'll fix this after the next Zookeeper release
     zk.event_handler.process(bogus_event)
@@ -51,22 +51,22 @@ end # session death
 shared_examples_for 'locking and session death' do
   describe 'exceptional conditions' do
     describe 'ZOO_EXPIRED_SESSION_STATE' do
-      let(:zoo_state) { ZookeeperConstants::ZOO_EXPIRED_SESSION_STATE }
-      let(:zoo_error_class) { ZookeeperExceptions::ZookeeperException::SessionExpired }
+      let(:zoo_state) { Zookeeper::Constants::ZOO_EXPIRED_SESSION_STATE }
+      let(:zoo_error_class) { Zookeeper::Exceptions::SessionExpired }
 
       it_behaves_like 'session death'
     end
 
     describe 'ZOO_CONNECTING_STATE' do
-      let(:zoo_state) { ZookeeperConstants::ZOO_CONNECTING_STATE }
-      let(:zoo_error_class) { ZookeeperExceptions::ZookeeperException::NotConnected }
+      let(:zoo_state) { Zookeeper::Constants::ZOO_CONNECTING_STATE }
+      let(:zoo_error_class) { Zookeeper::Exceptions::NotConnected }
 
       it_behaves_like 'session death'
     end
 
     describe 'ZOO_CLOSED_STATE' do
-      let(:zoo_state) { ZookeeperConstants::ZOO_CLOSED_STATE }
-      let(:zoo_error_class) { ZookeeperExceptions::ZookeeperException::ConnectionClosed }
+      let(:zoo_state) { Zookeeper::Constants::ZOO_CLOSED_STATE }
+      let(:zoo_error_class) { Zookeeper::Exceptions::ConnectionClosed }
 
       it_behaves_like 'session death'
     end
