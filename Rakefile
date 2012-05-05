@@ -12,7 +12,6 @@ if File.exists?(RELEASE_OPS_PATH)
   task :clean => 'yard:clean'
 end
 
-
 namespace :spec do
   task :define do
     require 'rubygems'

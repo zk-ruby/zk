@@ -93,6 +93,14 @@ module ZK
     SHARED_LOCK_PREFIX  = 'sh'.freeze
     EXCLUSIVE_LOCK_PREFIX = 'ex'.freeze
 
+    @default_root_lock_node = '/_zklocking'.freeze unless @default_root_lock_node
+
+    class << self
+      # the default root path we will use when a value is not given to a
+      # constructor
+      attr_accessor :default_root_lock_node
+    end
+
     # Create a {SharedLocker} instance
     #
     # @param client (see LockerBase#initialize)

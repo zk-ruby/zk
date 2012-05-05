@@ -71,7 +71,11 @@ module ZK
 
         not_found = lambda { raise NoWriteLockFoundException }
 
-        ary[0..my_idx].reverse.find(not_found) { |n| n =~ /^#{EXCLUSIVE_LOCK_PREFIX}/ }
+        logger.debug { "ary: #{ary.inspect}, my_idx: #{my_idx}" }
+
+        rval = ary[0..my_idx].reverse.find(not_found) {|n| n.start_with?(EXCLUSIVE_LOCK_PREFIX) }
+        logger.debug { "rval: #{rval.inspect}" }
+        rval
       end
 
       # @private

@@ -42,11 +42,11 @@ module ZK
       #   holding the same lock.
       #
       # @param [String] root_lock_node the root path on the server under which all
-      #   locks will be generated
+      #   locks will be generated, the default is Locker.default_root_lock_node
       #
-      def initialize(client, name, root_lock_node = "/_zklocking") 
+      def initialize(client, name, root_lock_node=nil) 
         @zk = client
-        @root_lock_node = root_lock_node
+        @root_lock_node = root_lock_node || Locker.default_root_lock_node
         @path = name
         @locked = false
         @waiting = false

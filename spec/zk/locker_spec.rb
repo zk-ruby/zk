@@ -107,10 +107,6 @@ shared_examples_for 'SharedLocker' do
         @rval = @shared_locker.lock!
       end
 
-      after do
-        zk.rm_rf('/_zklocking')
-      end
-
       it %[should return false] do
         @rval.should be_false
       end
@@ -215,7 +211,6 @@ end # ExclusiveLocker
 
 shared_examples_for 'shared-exclusive interaction' do
   before do
-    zk.rm_rf('/_zklocking')
     @sh_lock = ZK::Locker.shared_locker(zk, path)
     @ex_lock = ZK::Locker.exclusive_locker(zk2, path)
   end
@@ -349,7 +344,6 @@ shared_examples_for 'shared-exclusive interaction' do
   end
 end # shared-exclusive interaction
 
-
 describe ZK::Locker do
   include_context 'connection opts'
 
@@ -360,13 +354,15 @@ describe ZK::Locker do
   let(:connections) { [zk, zk2, zk3] }
 
   let(:path) { "shlock" }
-  let(:root_lock_path) { "/_zklocking/#{path}" }
+  let(:root_lock_path) { "#{ZK::Locker.default_root_lock_node}/#{path}" }
 
   before do
     wait_until{ connections.all?(&:connected?) }
+    zk.rm_rf(ZK::Locker.default_root_lock_node)
   end
 
   after do
+    zk.rm_rf(ZK::Locker.default_root_lock_node)
     connections.each { |c| c.close! }
     wait_until { !connections.any?(&:connected?) }
   end
@@ -376,7 +372,7 @@ describe ZK::Locker do
   it_should_behave_like 'shared-exclusive interaction'
 end # ZK::Locker
 
-describe "ZK::Locker chrooted" do
+describe ZK::Locker, :chrooted => true do
   include_context 'connection opts'
 
   let(:chroot_path) { '/_zk_chroot_' }
@@ -390,7 +386,7 @@ describe "ZK::Locker chrooted" do
     let(:connections) { [zk, zk2, zk3] }
 
     let(:path) { "shlock" }
-    let(:root_lock_path) { "/_zklocking/#{path}" }
+    let(:root_lock_path) { "#{ZK::Locker.default_root_lock_node}/#{path}" }
 
     before do
       ZK.open("localhost:#{ZK.test_port}") do |zk|
