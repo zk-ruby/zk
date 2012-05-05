@@ -28,6 +28,19 @@ module ZK
     #
     #   # connection is automatically closed
     #
+    # @example How to handle a fork()
+    #
+    #   zk = ZK.new
+    #
+    #   fork do
+    #     zk.reopen() # <-- reopen is the important thing
+    #
+    #     zk.create('/child/pid', $$.to_s, :ephemeral => true)  # for example.
+    #
+    #     # etc.
+    #   end
+    #
+    #
     class Base
       # The Eventhandler is used by client code to register callbacks to handle
       # events triggerd for given paths. 
