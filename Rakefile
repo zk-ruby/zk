@@ -8,23 +8,11 @@ if File.exists?(RELEASE_OPS_PATH)
   require 'releaseops'
 
   ReleaseOps.define_test_tasks_for(*%w[1.8.7 1.9.2 jruby rbx ree 1.9.3])
+  ReleaseOps.define_yard_tasks
+
+  task :clean => 'yard:clean'
 end
 
-namespace :yard do
-  task :clean do
-    rm_rf '.yardoc'
-  end
-
-  task :server => :clean do
-    sh "yard server --reload"
-  end
-
-  task :gems do
-    sh 'yard server --gems --port=8809'
-  end
-end
-
-task :clean => 'yard:clean'
 
 namespace :spec do
   task :define do
