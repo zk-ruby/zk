@@ -1,8 +1,8 @@
-# ZK
+# ZK #
 
 [![Build Status (master)](https://secure.travis-ci.org/slyphon/zk.png?branch=master)](http://travis-ci.org/slyphon/zk)
 
-ZK is a high-level interface to the Apache [ZooKeeper][] server. It is based on the [zookeeper gem][] which is a multi-Ruby low-level driver. Currently MRI 1.8.7, 1.9.2, 1.9.3, and JRuby are supported, rubinius 2.0.testing is supported-ish (it's expected to work, but upstream is unstable, so YMMV). 
+ZK is an application programmer's interface to the Apache [ZooKeeper][] server. It is based on the [zookeeper gem][] which is a multi-Ruby low-level driver. Currently MRI 1.8.7, 1.9.2, 1.9.3, REE, and JRuby are supported. Rubinius 2.0.testing is supported-ish (it's expected to work, but upstream is unstable, so YMMV). 
 
 ZK is licensed under the [MIT][] license. 
 
@@ -18,12 +18,25 @@ Development is sponsored by [Snapfish][] and has been generously released to the
 [MIT]: http://www.gnu.org/licenses/license-list.html#Expat "MIT (Expat) License"
 [Snapfish]: http://www.snapfish.com/ "Snapfish"
 
-## Contacting the author
+## What is ZooKeeper? ##
 
-* I'm usually hanging out in IRC on freenode.net in the BRAND NEW #zk-gem channel.
-* if you really want to, you can also reach me via twitter [@slyphon][]
+ZooKeeper is a multi-purpose tool that is designed to allow you to write code that coordinates many nodes in a cluster. It can be used as a directory service, a configuration database, and can provide cross-cluster [locking][], [leader election][], and [group membership][] (to name a few). It presents to the user what looks like a distributed file system, with a few important differences: every node can have children _and_ data, and there is a 1MB limit on data size for any given node. ZooKeeper provides atomic semantics and a simple API for manipulating data in the heirarchy.
 
-[@slyphon]: https://twitter.com/#!/slyphon
+One of the most useful aspects of ZooKeeper is the ability to set "[watches][]" on nodes. This allows one to be notified when a node has been deleted, created, changd, or has had its list of child znodes modified. The asynchronous nature of these watches enables you to write code that can _react_ to changes in your environment without polling and busy-waiting.
+
+Znodes can be _ephemeral_, which means that when the connection that created them goes away, they're automatically cleaned up, and all the clients that were watching them are notified of the deletion. This is an incredibly useful mechanism for providing _presence_ in a cluster ("which of my thingamabobers are up?). If you've ever run across a stale pid file or lock, you can imagine how useful this feature can be. 
+
+Znodes can also be created as _sequence_ nodes, which means that beneath a given path, a node can be created with a given prefix and assigned a unique integer. This, along with the _ephemeral_ property, provide the basis for most of the coordination classes such as [groups][] and [locks][].
+
+ZooKeeper is easy to deploy in a [Highly Available][ha-config] configuration, and the clients natively understand the clustering and how to resume a session transparently when one of the cluster nodes goes away. 
+
+[watches]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkWatches
+[locking]: http://zookeeper.apache.org/doc/current/recipes.html#sc_recipes_Locks
+[leader election]: http://zookeeper.apache.org/doc/current/recipes.html#sc_leaderElection
+[group membership]: http://zookeeper.apache.org/doc/current/recipes.html#sc_outOfTheBox
+[ha-config]: http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_CrossMachineRequirements "HA config"
+[groups]: https://github.com/slyphon/zk-group
+[locks]: http://rubydoc.info/gems/zk/ZK/Locker
 
 ## New in 1.1 !! ##
 
@@ -87,22 +100,6 @@ ZK.new('localhost:2181', :chroot => '/path') # equivalent to 'localhost:2181/pat
 
 * Most of the event functionality used is now in a ZK::Event module. This is still mixed into the underlying slyphon-zookeeper class, but now all of the important and relevant methods are documented, and Event appears as a first-class citizen.
 
-* Support for 1.8.7 WILL BE *DROPPED* in v1.1. You've been warned.
-
-## What is ZooKeeper good for?
-
-ZooKeeper is a multi-purpose tool that is designed to allow you to write code that coordinates many nodes in a cluster. It can be used as a directory service, a configuration database, and can provide cross-cluster [locking][], [leader election][], and [group membership][] (to name a few). It presents to the user what looks like a distributed file system, with a few important differences: every node can have children _and_ data, and there is a 1MB limit on data size for any given node. ZooKeeper provides atomic semantics and a simple API for manipulating data in the heirarchy.
-
-One of the most useful aspects of ZooKeeper is the ability to set "[watches][]" on nodes. This allows one to be notified when a node has been deleted, created, has had a child modified, or had its data modified. The asynchronous nature of these watches enables you to write code that can _react_ to changes in your environment.
-
-ZooKeeper is also (relatively) easy to deploy in a [Highly Available][ha-config] configuration, and the clients natively understand the clustering and how to resume a session transparently when one of the cluster nodes goes away. 
-
-
-[watches]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkWatches
-[locking]: http://zookeeper.apache.org/doc/current/recipes.html#sc_recipes_Locks
-[leader election]: http://zookeeper.apache.org/doc/current/recipes.html#sc_leaderElection
-[group membership]: http://zookeeper.apache.org/doc/current/recipes.html#sc_outOfTheBox
-[ha-config]: http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_CrossMachineRequirements "HA config"
 
 ## What does ZK do that the zookeeper gem doesn't?
 
@@ -167,5 +164,12 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 [szk-repo-bundler]: https://github.com/slyphon/zookeeper/tree/dev/gemfile/
 [szk-jar-gem]: https://rubygems.org/gems/slyphon-zookeeper_jar
 [szk-jar-repo]: https://github.com/slyphon/zookeeper_jar
+
+## Contacting the author
+
+* I'm usually hanging out in IRC on freenode.net in the BRAND NEW #zk-gem channel.
+* if you really want to, you can also reach me via twitter [@slyphon][]
+
+[@slyphon]: https://twitter.com/#!/slyphon
 
 
