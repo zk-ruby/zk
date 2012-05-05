@@ -20,6 +20,10 @@ group :docs do
   end
 end
 
+platform :mri_19 do
+  gem 'simplecov', :group => :coverage, :require => false
+end
+
 group :test do
   gem 'rspec', '~> 2.8.0'
   gem 'flexmock', '~> 0.8.10'

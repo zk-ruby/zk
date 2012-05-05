@@ -9,3 +9,4 @@ html
 Gemfile.*
 wiki
 zookeeper
+coverage/

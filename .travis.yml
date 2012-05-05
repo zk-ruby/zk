@@ -6,6 +6,10 @@ notifications:
 env:
   - SPAWN_ZOOKEEPER='true'
 
+# pull in releaseops submodule
+before_install:
+  - git submodule update --init --recursive
+
 rvm:
   - 1.9.3
   - 1.9.2

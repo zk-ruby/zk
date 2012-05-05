@@ -1,0 +1,39 @@
+overall subject of voting is '/blah'
+
+all nodes denote presence create('/blah/nodes/id', '', :ephemeral => true)
+
+coordinator notes children('/blah/nodes/id', watch: true)
+
+if any presence nodes are deleted, the transaction is aborted
+
+nodes children('/blah/tx', watch: true)
+
+coordinator voteseq = create('/blah/tx/vote', 'proposal', sequential: true)              # beginning of election
+
+coordinator children('/blah/tx/voteseq', watch: true)                   # loop until all nodes checked in
+
+nodes children('/blah/tx') 
+nodes children('/blah/tx/voteseq', watch: true)                         # all nodes voted, then commit
+nodes get('/blah/tx/voteseq', watch: true)                              # if data == 'abort' then delete id node
+nodes get('/blah/tx/votes_uuid/result' watch: true)                       # result will be placed here?
+nodes create('/blah/tx/voteseq/id', up_or_down, ephemeral: true)        # any node votes down, abort
+
+# coordinator sees all votes have been cast
+
+# NOTE: is this step necessary? the coordinator confirming?
+
+coordinator create('/blah/tx/voteseq/result', up_or_down, ephemeral: true) 
+
+# nodes tear down
+
+node delete('/blah/tx/voteseq/id')
+
+# when just result node is left
+
+coordinator rm_rf('/blah/tx/voteseq')
+
+
+# at many points we need a timer to see if things are taking too long
+
+
+

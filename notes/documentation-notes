@@ -1,0 +1,20 @@
+A Day at the Races
+
+* What are race conditions?
+  * Simple example with changing a node
+  * Simple example with a node being deleted
+* What pattern do we use in ZK to manage this problem?
+
+```ruby
+def block_until_node_deleted(zk, abs_node_path)
+  node_deletion_cb = lambda do |event|
+    if event.node_deleted?
+    queue.enq(:deleted) 
+    else
+    queue.enq(:deleted) unless exists?(abs_node_path, :watch => true)
+    end
+  end
+
+subs << event_handler.register(abs_node_path, &node_deletion_cb)
+```
+
