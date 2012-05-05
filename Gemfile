@@ -4,7 +4,11 @@ source :rubygems
 
 #gem 'zookeeper', :path => "~/zookeeper"
 
-git 'git://github.com/slyphon/zookeeper.git', :branch => 'master' do
+# this is the last known commit that we tested against and is passing.
+# keep closer track of this stuff to make bisecting easier and travis more
+# accurate
+#
+git 'git://github.com/slyphon/zookeeper.git', :ref => '861aa2fb5' do
   gem 'zookeeper', '>= 1.0.0.beta.1'
 end
 
