@@ -51,6 +51,7 @@ module ZK
         @path = name
         @locked = false
         @waiting = false
+        @lock_path = nil
         @root_lock_path = "#{@root_lock_node}/#{@path.gsub("/", "__")}"
       end
       

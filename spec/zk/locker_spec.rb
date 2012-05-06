@@ -82,6 +82,49 @@ shared_examples_for 'SharedLocker' do
     @shared_locker2 = ZK::Locker.shared_locker(zk2, path)
   end
 
+  describe :assert! do
+    it %[should raise LockAssertionFailedError if its connection is no longer connected?] do
+      zk.close!
+      lambda { @shared_locker.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
+    end
+
+    it %[should raise LockAssertionFailedError if locked? is false] do
+      @shared_locker.should_not be_locked
+      lambda { @shared_locker.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
+    end
+
+    it %[should raise LockAssertionFailedError lock_path does not exist] do
+      @shared_locker.lock!
+      lambda { @shared_locker.assert! }.should_not raise_error
+
+      zk.delete(@shared_locker.lock_path)
+      lambda { @shared_locker.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
+    end
+
+    it %[should raise LockAssertionFailedError if there is an exclusive lock with a number lower than ours] do
+      # this should *really* never happen
+      @shared_locker.lock!.should be_true
+      shl_path = @shared_locker.lock_path
+
+      @shared_locker2.lock!.should be_true
+
+      @shared_locker.unlock!.should be_true
+      @shared_locker.should_not be_locked
+
+      zk.exists?(shl_path).should be_false
+
+      @shared_locker2.lock_path.should_not == shl_path
+
+      # convert the first shared lock path into a exclusive one
+
+      exl_path = shl_path.sub(%r%/sh(\d+)\Z%, '/ex\1')
+
+      zk.create(exl_path, :ephemeral => true)
+
+      lambda { @shared_locker2.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
+    end
+  end
+
   describe :lock! do
     describe 'non-blocking success' do
       before do
@@ -153,6 +196,50 @@ shared_examples_for 'ExclusiveLocker' do
   before do
     @ex_locker = ZK::Locker.exclusive_locker(zk, path)
     @ex_locker2 = ZK::Locker.exclusive_locker(zk2, path)
+  end
+
+  describe :assert! do
+    it %[should raise LockAssertionFailedError if its connection is no longer connected?] do
+      zk.close!
+      lambda { @ex_locker.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
+    end
+
+    it %[should raise LockAssertionFailedError if locked? is false] do
+      @ex_locker.should_not be_locked
+      lambda { @ex_locker.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
+    end
+
+    it %[should raise LockAssertionFailedError lock_path does not exist] do
+      @ex_locker.lock!
+      lambda { @ex_locker.assert! }.should_not raise_error
+
+      zk.delete(@ex_locker.lock_path)
+      lambda { @ex_locker.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
+    end
+
+    it %[should raise LockAssertionFailedError if there is an exclusive lock with a number lower than ours] do
+      # this should *really* never happen
+      @ex_locker.lock!.should be_true
+      exl_path = @ex_locker.lock_path
+
+      th = Thread.new do
+        @ex_locker2.lock!(true)
+      end
+
+      wait_until { th.status == 'sleep' }
+
+      @ex_locker.unlock!.should be_true
+      @ex_locker.should_not be_locked
+      zk.exists?(exl_path).should be_false
+
+      th.join(5).should == th
+
+      @ex_locker2.lock_path.should_not == exl_path
+
+      zk.create(exl_path, :ephemeral => true)
+
+      lambda { @ex_locker2.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
+    end
   end
 
   describe :lock! do
@@ -362,9 +449,9 @@ describe ZK::Locker do
   end
 
   after do
-    zk.rm_rf(ZK::Locker.default_root_lock_node)
     connections.each { |c| c.close! }
     wait_until { !connections.any?(&:connected?) }
+    ZK.open("localhost:#{ZK.test_port}") { |z| z.rm_rf(ZK::Locker.default_root_lock_node) }
   end
 
   it_should_behave_like 'SharedLocker'
