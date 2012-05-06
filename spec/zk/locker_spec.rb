@@ -23,42 +23,42 @@ describe 'ZK::Client#locker' do
   end
 
   it "should be able to acquire the lock if no one else is locking it" do
-    @zk.locker(@path_to_lock).lock!.should be_true
+    @zk.locker(@path_to_lock).lock.should be_true
   end
 
   it "should not be able to acquire the lock if someone else is locking it" do
-    @zk.locker(@path_to_lock).lock!.should be_true
-    @zk2.locker(@path_to_lock).lock!.should be_false
+    @zk.locker(@path_to_lock).lock.should be_true
+    @zk2.locker(@path_to_lock).lock.should be_false
   end
 
   it "should be able to acquire the lock after the first one releases it" do
     lock1 = @zk.locker(@path_to_lock)
     lock2 = @zk2.locker(@path_to_lock)
     
-    lock1.lock!.should be_true
-    lock2.lock!.should be_false
-    lock1.unlock!
-    lock2.lock!.should be_true
+    lock1.lock.should be_true
+    lock2.lock.should be_false
+    lock1.unlock
+    lock2.lock.should be_true
   end
 
   it "should be able to acquire the lock if the first locker goes away" do
     lock1 = @zk.locker(@path_to_lock)
     lock2 = @zk2.locker(@path_to_lock)
 
-    lock1.lock!.should be_true
-    lock2.lock!.should be_false
+    lock1.lock.should be_true
+    lock2.lock.should be_false
     @zk.close!
-    lock2.lock!.should be_true
+    lock2.lock.should be_true
   end
 
   it "should be able to handle multi part path locks" do
-    @zk.locker("my/multi/part/path").lock!.should be_true
+    @zk.locker("my/multi/part/path").lock.should be_true
   end
 
   it "should blocking lock" do
     array = []
     first_lock = @zk.locker("mylock")
-    first_lock.lock!.should be_true
+    first_lock.lock.should be_true
     array << :first_lock
 
     thread = Thread.new do
@@ -69,7 +69,7 @@ describe 'ZK::Client#locker' do
     end
 
     array.length.should == 1
-    first_lock.unlock!
+    first_lock.unlock
     thread.join(10)
     array.length.should == 2
   end
@@ -94,7 +94,7 @@ shared_examples_for 'SharedLocker' do
     end
 
     it %[should raise LockAssertionFailedError lock_path does not exist] do
-      @shared_locker.lock!
+      @shared_locker.lock
       lambda { @shared_locker.assert! }.should_not raise_error
 
       zk.delete(@shared_locker.lock_path)
@@ -103,12 +103,12 @@ shared_examples_for 'SharedLocker' do
 
     it %[should raise LockAssertionFailedError if there is an exclusive lock with a number lower than ours] do
       # this should *really* never happen
-      @shared_locker.lock!.should be_true
+      @shared_locker.lock.should be_true
       shl_path = @shared_locker.lock_path
 
-      @shared_locker2.lock!.should be_true
+      @shared_locker2.lock.should be_true
 
-      @shared_locker.unlock!.should be_true
+      @shared_locker.unlock.should be_true
       @shared_locker.should_not be_locked
 
       zk.exists?(shl_path).should be_false
@@ -128,8 +128,8 @@ shared_examples_for 'SharedLocker' do
   describe :lock! do
     describe 'non-blocking success' do
       before do
-        @rval   = @shared_locker.lock!
-        @rval2  = @shared_locker2.lock!
+        @rval   = @shared_locker.lock
+        @rval2  = @shared_locker2.lock
       end
 
       it %[should acquire the first lock] do
@@ -147,7 +147,7 @@ shared_examples_for 'SharedLocker' do
       before do
         zk.mkdir_p(root_lock_path)
         @write_lock_path = zk.create("#{root_lock_path}/#{ZK::Locker::EXCLUSIVE_LOCK_PREFIX}", '', :mode => :ephemeral_sequential)
-        @rval = @shared_locker.lock!
+        @rval = @shared_locker.lock
       end
 
       it %[should return false] do
@@ -169,10 +169,10 @@ shared_examples_for 'SharedLocker' do
       it %[should acquire the lock after the write lock is released] do
         ary = []
 
-        @shared_locker.lock!.should be_false
+        @shared_locker.lock.should be_false
 
         th = Thread.new do
-          @shared_locker.lock!(true)
+          @shared_locker.lock(true)
           ary << :locked
         end
 
@@ -210,7 +210,7 @@ shared_examples_for 'ExclusiveLocker' do
     end
 
     it %[should raise LockAssertionFailedError lock_path does not exist] do
-      @ex_locker.lock!
+      @ex_locker.lock
       lambda { @ex_locker.assert! }.should_not raise_error
 
       zk.delete(@ex_locker.lock_path)
@@ -219,16 +219,16 @@ shared_examples_for 'ExclusiveLocker' do
 
     it %[should raise LockAssertionFailedError if there is an exclusive lock with a number lower than ours] do
       # this should *really* never happen
-      @ex_locker.lock!.should be_true
+      @ex_locker.lock.should be_true
       exl_path = @ex_locker.lock_path
 
       th = Thread.new do
-        @ex_locker2.lock!(true)
+        @ex_locker2.lock(true)
       end
 
       wait_until { th.status == 'sleep' }
 
-      @ex_locker.unlock!.should be_true
+      @ex_locker.unlock.should be_true
       @ex_locker.should_not be_locked
       zk.exists?(exl_path).should be_false
 
@@ -242,11 +242,11 @@ shared_examples_for 'ExclusiveLocker' do
     end
   end
 
-  describe :lock! do
+  describe :lock do
     describe 'non-blocking' do
       before do
-        @rval = @ex_locker.lock!
-        @rval2 = @ex_locker2.lock!
+        @rval = @ex_locker.lock
+        @rval2 = @ex_locker2.lock
       end
 
       it %[should acquire the first lock] do
@@ -258,8 +258,8 @@ shared_examples_for 'ExclusiveLocker' do
       end
 
       it %[should acquire the second lock after the first lock is released] do
-        @ex_locker.unlock!.should be_true
-        @ex_locker2.lock!.should be_true
+        @ex_locker.unlock.should be_true
+        @ex_locker2.lock.should be_true
       end
     end
 
@@ -272,10 +272,10 @@ shared_examples_for 'ExclusiveLocker' do
       it %[should block waiting for the lock] do
         ary = []
 
-        @ex_locker.lock!.should be_false
+        @ex_locker.lock.should be_false
 
         th = Thread.new do
-          @ex_locker.lock!(true)
+          @ex_locker.lock(true)
           ary << :locked
         end
 
@@ -304,8 +304,8 @@ shared_examples_for 'shared-exclusive interaction' do
 
   describe 'shared lock acquired first' do
     it %[should block exclusive locks from acquiring until released] do
-      @sh_lock.lock!.should be_true
-      @ex_lock.lock!.should be_false
+      @sh_lock.lock.should be_true
+      @ex_lock.lock.should be_false
 
       mutex = Monitor.new
       cond = mutex.new_cond
@@ -324,7 +324,7 @@ shared_examples_for 'shared-exclusive interaction' do
 
       mutex.synchronize do
         logger.debug { "unlocking the shared lock" }
-        @sh_lock.unlock!.should be_true
+        @sh_lock.unlock.should be_true
         cond.wait_until { th[:got_lock] }   # make sure they actually received the lock (avoid race)
         th[:got_lock].should be_true
         logger.debug { "ok, they got the lock" }
@@ -340,8 +340,8 @@ shared_examples_for 'shared-exclusive interaction' do
 
   describe 'exclusive lock acquired first' do
     it %[should block shared lock from acquiring until released] do
-      @ex_lock.lock!.should be_true
-      @sh_lock.lock!.should be_false
+      @ex_lock.lock.should be_true
+      @sh_lock.lock.should be_false
 
       mutex = Monitor.new
       cond = mutex.new_cond
@@ -360,7 +360,7 @@ shared_examples_for 'shared-exclusive interaction' do
 
       mutex.synchronize do
         logger.debug { "unlocking the shared lock" }
-        @ex_lock.unlock!.should be_true
+        @ex_lock.unlock.should be_true
         cond.wait_until { th[:got_lock] }   # make sure they actually received the lock (avoid race)
         th[:got_lock].should be_true
         logger.debug { "ok, they got the lock" }
@@ -383,16 +383,16 @@ shared_examples_for 'shared-exclusive interaction' do
     it %[should act something like a queue] do
       @array = []
 
-      @sh_lock.lock!.should be_true
+      @sh_lock.lock.should be_true
       @sh_lock.should be_locked
 
       ex_th = Thread.new do
         begin
-          @ex_lock.lock!(true)  # blocking lock
+          @ex_lock.lock(true)  # blocking lock
           Thread.current[:got_lock] = true
           @array << :ex_lock
         ensure
-          @ex_lock.unlock!
+          @ex_lock.unlock
         end
       end
 
@@ -402,22 +402,22 @@ shared_examples_for 'shared-exclusive interaction' do
 
       # this is the important one, does the second shared lock get blocked by
       # the exclusive lock
-      @sh_lock2.lock!.should_not be_true
+      @sh_lock2.lock.should_not be_true
 
       sh2_th = Thread.new do
         begin
-          @sh_lock2.lock!(true)
+          @sh_lock2.lock(true)
           Thread.current[:got_lock] = true
           @array << :sh_lock2
         ensure
-          @sh_lock2.unlock!
+          @sh_lock2.unlock
         end
       end
 
       sh2_th.join_until { @sh_lock2.waiting? }
       @sh_lock2.should be_waiting
 
-      @sh_lock.unlock!.should be_true
+      @sh_lock.unlock.should be_true
 
       ex_th.join_until { ex_th[:got_lock] }
       ex_th[:got_lock].should be_true
