@@ -39,7 +39,7 @@ module ZK
 
       # @private
       def lock_number
-        @lock_number ||= (lock_path and digit_from(lock_path))
+        lock_path and digit_from(lock_path)
       end
 
       # returns the sequence number of the next lowest write lock node
