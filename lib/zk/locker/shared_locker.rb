@@ -24,6 +24,21 @@ module ZK
         end
       end
 
+      # (see LockerBase#assert!)
+      #
+      # checks that we:
+      #
+      # * have a lock path
+      # * our lock path still exists
+      # * there are no exclusive locks with lower numbers than ours
+      # 
+      def assert!
+        super
+        unless zk.connected? and @lock_path and zk.exists?(@lock_path) and got_read_lock?
+          raise LockAssertionFailedError 
+        end
+      end
+
       # @private
       def lock_number
         @lock_number ||= (lock_path and digit_from(lock_path))
@@ -66,13 +81,14 @@ module ZK
       rescue NoWriteLockFoundException
         true
       end
+      alias got_lock? got_read_lock?
 
       protected
         # TODO: make this generic, can either block or non-block
         # @private
         def block_until_read_lock!
           begin
-            path = [root_lock_path, next_lowest_write_lock_name].join('/')
+            path = "#{root_lock_path}/#{next_lowest_write_lock_name}"
             logger.debug { "SharedLocker#block_until_read_lock! path=#{path.inspect}" }
             @zk.block_until_node_deleted(path)
           rescue NoWriteLockFoundException

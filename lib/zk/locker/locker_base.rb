@@ -9,6 +9,7 @@ module ZK
     #
     class LockerBase
       include ZK::Logging
+      include ZK::Exceptions
 
       # @private
       attr_accessor :zk
@@ -79,6 +80,9 @@ module ZK
         lock_path and File.basename(lock_path)
       end
 
+      # this is our current idea of whether or not we hold the lock.
+      # this does not actually check the state on the server.
+      #
       # @return [true,false] true if we hold the lock
       def locked?
         false|@locked
@@ -138,6 +142,44 @@ module ZK
         false|@waiting
       end
 
+      # This is for people that wish to check that the assumption is correct
+      # that they actually still hold the lock. (check for session interruption,
+      # perhaps a lock is obtained in one method and handed to another)
+      #
+      # This, unlike (#locked?) will actually go and check the conditions
+      # that constitute "holding the lock" with the server.
+      #
+      # @raise [InterruptedSession] raised when the zk session has either
+      #   closed or is in an invalid state.
+      #
+      # @raise [LockAssertionFailedError] raised if the lock is not held
+      #
+      # @example 
+      #   
+      #   def process_jobs
+      #     @lock = @zk.locker('foo')
+      #
+      #     @lock.with_lock do
+      #       @jobs.each do |j| 
+      #         @lock.assert!
+      #         perform_job(j)
+      #       end
+      #     end
+      #   end
+      #
+      #   def perform_job(j)
+      #     puts "hah! he thinks we're workin!"
+      #     sleep(60)
+      #   end
+      #
+      def assert!
+        raise LockAssertionFailedError, "have not obtained the lock yet"            unless locked?
+        raise LockAssertionFailedError, "not connected"                             unless zk.connected?
+        raise LockAssertionFailedError, "lock_path was #{lock_path.inspect}"        unless lock_path
+        raise LockAssertionFailedError, "the lock path #{lock_path} did not exist!" unless zk.exists?(lock_path)
+        raise LockAssertionFailedError, "we do not actually hold the lock"          unless got_lock?
+      end
+
       protected 
         # @private
         def in_waiting_status
@@ -169,6 +211,14 @@ module ZK
           @zk.mkdir_p(@root_lock_path)
         end
 
+        # performs the checks that (according to the recipe) mean that we hold
+        # the lock. used by (#assert!)
+        #
+        # @private
+        def got_lock?
+          raise NotImplementedError
+        end
+
         # prefix is the string that will appear in front of the sequence num,
         # defaults to 'lock'
         #
@@ -177,7 +227,7 @@ module ZK
           @lock_path = @zk.create("#{root_lock_path}/#{prefix}", "", :mode => :ephemeral_sequential)
           logger.debug { "got lock path #{@lock_path}" }
           @lock_path
-        rescue Exceptions::NoNode
+        rescue NoNode
           create_root_path!
           retry
         end
@@ -186,7 +236,8 @@ module ZK
         def cleanup_lock_path!
           logger.debug { "removing lock path #{@lock_path}" }
           @zk.delete(@lock_path)
-          @zk.delete(root_lock_path) rescue Exceptions::NotEmpty
+          @zk.delete(root_lock_path) rescue NotEmpty
+          @lock_path = nil
         end
     end # LockerBase
   end # Locker

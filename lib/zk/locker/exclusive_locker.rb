@@ -33,6 +33,14 @@ module ZK
         end
       end
 
+      # (see LockerBase#assert!)
+      #
+      def assert!
+        assert_locked!
+        unless zk.connected? and @lock_path and zk.exists?(@lock_path) and got_read_lock?
+        end
+      end
+
       protected
         # the node that is next-lowest in sequence number to ours, the one we
         # watch for updates to
@@ -50,6 +58,7 @@ module ZK
         def got_write_lock?
           ordered_lock_children.first == lock_basename
         end
+        alias got_lock? got_write_lock?
 
         # @private
         def block_until_write_lock!
