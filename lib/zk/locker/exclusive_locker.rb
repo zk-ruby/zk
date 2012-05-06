@@ -35,10 +35,15 @@ module ZK
 
       # (see LockerBase#assert!)
       #
+      # checks that we:
+      #
+      # * we have obtained the lock (i.e. {#locked?} is true)
+      # * have a lock path
+      # * our lock path still exists
+      # * there are no locks, _exclusive or shared_, with lower numbers than ours
+      # 
       def assert!
-        assert_locked!
-        unless zk.connected? and @lock_path and zk.exists?(@lock_path) and got_read_lock?
-        end
+        super
       end
 
       protected

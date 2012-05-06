@@ -28,15 +28,13 @@ module ZK
       #
       # checks that we:
       #
+      # * we have obtained the lock (i.e. {#locked?} is true)
       # * have a lock path
       # * our lock path still exists
       # * there are no exclusive locks with lower numbers than ours
       # 
       def assert!
         super
-        unless zk.connected? and @lock_path and zk.exists?(@lock_path) and got_read_lock?
-          raise LockAssertionFailedError 
-        end
       end
 
       # @private

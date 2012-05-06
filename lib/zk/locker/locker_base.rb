@@ -146,7 +146,7 @@ module ZK
       # that they actually still hold the lock. (check for session interruption,
       # perhaps a lock is obtained in one method and handed to another)
       #
-      # This, unlike (#locked?) will actually go and check the conditions
+      # This, unlike {#locked?} will actually go and check the conditions
       # that constitute "holding the lock" with the server.
       #
       # @raise [InterruptedSession] raised when the zk session has either
@@ -157,8 +157,6 @@ module ZK
       # @example 
       #   
       #   def process_jobs
-      #     @lock = @zk.locker('foo')
-      #
       #     @lock.with_lock do
       #       @jobs.each do |j| 
       #         @lock.assert!
