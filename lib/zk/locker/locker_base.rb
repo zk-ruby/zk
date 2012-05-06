@@ -58,10 +58,10 @@ module ZK
       # there is no non-blocking version of this method
       #
       def with_lock
-        lock!(true)
+        lock(true)
         yield
       ensure
-        unlock!
+        unlock
       end
 
       # the basename of our lock path
@@ -89,7 +89,7 @@ module ZK
       #
       # @return [false] we did not own the lock
       #
-      def unlock!
+      def unlock
         if @locked
           cleanup_lock_path!
           @locked = false
@@ -97,6 +97,38 @@ module ZK
         else
           false # i know, i know, but be explicit
         end
+      end
+
+      # (see #unlock)
+      # @deprecated the use of unlock! is deprecated and may be removed or have
+      #   its semantics changed in a future release
+      def unlock!
+        unlock
+      end
+
+      # @param blocking [true,false] if true we block the caller until we can obtain
+      #   a lock on the resource
+      # 
+      # @return [true] if we're already obtained a shared lock, or if we were able to
+      #   obtain the lock in non-blocking mode.
+      #
+      # @return [false] if we did not obtain the lock in non-blocking mode
+      #
+      # @return [void] if we obtained the lock in blocking mode. 
+      #
+      # @raise [InterruptedSession] raised when blocked waiting for a lock and
+      #   the underlying client's session is interrupted. 
+      #
+      # @see ZK::Client::Unixisms#block_until_node_deleted more about possible execptions
+      def lock(blocking=false)
+        raise NotImplementedError
+      end
+
+      # (see #lock)
+      # @deprecated the use of lock! is deprecated and may be removed or have
+      #   its semantics changed in a future release
+      def lock!(blocking=false)
+        lock(blocking)
       end
 
       # returns true if this locker is waiting to acquire lock 

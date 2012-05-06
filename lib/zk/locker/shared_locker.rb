@@ -3,24 +3,10 @@ module ZK
     class SharedLocker < LockerBase
       include Exceptions
 
+      # (see LockerBase#lock)
       # obtain a shared lock.
       #
-      # @param blocking [true,false] if true we block the caller until we can obtain
-      #   a lock on the resource
-      # 
-      # @return [true] if we're already obtained a shared lock, or if we were able to
-      #   obtain the lock in non-blocking mode.
-      #
-      # @return [false] if we did not obtain the lock in non-blocking mode
-      #
-      # @return [void] if we obtained the lock in blocking mode. 
-      #
-      # @raise [InterruptedSession] raised when blocked waiting for a lock and
-      #   the underlying client's session is interrupted. 
-      #
-      # @see ZK::Client::Unixisms#block_until_node_deleted more about possible execptions
-      # 
-      def lock!(blocking=false)
+      def lock(blocking=false)
         return true if @locked
         create_lock_path!(SHARED_LOCK_PREFIX)
 

@@ -14,17 +14,10 @@ module ZK
     #       * __no__: return false, you lose
     # 
     class ExclusiveLocker < LockerBase
+      # (see LockerBase#lock)
       # obtain an exclusive lock.
       #
-      # @param blocking (see SharedLocker#lock!)
-      # @return (see SharedLocker#lock!)
-      #
-      # @raise [InterruptedSession] raised when blocked waiting for a lock and
-      #   the underlying client's session is interrupted. 
-      #
-      # @see ZK::Client::Unixisms#block_until_node_deleted more about possible execptions
-      # 
-      def lock!(blocking=false)
+      def lock(blocking=false)
         return true if @locked
         create_lock_path!(EXCLUSIVE_LOCK_PREFIX)
 
