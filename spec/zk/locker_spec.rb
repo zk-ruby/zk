@@ -125,7 +125,25 @@ shared_examples_for 'SharedLocker' do
     end
   end
 
-  describe :lock! do
+  describe :locked? do
+    describe %[with default options] do
+      it %[should check only local state of lockedness] do
+        ex_lock = ZK::Locker.exclusive_locker(zk, path)
+        ex_lock.lock.should be_true
+        @shared_locker.should_not be_locked
+      end
+    end
+
+    describe %[with check_if_any == true] do
+      it %[should check if any participants would prevent us from acquiring the lock] do
+        ex_lock = ZK::Locker.exclusive_locker(zk, path)
+        ex_lock.lock.should be_true
+        @shared_locker.should be_locked(true)
+      end
+    end
+  end
+
+  describe :lock do
     describe 'non-blocking success' do
       before do
         @rval   = @shared_locker.lock
@@ -241,6 +259,23 @@ shared_examples_for 'ExclusiveLocker' do
       lambda { @ex_locker2.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
     end
   end
+
+  describe :locked? do
+    describe %[with default options] do
+      it %[should check only local state of lockedness] do
+        @ex_locker.lock.should be_true
+        @ex_locker2.should_not be_locked
+      end
+    end
+
+    describe %[with check_if_any == true] do
+      it %[should check if any participants would prevent us from acquiring the lock] do
+        @ex_locker.lock.should be_true
+        @ex_locker2.should be_locked(true)
+      end
+    end
+  end
+
 
   describe :lock do
     describe 'non-blocking' do

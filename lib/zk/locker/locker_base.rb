@@ -81,12 +81,37 @@ module ZK
         lock_path and File.basename(lock_path)
       end
 
-      # this is our current idea of whether or not we hold the lock.
-      # this does not actually check the state on the server.
+      # When the default is used, returns our current idea of whether or not we
+      # hold the lock, which does not actually check the state on the server.
+      # 
+      # If the `check_if_any` param is true: 
+      # 
+      # * If we hold the lock we return true
+      # * If _we_ don't think we hold the lock, we'll do a check on the server 
+      #   to see if there are any participants _who hold the lock and would
+      #   prevent us from acquiring the lock_. 
+      #   * If we could acquire the lock we will return false. 
+      #   * If another client would prevent us from acquiring the lock, we return true. 
       #
-      # @return [true,false] true if we hold the lock
-      def locked?
-        false|@locked
+      # @note It should be obvious, but there is no way to guarantee that
+      #   between the time this method checks the server and taking any action to
+      #   acquire the lock, another client may grab the lock before us (or
+      #   converseley, another client may release the lock). The `check_if_any`
+      #   option is simply meant as an advisory, and has been added as this
+      #   feature may be useful in some cases.
+      #
+      # @param check_if_any [true,false] peform a check to see if anyone holds the
+      #   lock. Normaly, if false, we just use our in-memory flag to see if
+      #   we currently hold the lock. 
+      #
+      # @return [true] if we hold the lock or if `check_if_any` is true, if any
+      #   process holds the lock
+      #
+      # @return [false] if we don't hold the lock, or if `check_if_any` is
+      #   true, if no process holds the lock
+      #
+      def locked?(check_if_any=false)
+        @locked or (check_if_any and any_lock_children?)
       end
       
       # @return [true] if we held the lock and this method has
@@ -143,7 +168,7 @@ module ZK
         false|@waiting
       end
 
-      # This is for people that wish to check that the assumption is correct
+      # This is for users who wish to check that the assumption is correct
       # that they actually still hold the lock. (check for session interruption,
       # perhaps a lock is obtained in one method and handed to another)
       #
@@ -191,8 +216,14 @@ module ZK
           self.class.digit_from_lock_path(path)
         end
 
+        # possibly lighter weight check to see if the lock path has any children
+        # (using stat, rather than getting the list of children).
+        def any_lock_children?
+          zk.stat(root_lock_path).num_children > 0
+        end
+
         def lock_children(watch=false)
-          @zk.children(root_lock_path, :watch => watch)
+          zk.children(root_lock_path, :watch => watch)
         end
 
         def ordered_lock_children(watch=false)
@@ -202,7 +233,7 @@ module ZK
         end
 
         def create_root_path!
-          @zk.mkdir_p(@root_lock_path)
+          zk.mkdir_p(@root_lock_path)
         end
 
         # performs the checks that (according to the recipe) mean that we hold
@@ -226,8 +257,8 @@ module ZK
 
         def cleanup_lock_path!
           logger.debug { "removing lock path #{@lock_path}" }
-          @zk.delete(@lock_path)
-          @zk.delete(root_lock_path) rescue NotEmpty
+          zk.delete(@lock_path)
+          zk.delete(root_lock_path) rescue NotEmpty
           @lock_path = nil
         end
     end # LockerBase

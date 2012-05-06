@@ -37,6 +37,11 @@ module ZK
         super
       end
 
+      # (see LockerBase#locked?)
+      def locked?(check_if_any=false)
+        @locked or (check_if_any and any_write_lockers?)
+      end
+
       # @private
       def lock_number
         lock_path and digit_from(lock_path)
@@ -80,6 +85,12 @@ module ZK
         true
       end
       alias got_lock? got_read_lock?
+
+      # @private
+      # TODO: really need to clean up the semantics, make this 'any_exclusive_lockers?'
+      def any_write_lockers?
+        lock_children.any? { |n| n.start_with?(EXCLUSIVE_LOCK_PREFIX) }
+      end
 
       protected
         # TODO: make this generic, can either block or non-block
