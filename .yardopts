@@ -1,4 +1,4 @@
---protected
+--no-protected
 --no-private
 --tag hidden_example:Hidden
 --hide-tag hidden_example

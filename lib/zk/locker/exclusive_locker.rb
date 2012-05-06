@@ -44,7 +44,6 @@ module ZK
       protected
         # the node that is next-lowest in sequence number to ours, the one we
         # watch for updates to
-        # @private
         def next_lowest_node
           ary = ordered_lock_children()
           my_idx = ary.index(lock_basename)
@@ -54,13 +53,11 @@ module ZK
           ary[(my_idx - 1)] 
         end
 
-        # @private
         def got_write_lock?
           ordered_lock_children.first == lock_basename
         end
         alias got_lock? got_write_lock?
 
-        # @private
         def block_until_write_lock!
           begin
             path = [root_lock_path, next_lowest_node].join('/')

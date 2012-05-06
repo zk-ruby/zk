@@ -181,7 +181,6 @@ module ZK
       end
 
       protected 
-        # @private
         def in_waiting_status
           w, @waiting = @waiting, true
           yield
@@ -189,24 +188,20 @@ module ZK
           @waiting = w
         end
 
-        # @private
         def digit_from(path)
           self.class.digit_from_lock_path(path)
         end
 
-        # @private
         def lock_children(watch=false)
           @zk.children(root_lock_path, :watch => watch)
         end
 
-        # @private
         def ordered_lock_children(watch=false)
           lock_children(watch).tap do |ary|
             ary.sort! { |a,b| digit_from(a) <=> digit_from(b) }
           end
         end
 
-        # @private
         def create_root_path!
           @zk.mkdir_p(@root_lock_path)
         end
@@ -214,7 +209,6 @@ module ZK
         # performs the checks that (according to the recipe) mean that we hold
         # the lock. used by (#assert!)
         #
-        # @private
         def got_lock?
           raise NotImplementedError
         end
@@ -222,7 +216,6 @@ module ZK
         # prefix is the string that will appear in front of the sequence num,
         # defaults to 'lock'
         #
-        # @private
         def create_lock_path!(prefix='lock')
           @lock_path = @zk.create("#{root_lock_path}/#{prefix}", "", :mode => :ephemeral_sequential)
           logger.debug { "got lock path #{@lock_path}" }
@@ -232,7 +225,6 @@ module ZK
           retry
         end
 
-        # @private
         def cleanup_lock_path!
           logger.debug { "removing lock path #{@lock_path}" }
           @zk.delete(@lock_path)

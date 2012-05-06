@@ -85,7 +85,6 @@ module ZK
 
       protected
         # TODO: make this generic, can either block or non-block
-        # @private
         def block_until_read_lock!
           begin
             path = "#{root_lock_path}/#{next_lowest_write_lock_name}"
