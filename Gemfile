@@ -8,9 +8,9 @@ source :rubygems
 # keep closer track of this stuff to make bisecting easier and travis more
 # accurate
 #
-git 'git://github.com/slyphon/zookeeper.git', :ref => 'e8b181a37ee' do
-  gem 'zookeeper', '>= 1.0.0.beta.1'
-end
+# git 'git://github.com/slyphon/zookeeper.git', :ref => 'e8b181a37ee' do
+#   gem 'zookeeper', '>= 1.0.0.beta.1'
+# end
 
 
 gem 'rake', :group => [:development, :test]

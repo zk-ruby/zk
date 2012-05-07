@@ -6,7 +6,7 @@ class EventCatcher
 
   MEMBERS = [:created, :changed, :deleted, :child, :all]
 
-  attr_reader :events
+  attr_reader :events, :mutex
     
   def initialize(*args)
     @mutex = Monitor.new

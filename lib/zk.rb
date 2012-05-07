@@ -2,7 +2,10 @@ require 'rubygems'
 
 require 'logger'
 require 'zookeeper'
-require 'zookeeper/compatibility'
+
+# XXX: after 1.0 we'll need this
+# require 'zookeeper/compatibility'
+
 require 'forwardable'
 require 'thread'
 require 'monitor'
