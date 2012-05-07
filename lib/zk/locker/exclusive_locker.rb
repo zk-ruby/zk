@@ -48,7 +48,11 @@ module ZK
 
       # (see LockerBase#acquirable?)
       def acquirable?
-        locked? or (zk.stat(root_lock_path).num_children == 0)
+        return true if locked? 
+        stat = zk.stat(root_lock_path)
+        !stat.exists? or stat.num_children == 0
+      rescue Exceptions::NoNode
+        true
       end
 
       protected

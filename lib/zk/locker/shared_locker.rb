@@ -44,7 +44,10 @@ module ZK
 
       # (see LockerBase#acquirable?)
       def acquirable?
+        return true if locked?
         !lock_children.any? { |n| n.start_with?(EXCLUSIVE_LOCK_PREFIX) }
+      rescue Exceptions::NoNode
+        true
       end
 
       # @private
