@@ -81,37 +81,36 @@ module ZK
         lock_path and File.basename(lock_path)
       end
 
-      # When the default is used, returns our current idea of whether or not we
-      # hold the lock, which does not actually check the state on the server.
-      # 
-      # If the `check_if_any` param is true: 
-      # 
-      # * If we hold the lock we return true
-      # * If _we_ don't think we hold the lock, we'll do a check on the server 
+      # returns our current idea of whether or not we hold the lock, which does
+      # not actually check the state on the server.
+      #
+      # The reason for the equivocation around _thinking_ we hold the lock is
+      # to contrast our current state and the actual state on the server. If you
+      # want to make double-triple certain of the state of the lock, use {#assert!}
+      #
+      # @return [true] if we hold the lock
+      # @return [false] if we don't hold the lock
+      #
+      def locked?(check_if_any=false)
+        false|@locked 
+      end
+
+      # * If this instance holds the lock {#locked? is true} we return true (as
+      #   we have already succeeded in acquiring the lock)
+      # * If this instance doesn't hold the lock, we'll do a check on the server 
       #   to see if there are any participants _who hold the lock and would
       #   prevent us from acquiring the lock_. 
-      #   * If we could acquire the lock we will return false. 
-      #   * If another client would prevent us from acquiring the lock, we return true. 
+      #   * If this instance could acquire the lock we will return true. 
+      #   * If another client would prevent us from acquiring the lock, we return false. 
       #
       # @note It should be obvious, but there is no way to guarantee that
       #   between the time this method checks the server and taking any action to
       #   acquire the lock, another client may grab the lock before us (or
-      #   converseley, another client may release the lock). The `check_if_any`
-      #   option is simply meant as an advisory, and has been added as this
-      #   feature may be useful in some cases.
+      #   converseley, another client may release the lock). This is simply meant
+      #   as an advisory, and may be useful in some cases.
       #
-      # @param check_if_any [true,false] peform a check to see if anyone holds the
-      #   lock. Normaly, if false, we just use our in-memory flag to see if
-      #   we currently hold the lock. 
-      #
-      # @return [true] if we hold the lock or if `check_if_any` is true, if any
-      #   process holds the lock
-      #
-      # @return [false] if we don't hold the lock, or if `check_if_any` is
-      #   true, if no process holds the lock
-      #
-      def locked?(check_if_any=false)
-        @locked or (check_if_any and any_lock_children?)
+      def acquirable?
+        raise NotImplementedError
       end
       
       # @return [true] if we held the lock and this method has
@@ -219,7 +218,6 @@ module ZK
         # possibly lighter weight check to see if the lock path has any children
         # (using stat, rather than getting the list of children).
         def any_lock_children?
-          zk.stat(root_lock_path).num_children > 0
         end
 
         def lock_children(watch=false)

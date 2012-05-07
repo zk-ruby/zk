@@ -125,20 +125,17 @@ shared_examples_for 'SharedLocker' do
     end
   end
 
-  describe :locked? do
+  describe :acquirable? do
     describe %[with default options] do
-      it %[should check only local state of lockedness] do
-        ex_lock = ZK::Locker.exclusive_locker(zk, path)
-        ex_lock.lock.should be_true
-        @shared_locker.should_not be_locked
+      it %[should check local state of lockedness] do
+        @shared_locker.lock.should be_true
+        @shared_locker.should be_acquirable
       end
-    end
 
-    describe %[with check_if_any == true] do
       it %[should check if any participants would prevent us from acquiring the lock] do
         ex_lock = ZK::Locker.exclusive_locker(zk, path)
         ex_lock.lock.should be_true
-        @shared_locker.should be_locked(true)
+        @shared_locker.should_not be_acquirable
       end
     end
   end
@@ -260,22 +257,19 @@ shared_examples_for 'ExclusiveLocker' do
     end
   end
 
-  describe :locked? do
+  describe :acquirable? do
     describe %[with default options] do
-      it %[should check only local state of lockedness] do
+      it %[should check local state of lockedness] do
         @ex_locker.lock.should be_true
-        @ex_locker2.should_not be_locked
+        @ex_locker.should be_acquirable
       end
-    end
 
-    describe %[with check_if_any == true] do
       it %[should check if any participants would prevent us from acquiring the lock] do
         @ex_locker.lock.should be_true
-        @ex_locker2.should be_locked(true)
+        @ex_locker2.should_not be_acquirable
       end
     end
   end
-
 
   describe :lock do
     describe 'non-blocking' do

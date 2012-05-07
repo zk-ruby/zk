@@ -46,6 +46,11 @@ module ZK
         super
       end
 
+      # (see LockerBase#acquirable?)
+      def acquirable?
+        locked? or (zk.stat(root_lock_path).num_children == 0)
+      end
+
       protected
         # the node that is next-lowest in sequence number to ours, the one we
         # watch for updates to
