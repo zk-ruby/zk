@@ -1,25 +1,22 @@
 module ZK
-  # NOTE: this module should be considered experimental. there are several
-  # specs that have recently started failing under 1.9.2 (didn't fail under
-  # 1.8.7 or jruby 1.6) that need fixing. 
-  #
-  # ==== Overview
+  # @note this module should be considered experimental. 
   #
   # This module implements the "leader election" protocols described
-  # {here}[http://hadoop.apache.org/zookeeper/docs/current/recipes.html#sc_leaderElection].
+  # [here](http://hadoop.apache.org/zookeeper/docs/current/recipes.html#sc_leaderElection).
   #
-  # There are Candidates and Observers. Candidates take part in elections and
-  # all have equal ability and chance to become the leader. When a leader is
-  # decided, they hold onto the leadership role until they die. When the leader
-  # dies, an election is held and the winner has its +on_winning_election+
-  # callbacks fired, and the losers have their +on_losing_election+ callbacks
-  # fired. When all of the +on_winning_election+ callbacks have completed
-  # (completing whatever steps are necessary to assume the leadership role),
-  # the leader will "acknowledge" that it has taken over by creating an
-  # ephemeral node at a known location (with optional data that the Observers
-  # can then read and take action upon). Note that when this node is created,
-  # it means the *leader* has finished taking over, but it does *not* mean that
-  # all the slaves have completed *their* tasks.
+  # There are {ZK::Election::Candidates Candidates} and {ZK::Election::Observers Observers}. 
+  # Candidates take part in elections and all have equal ability and chance to
+  # become the leader. When a leader is decided, they hold onto the leadership
+  # role until they die. When the leader dies, an election is held and the
+  # winner has its +on_winning_election+ callbacks fired, and the losers have
+  # their +on_losing_election+ callbacks fired. When all of the
+  # `on_winning_election` callbacks have completed (completing whatever steps
+  # are necessary to assume the leadership role), the leader will "acknowledge"
+  # that it has taken over by creating an ephemeral node at a known location
+  # (with optional data that the Observers can then read and take action upon).
+  # Note that when this node is created, it means the *leader* has finished
+  # taking over, but it does *not* mean that all the slaves have completed
+  # *their* tasks.
   #
   # Observers are interested parties in the election, the "constituents" of the
   # process. They can register callbacks to be fired when a new leader has been
@@ -27,7 +24,6 @@ module ZK
   # once the leader has acknowledged its role, so they can be sure that the
   # leader is ready to perform its duties.
   #
-  # ==== Use Case / Example
   #
   # One problem this pattern can be used to solve is failover between two
   # database nodes. Candidates set up callbacks to both take over as master
@@ -36,6 +32,7 @@ module ZK
   # connection info to the "leader ack" node, and the clients can reconnect to
   # the currently active leader.
   #
+  # @example 
   #
   #   def server
   #     candidate = @zk.election_candidate("database_election", "dbhost2.fqdn.tld:4567", :follow => :leader)
@@ -47,8 +44,8 @@ module ZK
   #     end
   #   end
   #
-  # Note that as soon as vote! is called, either the on_winning_election or
-  # on_losing_election callbacks will be called. 
+  #   # Note that as soon as vote! is called, either the on_winning_election or
+  #   # on_losing_election callbacks will be called. 
   #
   #
   module Election
@@ -65,6 +62,7 @@ module ZK
 end # ZK
 
 require 'zk/election/base'
+require 'zk/election/result_subscription'
 require 'zk/election/candidate'
 require 'zk/election/observer'
 

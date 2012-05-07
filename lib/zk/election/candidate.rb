@@ -14,7 +14,7 @@ module ZK
         @leader     = nil 
         @data       = opts[:data] || ''
         @vote_path  = nil
-       
+        
         @winner_callbacks = []
         @loser_callbacks = []
 
@@ -33,14 +33,18 @@ module ZK
       # When we win the election, we will call the procs registered using this
       # method.
       def on_winning_election(&block)
-        @winner_callbacks << block
+        ResultSubscription.new(self, block).tap do |sub|
+          synchronize { @winner_callbacks << sub }
+        end
       end
 
       # When we lose the election and are relegated to the shadows, waiting for
       # the leader to make one small misstep, where we can finally claim what
       # is rightfully ours! MWUAHAHAHAHAHA(*cough*)
       def on_losing_election(&block)
-        @loser_callbacks << block
+        ResultSubscription.new(self, block).tap do |sub|
+          synchronize { @loser_callbacks << sub }
+        end
       end
 
       # These procs should be run in the case of an error when trying to assume

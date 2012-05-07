@@ -44,7 +44,7 @@ module ZK
 
       included do
         alias_method_chain :unsubscribe, :threaded_callback
-        alias_method_chain :callable, :threaded_callback_wrapper
+        alias_method_chain :call, :threaded_callback
       end
 
       def unsubscribe_with_threaded_callback
@@ -54,12 +54,14 @@ module ZK
         end
       end
     
-      def callable_with_threaded_callback_wrapper(*args)
-        synchronize do 
-          @threaded_callback ||= ThreadedCallback.new(@callable) 
-        end
+      def call_with_threaded_callback(*args)
+        synchronize { @threaded_callback ||= ThreadedCallback.new(callable) }.call(*args)
       end
+    end # ActorStyle
+
+    class Actor < Base
+      include ActorStyle
     end
-  end
-end
+  end # Subscription
+end # ZK
 

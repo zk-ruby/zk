@@ -46,39 +46,11 @@ module ZK
 
       # Asynchronously call the block when the leader has acknowledged its
       # role. 
+      #
+      # this is a one-shot callback. you must re-register after this callback fires
+      #
       def on_leader_ack(&block)
-        creation_sub = @zk.register(leader_ack_path, :only => [:created, :changed]) do |event|
-          begin
-            logger.debug { "in #{leader_ack_path} watcher, got creation event, notifying" }
-            safe_call(block)
-          ensure
-            creation_sub.unregister
-          end
-        end
-
-        deletion_sub = @zk.register(leader_ack_path, :only => [:deleted, :child]) do |event|
-          if @zk.exists?(leader_ack_path, :watch => true)
-            begin
-              logger.debug { "in #{leader_ack_path} watcher, node created behind our back, notifying" }
-              safe_call(block)
-            ensure
-              creation_sub.unregister
-            end
-          else
-            logger.debug { "in #{leader_ack_path} watcher, got non-creation event, re-watching" }
-          end
-        end
-
-        subs = [creation_sub, deletion_sub]
-
-        if @zk.exists?(leader_ack_path, :watch => true)
-          logger.debug { "on_leader_ack, #{leader_ack_path} exists, calling block" }
-          begin
-            safe_call(block)
-          ensure
-            subs.each { |s| s.unregister }
-          end
-        end
+        raise NotImplementedError, "Still need to implement parent-side subscriptions for on_leader_ack"
       end
 
       protected
@@ -111,4 +83,3 @@ module ZK
     end # Base
   end # Election
 end # ZK
-
