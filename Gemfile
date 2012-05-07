@@ -8,7 +8,7 @@ source :rubygems
 # keep closer track of this stuff to make bisecting easier and travis more
 # accurate
 #
-git 'git://github.com/slyphon/zookeeper.git', :ref => '861aa2fb5' do
+git 'git://github.com/slyphon/zookeeper.git', :ref => '8dfdd6be' do
   gem 'zookeeper', '>= 1.0.0.beta.1'
 end
 
