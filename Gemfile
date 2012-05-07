@@ -2,13 +2,13 @@ source :rubygems
 
 # gem 'slyphon-zookeeper', :path => '~/zookeeper'
 
-#gem 'zookeeper', :path => "~/zookeeper"
+# gem 'zookeeper', :path => "~/zookeeper"
 
 # this is the last known commit that we tested against and is passing.
 # keep closer track of this stuff to make bisecting easier and travis more
 # accurate
 #
-git 'git://github.com/slyphon/zookeeper.git', :ref => '8dfdd6be' do
+git 'git://github.com/slyphon/zookeeper.git', :ref => 'e8b181a37ee' do
   gem 'zookeeper', '>= 1.0.0.beta.1'
 end
 
