@@ -1,4 +1,22 @@
 This file notes feature differences and bugfixes contained between releases. 
+### v1.2.0 ###
+
+You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/tPbNBw) from the zookeeper 1.0.0 release
+
+* NOTICE: This release uses the 1.0 release of the zookeeper gem, which has had a MAJOR REFACTORING of its namespaces. Included in that zookeeper release is a compatibility layer that should ease the transition, but any references to Zookeeper\* heirarchy should be changed. 
+
+* Refactoring related to the zokeeper gem, use all the new names internally now.
+
+* Create a new Subscription class that will be used as the basis for all subscription-type things.
+
+* Add new Locker features!
+  * `LockerBase#assert!` - will raise an exception if the lock is not held. This check is not only for local in-memory "are we locked?" state, but will check the connection state and re-run the algorithmic tests that determine if a given Locker implementation actually has the lock.
+  * `LockerBase#acquirable?` - an advisory method that checks if any condition would prevent the receiver from acquiring the lock. 
+
+* Deprecation of the `lock!` and `unlock!` methods. These may change to be exception-raising in a future relase, so document and refactor that `lock` and `unlock` are the way to go.
+
+* Fixed a race condition in `event_catcher_spec.rb` that would cause 100% cpu usage and hang.
+
 ### v1.1.1 ###
 
 * Documentation for Locker and ilk

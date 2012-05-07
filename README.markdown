@@ -38,68 +38,6 @@ ZooKeeper is easy to deploy in a [Highly Available][ha-config] configuration, an
 [groups]: https://github.com/slyphon/zk-group
 [locks]: http://rubydoc.info/gems/zk/ZK/Locker
 
-## New in 1.1 !! ##
-
-* NEW! Thread-per-Callback event delivery model! [Read all about it!](https://github.com/slyphon/zk/wiki/EventDeliveryModel). Provides a simple, sane way to increase the concurrency in your ZK-based app while maintaining the ordering guarantees ZooKeeper makes. Each callback can perform whatever work it needs to without blocking other callbacks from receiving events. Inspired by [Celluloid's](https://github.com/celluloid/celluloid) actor model.
-
-* Use the [zk-server](https://github.com/slyphon/zk-server) gem to run a standalone ZooKeeper server for tests (`rake SPAWN_ZOOKEEPER=1`). Makes live-fire testing of any project that uses ZK easy to run anywhere!
-
-## New in 1.0 ##
-
-* Threaded client (the default one) will now automatically reconnect (i.e. `reopen()`) if a `SESSION_EXPIRED` or `AUTH_FAILED` event is received. Thanks to @eric for pointing out the _nose-on-your-face obviousness_ and importance of this. If users want to handle these events themselves, and not automatically reopen, you can pass `:reconnect => false` to the constructor.
-
-* allow for both :sequence and :sequential arguments to create, because I always forget which one is the "right one"
-
-* add zk.register(:all) to recevie node updates for all nodes (i.e. not filtered on path)
-
-* add 'interest' feature to zk.register, now you can indicate what kind of events should be delivered to the given block (previously you had to do that filtering inside the block). The default behavior is still the same, if no 'interest' is given, then all event types for the given path will be delivered to that block.
-  
-```ruby
-zk.register('/path', :created) do |event|
-  # event.node_created? will always be true
-end
-
-# or multiple kinds of events
-
-zk.register('/path', [:created, :changed]) do |event|
-  # (event.node_created? or event.node_changed?) will always be true
-end
-
-# this will, however, be changed in 1.1 to (backwards compatible, with a deprecation warning)
-
-zk.register('/path', :only => :created) do |event|
-end
-
-```
-
-* create now allows you to pass a path and options, instead of requiring the blank string
-
-```ruby
-zk.create('/path', '', :sequential => true)
-
-# now also
-
-zk.create('/path', :sequential => true)
-```
-
-* fix for shutdown: close! called from threadpool will do the right thing
-
-* Chroot users rejoice! By default, ZK.new will create a chrooted path for you. 
-    
-```ruby
-ZK.new('localhost:2181/path', :chroot => :create) # the default, create the path before returning connection
-
-ZK.new('localhost:2181/path', :chroot => :check)  # make sure the chroot exists, raise if not
-
-ZK.new('localhost:2181/path', :chroot => :do_nothing) # old default behavior
-
-# and, just for kicks
-
-ZK.new('localhost:2181', :chroot => '/path') # equivalent to 'localhost:2181/path', :chroot => :create
-```
-
-* Most of the event functionality used is now in a ZK::Event module. This is still mixed into the underlying slyphon-zookeeper class, but now all of the important and relevant methods are documented, and Event appears as a first-class citizen.
-
 
 ## What does ZK do that the zookeeper gem doesn't?
 
@@ -122,6 +60,34 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 [Mongoid]: http://mongoid.org/
 [EventMachine]: https://github.com/eventmachine/eventmachine
 [zk-eventmachine]: https://github.com/slyphon/zk-eventmachine
+
+## NEWS ##
+
+### v1.2.0 ###
+
+You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/tPbNBw) from the zookeeper 1.0.0 release
+
+* NOTICE: This release uses the 1.0 release of the zookeeper gem, which has had a MAJOR REFACTORING of its namespaces. Included in that zookeeper release is a compatibility layer that should ease the transition, but any references to Zookeeper\* heirarchy should be changed. 
+
+* Refactoring related to the zokeeper gem, use all the new names internally now.
+
+* Create a new Subscription class that will be used as the basis for all subscription-type things.
+
+* Add new Locker features!
+  * `LockerBase#assert!` - will raise an exception if the lock is not held. This check is not only for local in-memory "are we locked?" state, but will check the connection state and re-run the algorithmic tests that determine if a given Locker implementation actually has the lock.
+  * `LockerBase#acquirable?` - an advisory method that checks if any condition would prevent the receiver from acquiring the lock. 
+
+* Deprecation of the `lock!` and `unlock!` methods. These may change to be exception-raising in a future relase, so document and refactor that `lock` and `unlock` are the way to go.
+
+* Fixed a race condition in `event_catcher_spec.rb` that would cause 100% cpu usage and hang.
+
+
+### v1.1.0 ###
+
+* NEW! Thread-per-Callback event delivery model! [Read all about it!](https://github.com/slyphon/zk/wiki/EventDeliveryModel). Provides a simple, sane way to increase the concurrency in your ZK-based app while maintaining the ordering guarantees ZooKeeper makes. Each callback can perform whatever work it needs to without blocking other callbacks from receiving events. Inspired by [Celluloid's](https://github.com/celluloid/celluloid) actor model.
+
+* Use the [zk-server](https://github.com/slyphon/zk-server) gem to run a standalone ZooKeeper server for tests (`rake SPAWN_ZOOKEEPER=1`). Makes live-fire testing of any project that uses ZK easy to run anywhere!
+
 
 ## Caveats
 
