@@ -16,19 +16,7 @@ module ZK
     # guarantees), just perhaps at different times.
     #
     class Actor < Base
-      extend Forwardable
-
-      def_delegators :@threaded_callback, :call
-
-      def initialize(*a)
-        super
-        @threaded_callback = ThreadedCallback.new(@callback)
-      end
-
-      def unsubscribe
-        @threaded_callback.shutdown
-        super
-      end
+      include Subscription::ActorStyle
 
       def async?
         true

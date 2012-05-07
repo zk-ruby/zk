@@ -1,11 +1,7 @@
 module ZK
   module EventHandlerSubscription
-    class Base
+    class Base < Subscription::Base
       include ZK::Logging
-
-      # the event handler associated with this subscription
-      # @return [EventHandler]
-      attr_accessor :event_handler
 
       # the path this subscription is for
       # @return [String]
@@ -13,7 +9,7 @@ module ZK
       
       # the block associated with the path
       # @return [Proc]
-      attr_accessor :callback
+#       attr_accessor :callback
 
       # an array of what kinds of events this handler is interested in receiving
       # this is the :only option, essentially
@@ -24,26 +20,30 @@ module ZK
       # @private
       attr_accessor :interests
 
+      alias event_handler parent
+      alias callback callable
+
       ALL_EVENTS    = [:created, :deleted, :changed, :child].freeze unless defined?(ALL_EVENTS)
       ALL_EVENT_SET = Set.new(ALL_EVENTS).freeze                    unless defined?(ALL_EVENT_SET)
 
       # @private
       def initialize(event_handler, path, callback, opts={})
-        @event_handler, @path, @callback = event_handler, path, callback
+        super(event_handler, callback)
+        @path = path
         @interests = prep_interests(opts[:only])
       end
 
       # unsubscribe from the path or state you were watching
       # @see ZK::Client::Base#register
-      def unsubscribe
-        @event_handler.unregister(self)
-      end
-      alias :unregister :unsubscribe
+#       def unsubscribe
+#         @event_handler.unregister(self)
+#       end
+#       alias :unregister :unsubscribe
 
-      # @private
-      def call(event)
-        callback.call(event)
-      end
+#       # @private
+#       def call(event)
+#         callback.call(event)
+#       end
 
       # the Actor returns true for this
       # @private
