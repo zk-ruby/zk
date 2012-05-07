@@ -56,7 +56,7 @@ module ZK
 
     # The path this event is in reference to. 
     #
-    # @return [String,nil] This value will be nil if `session_event?` is false, otherwise
+    # @return [String,nil] This value will be nil if `session?` is false, otherwise
     #   a String containing the path this event was triggered in reference to
     def path
       # no-op, the functionality is provided by the class this is mixed into.
@@ -99,29 +99,33 @@ module ZK
     end
 
     # Has a node been created?
-    def node_created?
+    def created?
       @type == ZOO_CREATED_EVENT
     end
+    alias node_created? created?
 
     # Has a node been deleted? 
-    def node_deleted?
+    def deleted?
       @type == ZOO_DELETED_EVENT
     end
+    alias node_deleted? deleted?
 
     # Has a node changed?
-    def node_changed?
+    def changed?
       @type == ZOO_CHANGED_EVENT
     end
+    alias node_changed? changed?
 
     # Has a node's list of children changed?
-    def node_child?
+    def child?
       @type == ZOO_CHILD_EVENT
     end
+    alias node_child? child?
 
     # Is this a session-related event?
     #
     # @deprecated This was an artifact of the way these methods were created
-    #   originally, will be removed because it's kinda dumb. use {#session_event?}
+    #   originally, will be removed because it's kinda dumb. use {#session?}
     def node_session?
       @type == ZOO_SESSION_EVENT
     end
@@ -144,21 +148,23 @@ module ZK
     end
 
     # has this watcher been called because of a change in connection state?
-    def session_event?
+    def session?
       @type == ZOO_SESSION_EVENT
     end
     alias state_event? session_event?
+    alias session_event? session?
     
     # has this watcher been called because of a change to a zookeeper node?
-    # `node_event?` and `session_event?` are mutually exclusive.
-    def node_event?
+    # `node?` and `session?` are mutually exclusive.
+    def node?
       path and not path.empty?
     end
+    alias node_event? node? 
 
     # according to [the programmer's guide](http://zookeeper.apache.org/doc/r3.3.4/zookeeperProgrammers.html#Java+Binding)
     #
     # > once a ZooKeeper object is closed or receives a fatal event
-    # > (SESSION_EXPIRED and AUTH_FAILED), the ZooKeeper object becomes
+    # > (SESSION\_EXPIRED and AUTH\_FAILED), the ZooKeeper object becomes
     # > invalid.
     # 
     # this will return true for either of those cases
