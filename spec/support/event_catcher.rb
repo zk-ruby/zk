@@ -64,15 +64,15 @@ class EventCatcher
 
       # waits for an event group to not be empty (up to timeout sec)
       def wait_for_#{name}(timeout=5)
-        cond(:#{name}).wait(timeout)
+        wait_for(:#{name}, timeout)
       end
 
-      def wait_while_#{name}
-        cond(:#{name}).wait_while { yield __send__(:#{name}) }
+      def wait_while_#{name}(&blk)
+        wait_while(:#{name}, &blk)
       end
 
-      def wait_until_#{name}
-        cond(:#{name}).wait_until { yield __send__(:#{name}) }
+      def wait_until_#{name}(&blk)
+        wait_until(:#{name}, &blk)
       end
     EOS
   end
