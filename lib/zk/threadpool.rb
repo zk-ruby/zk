@@ -64,6 +64,17 @@ module ZK
       true
     end
 
+    # like the start! method, but checks for dead threads in the threadpool
+    # (which will happen after a fork())
+    # @private
+    def reopen_after_fork!
+      return false unless @running
+      @mutex = Monitor.new
+      @threadqueue = @threadqueue.zk_clone_after_fork
+      prune_dead_threads
+      spawn_threadpool
+    end
+
     # register a block to be called back with unhandled exceptions that occur
     # in the threadpool. 
     # 
@@ -138,21 +149,41 @@ module ZK
         logger.error { "#{msg}: #{e.to_std_format}" }
       end
 
-      def spawn_threadpool #:nodoc:
-        until @threadpool.size >= @size.to_i
-          thread = Thread.new do
-            while @running
-              begin
-                op = @threadqueue.pop
-                break if op == KILL_TOKEN
-                op.call
-              rescue Exception => e
-                dispatch_to_error_handler(e)
+      def prune_dead_threads
+        @mutex.synchronize do
+          threads, @threadpool = @threadpool, []
+          return if threads.empty?
+
+          while th = threads.shift
+            begin
+              if th.join(0).nil?
+                @threadpool << th
               end
+            rescue Exception => e
+              logger.error { "Caught exception pruning threads in the threadpool" }
+              logger.error { e.to_std_format }
             end
           end
+        end
+      end
 
-          @threadpool << thread
+      def spawn_threadpool #:nodoc:
+        @mutex.synchronize do
+          until @threadpool.size >= @size.to_i
+            thread = Thread.new do
+              while @running
+                begin
+                  op = @threadqueue.pop
+                  break if op == KILL_TOKEN
+                  op.call
+                rescue Exception => e
+                  dispatch_to_error_handler(e)
+                end
+              end
+            end
+
+            @threadpool << thread
+          end
         end
       end
   end

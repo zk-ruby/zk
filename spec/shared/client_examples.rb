@@ -239,6 +239,8 @@ shared_examples_for 'client' do
 
         logger.debug  { "taunt them a second time" }
         ensure_event_delivery!
+
+        logger.debug { "events: #{@events.inspect}" }
       end
     end
 

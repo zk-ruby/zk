@@ -13,7 +13,11 @@ require 'set'
 require 'time'
 require 'date'
 
+module ZK
+end
+
 require 'zk/core_ext'
+require 'zk/fork_hooks'
 require 'zk/logging'
 require 'zk/exceptions'
 require 'zk/extensions'

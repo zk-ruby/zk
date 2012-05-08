@@ -146,6 +146,19 @@ module ZK
 
       # (see Base#reopen)
       def reopen(timeout=nil)
+        # If we've forked, then we can call all sorts of normally dangerous 
+        # stuff because we're the only thread. 
+        if forked?
+          logger.debug { "#{self.class}##{__method__} reopening everything, fork detected!" }
+
+          @mutex = Mutex.new
+          @threadpool.reopen_after_fork!      # prune dead threadpool threads after a fork()
+          @event_handler.reopen_after_fork!
+          @pid = Process.pid
+        else
+          logger.debug { "#{self.class}##{__method__} not reopening, no fork detected" }
+        end
+
         @mutex.synchronize { @close_requested = false }
         super
       end

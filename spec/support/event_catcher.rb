@@ -29,8 +29,16 @@ class EventCatcher
     end
   end
 
-  def add(sym,obj)
+  def add(*args)
     synchronize do
+      case args.length
+      when 2
+        sym, obj = args.length
+      when 1
+        obj = args.first
+        sym = obj.interest_key
+      end
+
       logger.debug { "adding #{sym.inspect} #{obj.inspect}" }
       events[sym] << obj
       cond(sym).broadcast
@@ -39,6 +47,7 @@ class EventCatcher
       cond(:all).broadcast
     end
   end
+  alias << add
 
   def wait_for(ev_name, timeout=5)
     cond(ev_name).wait(timeout)

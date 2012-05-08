@@ -85,7 +85,8 @@ module ZK
       #
       # @abstract Overridden in subclasses
       def initialize(host, opts={})
-        # no-op
+        # keep track of the process we were in when we started
+        @pid = Process.pid
       end
 
       private
@@ -115,7 +116,8 @@ module ZK
       def reopen(timeout=nil)
         timeout ||= @session_timeout # XXX: @session_timeout ?
         cnx.reopen(timeout)
-        @threadpool.start!  # restart the threadpool if previously stopped by close!
+
+        @threadpool.start!    
         state
       end
 
@@ -865,6 +867,11 @@ module ZK
       end
 
       protected
+        # does the current pid match the one that created us?
+        def forked?
+          Process.pid != @pid
+        end
+
         # @private
         def check_rc(hash, inputs=nil)
           code = hash[:rc]

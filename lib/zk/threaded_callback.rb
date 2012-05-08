@@ -11,9 +11,11 @@ module ZK
     def initialize(callback=nil, &blk)
       @callback = callback || blk
       @mutex = Monitor.new
-      @queue = Queue.new
-      @running = true
-      setup_dispatch_thread
+
+      @mutex.synchronize do
+        @running = true
+        reopen_after_fork!
+      end
     end
 
     def running?
@@ -36,9 +38,22 @@ module ZK
       @queue.push(args)
     end
 
+    # called after a fork to replace a dead delivery thread
+    # special case, there should be ONLY ONE THREAD RUNNING, 
+    # (the one that survived the fork)
+    #
+    # @private
+    def reopen_after_fork!
+      return unless @running
+      return if @thread and @thread.alive?
+      @mutex = Monitor.new
+      @queue = @queue ? @queue.zk_clone_after_fork : Queue.new
+      @thread = spawn_dispatch_thread()
+    end
+
     protected
-      def setup_dispatch_thread
-        @thread ||= Thread.new do
+      def spawn_dispatch_thread
+        Thread.new do
           while running?
             args = @queue.pop
             break if args == KILL_TOKEN

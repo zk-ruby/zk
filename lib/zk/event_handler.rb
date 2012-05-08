@@ -32,19 +32,30 @@ module ZK
     # :nodoc:
     def initialize(zookeeper_client, opts={})
       @zk = zookeeper_client
-      @callbacks = Hash.new { |h,k| h[k] = [] }
 
       @thread_opt = opts.fetch(:thread, :single)
+      EventHandlerSubscription.class_for_thread_option(@thread_opt) # this is side-effecty, will raise an ArgumentError if given a bad value. 
 
-      # this is side-effecty, will raise an ArgumentError if given a bad
-      # value. 
-      EventHandlerSubscription.class_for_thread_option(@thread_opt)
+      @mutex = nil
 
-      @mutex = Monitor.new
+      @callbacks = Hash.new { |h,k| h[k] = [] }
 
       @outstanding_watches = VALID_WATCH_TYPES.inject({}) do |h,k|
         h.tap { |x| x[k] = Set.new }
       end
+
+      reopen_after_fork!
+    end
+    
+    # do not call this method. it is inteded for use only when we've forked and 
+    # all other threads are dead.
+    #
+    # @private
+    def reopen_after_fork!
+      logger.debug { "#{self.class}##{__method__} reopening callbacks" }
+      @mutex = Monitor.new
+      @callbacks.values.flatten.each { |cb| cb.reopen_after_fork! if cb.respond_to?(:reopen_after_fork!) }
+      nil
     end
 
     # @see ZK::Client::Base#register
@@ -292,7 +303,6 @@ module ZK
           end
         end
       end
-
   end # EventHandler
 end # ZK 
 

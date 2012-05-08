@@ -33,18 +33,6 @@ module ZK
         @interests = prep_interests(opts[:only])
       end
 
-      # unsubscribe from the path or state you were watching
-      # @see ZK::Client::Base#register
-#       def unsubscribe
-#         @event_handler.unregister(self)
-#       end
-#       alias :unregister :unsubscribe
-
-#       # @private
-#       def call(event)
-#         callback.call(event)
-#       end
-
       # the Actor returns true for this
       # @private
       def async?

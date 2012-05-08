@@ -20,7 +20,7 @@ module ZK
         raise ArgumentError, "block must repsond_to?(:call)" unless block.respond_to?(:call)
         @parent = parent
         @callable = block
-        @mutex = Monitor.new
+        reopen_after_fork!
       end
 
       def unregister
@@ -31,6 +31,11 @@ module ZK
       # @private
       def call(*args)
         callable.call(*args)
+      end
+
+      # @private
+      def reopen_after_fork!
+        @mutex = Monitor.new
       end
 
       protected
@@ -45,6 +50,7 @@ module ZK
       included do
         alias_method_chain :unsubscribe, :threaded_callback
         alias_method_chain :callable, :threaded_callback_wrapper
+        alias_method_chain :reopen_after_fork!, :threaded_refresh
       end
 
       def unsubscribe_with_threaded_callback
@@ -52,6 +58,11 @@ module ZK
           @threaded_callback.shutdown
           unsubscribe_without_threaded_callback
         end
+      end
+
+      def reopen_after_fork_with_threaded_refresh!
+        reopen_after_fork_without_threaded_refresh!
+        @threaded_callback = ThreadedCallback.new(@callable)
       end
     
       def callable_with_threaded_callback_wrapper(*args)
