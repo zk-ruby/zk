@@ -33,10 +33,12 @@ class EventCatcher
     synchronize do
       case args.length
       when 2
-        sym, obj = args.length
+        sym, obj = args
       when 1
         obj = args.first
         sym = obj.interest_key
+      else
+        raise ArgumentError, "Dunno how to handle args: #{args.inspect}" 
       end
 
       logger.debug { "adding #{sym.inspect} #{obj.inspect}" }

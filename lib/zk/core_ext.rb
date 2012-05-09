@@ -99,18 +99,4 @@ class ::Module
   end
 end
 
-class ::Queue
-  # creates a new queue, with the current queue's contents pushed on
-  # for use only after a fork
-  #
-  # we do things this way because after a fork() the internal mutexes maybe 
-  # irrecoverably locked.
-  #
-  # @private
-  def zk_clone_after_fork
-    self.class.new.tap do |q|
-      @que.each { |i| q.push(i) }
-    end
-  end
-end
 

@@ -47,7 +47,7 @@ module ZK
       return unless @running
       return if @thread and @thread.alive?
       @mutex = Monitor.new
-      @queue = @queue ? @queue.zk_clone_after_fork : Queue.new
+      @queue = Queue.new
       @thread = spawn_dispatch_thread()
     end
 

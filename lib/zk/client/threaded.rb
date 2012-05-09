@@ -130,18 +130,30 @@ module ZK
         tp_size = opts.fetch(:threadpool_size, DEFAULT_THREADPOOL_SIZE)
         @threadpool = Threadpool.new(tp_size)
 
-        @session_timeout = opts.fetch(:timeout, DEFAULT_TIMEOUT) # maybe move this into superclass?
+        @connection_timeout = opts.fetch(:timeout, DEFAULT_TIMEOUT) # maybe move this into superclass?
         @event_handler   = EventHandler.new(self, opts)
 
         @reconnect = opts.fetch(:reconnect, true)
 
-        @mutex = Mutex.new
+        @mutex = Monitor.new
 
         @close_requested = false
 
         yield self if block_given?
 
-        @cnx = create_connection(host, @session_timeout, @event_handler.get_default_watcher_block)
+        connect_immediately = opts.fetch(:connect, true)
+
+        @mutex.synchronize do
+          connect if connect_immediately
+        end
+      end
+
+      def connect(opts={})
+        @mutex.synchronize do
+          return if @cnx
+          timeout = opts.fetch(:timeout, @connection_timeout)
+          @cnx = create_connection(@host, timeout, @event_handler.get_default_watcher_block)
+        end
       end
 
       # (see Base#reopen)
@@ -149,18 +161,25 @@ module ZK
         # If we've forked, then we can call all sorts of normally dangerous 
         # stuff because we're the only thread. 
         if forked?
+          # ok, just to sanity check here
+          raise "[BUG] we hit the fork-reopening code in JRuby!!" if defined?(::JRUBY_VERSION)
+
           logger.debug { "#{self.class}##{__method__} reopening everything, fork detected!" }
 
-          @mutex = Mutex.new
+          @mutex = Monitor.new
           @threadpool.reopen_after_fork!      # prune dead threadpool threads after a fork()
           @event_handler.reopen_after_fork!
           @pid = Process.pid
+
+          old_cnx, @cnx = @cnx, nil
+          old_cnx.close! if old_cnx # && !old_cnx.closed?
         else
           logger.debug { "#{self.class}##{__method__} not reopening, no fork detected" }
         end
 
         @mutex.synchronize { @close_requested = false }
-        super
+        connect
+        state
       end
 
       # (see Base#close!)

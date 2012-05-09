@@ -70,7 +70,7 @@ module ZK
     def reopen_after_fork!
       return false unless @running
       @mutex = Monitor.new
-      @threadqueue = @threadqueue.zk_clone_after_fork
+      @threadqueue = Queue.new
       prune_dead_threads
       spawn_threadpool
     end

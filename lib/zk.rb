@@ -17,7 +17,6 @@ module ZK
 end
 
 require 'zk/core_ext'
-require 'zk/fork_hooks'
 require 'zk/logging'
 require 'zk/exceptions'
 require 'zk/extensions'
@@ -48,7 +47,7 @@ module ZK
   end
 
   unless @logger
-    @logger = Logger.new($stderr).tap { |n| n.level = Logger::ERROR }
+    @logger = Logger.new($stderr).tap { |n| n.level = ENV['ZK_DEBUG'] ? Logger::DEBUG : Logger::ERROR }
   end
  
   @default_host   = 'localhost' unless @default_host

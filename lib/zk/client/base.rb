@@ -86,7 +86,8 @@ module ZK
       # @abstract Overridden in subclasses
       def initialize(host, opts={})
         # keep track of the process we were in when we started
-        @pid = Process.pid
+        @host = host
+        @pid  = Process.pid
       end
 
       private
@@ -114,18 +115,39 @@ module ZK
       #
       # @return [Symbol] state of connection after operation
       def reopen(timeout=nil)
-        timeout ||= @session_timeout # XXX: @session_timeout ?
-        cnx.reopen(timeout)
+#         timeout ||= @session_timeout # XXX: @session_timeout ?
+#         cnx.reopen(timeout)
 
-        @threadpool.start!    
-        state
+#         @threadpool.start!    
+#         state
       end
 
       # close the underlying connection and clear all pending events.
       #
       def close!
         event_handler.clear!
-        wrap_state_closed_error { cnx.close unless cnx.closed? }
+        wrap_state_closed_error { cnx.close if cnx && !cnx.closed? }
+      end
+
+      def connect(opts={})
+      end
+       
+      # this method will wait until the underlying connection is connected.
+      # please note that when a connection is established, the underlying 
+      # zookeeper gem performs this operation. you should only use this
+      # method if you have received a connecting event and want to wait
+      # until the connection has been re-established. 
+      #
+      # this method will block until you reach the connected? state or timeout
+      # seconds have passed. if we enter another state, you will not be
+      # awakened in the current implementation, so this method is somewhat
+      # unsafe.
+      #
+      # use this with caution
+      #
+      # @private
+      def wait_until_connected(timeout=10)
+        cnx.wait_until_connected(timeout)
       end
 
       # Create a node with the given path. The node data will be the given data.

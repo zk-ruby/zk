@@ -32,69 +32,73 @@ describe ZK::Client::Threaded do
     end
   end
 
-  describe :forked do
-    include_context 'connection opts'
+  unless defined?(::JRUBY_VERSION)
+    describe :forked do
+      include_context 'connection opts'
 
-    before do
-      ZK.open(*connection_args) { |z| z.rm_rf(@base_path) }
-      @pids_root = "#{@base_path}/pid"
-    end
+      before do
+        @base_path = '/zktests'
+        @pids_root = "#{@base_path}/pid"
 
-    after do
-      if @pid
-        Process.kill('TERM', @pid)
-        pid, st = Process.wait2(@pid)
-        logger.debug { "child #{@pid} exited with status: #{st.inspect}" }
-      end
-
-      @zk.close! if @zk
-      ZK.open(*connection_args) { |z| z.rm_rf(@base_path) }
-    end
-
-    it %[should deliver callbacks in the child] do
-      @zk = ZK.new do |z|
-        z.on_connected do
-          @zk.create("#{@pids_root}/#{$$}", $$.to_s)
+        ZK.open(*connection_args) do |z| 
+          z.rm_rf(@base_path)
+          z.mkdir_p(@pids_root)
         end
       end
 
-      @zk.mkdir_p(@pids_root)
+      after do
+        if @pid
+          begin
+            Process.kill('TERM', @pid)
+            pid, st = Process.wait2(@pid)
+            logger.debug { "child #{@pid} exited with status: #{st.inspect}" }
+          rescue Errno::ESRCH
+          end
+        end
 
-      @zk.create("#{@pids_root}/#{$$}", $$.to_s)
-
-      event_catcher = EventCatcher.new
-
-      @zk.register(@pids_root, :only => :child) do |event|
-        event_catcher << event
+        @zk.close! if @zk
+        ZK.open(*connection_args) { |z| z.rm_rf(@base_path) }
       end
 
-      th = Thread.new do
-        event_catcher.wait_for_child
-        event_catcher.child
-      end
+      it %[should deliver callbacks in the child] do
+        logger.debug { "Process.pid of parent: #{Process.pid}" }
 
-      @pid = fork do
-        @zk.reopen
-        sleep(0.01) until @zk.connected?
+        @zk = ZK.new do |z|
+          z.on_connected do
+            logger.debug { "on_connected fired, writing pid to path #{@pids_root}/#{$$}" }
+            z.create("#{@pids_root}/#{Process.pid}", Process.pid.to_s)
+          end
+        end
 
-        @zk.find(@base_path) { |n| puts "child: #{n.inspect}" }
+        @zk.create("#{@pids_root}/#{$$}", $$.to_s)
 
-        sleep 2
+        event_catcher = EventCatcher.new
 
-        @zk.find(@base_path) { |n| puts "child: #{n.inspect}" }
-      end
+        @zk.register(@pids_root, :only => :child) do |event|
+          event_catcher << event
+        end
 
-      Process.waitall
+        @pid = fork do
+          @zk.reopen
+          @zk.wait_until_connected
 
-      event_catcher.child.should_not be_empty
+          @zk.find(@base_path) { |n| puts "child: #{n.inspect}" }
 
-      if th.join(5)
-        logger.debug { "th.value: #{th.value}" }
-      end
+          exit! 0
+        end
 
+        Process.waitall
 
-      @zk.find(@base_path) { |n| puts "parent: #{n.inspect}" } 
-    end
-  end
-end
+        event_catcher.synchronize do
+          unless event_catcher.child.empty?
+            event_catcher.wait_for_child
+            event_catcher.child.should_not be_empty
+          end
+        end
+
+        @zk.find(@base_path) { |n| puts "parent: #{n.inspect}" } 
+      end # should deliver callbacks in the child
+    end # forked
+  end # # jruby guard
+end # ZK::Client::Threaded
 
