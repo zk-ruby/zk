@@ -28,7 +28,6 @@ module ZK
     # @private
     attr_accessor :zk
 
-
     # @private
     # :nodoc:
     def initialize(zookeeper_client, opts={})
@@ -45,7 +44,37 @@ module ZK
         h.tap { |x| x[k] = Set.new }
       end
 
+      @state = :running
+
       reopen_after_fork!
+    end
+
+    # stops the dispatching of events. already in-flight callbacks may still be running, but
+    # no new events will be dispatched until {#start} is called
+    #
+    # any events that are delivered while we are stopped will be lost
+    #
+    def stop
+      synchronize do
+        return if @state == :stopped
+        @state = :stopped
+      end
+    end
+
+    # called to re-enable event delivery
+    def start
+      synchronize do
+        return if @state == :running
+        @state = :running
+      end
+    end
+
+    def running?
+      synchronize { @state == :running }
+    end
+
+    def stopped?
+      synchronize { @state == :stopped }
     end
     
     # do not call this method. it is inteded for use only when we've forked and 

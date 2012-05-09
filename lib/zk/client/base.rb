@@ -136,6 +136,12 @@ module ZK
       #
       def close!
         event_handler.clear!
+        close
+      end
+
+      # close the underlying connection, but do not reset callbacks registered
+      # via the `register` method. This is to be used when preparing to fork.
+      def close
         wrap_state_closed_error { cnx.close if cnx && !cnx.closed? }
       end
 

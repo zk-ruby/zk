@@ -221,6 +221,11 @@ module ZK
         nil
       end
 
+      # {see Base#close}
+      def close
+        super
+      end
+
       # (see Threadpool#on_threadpool?)
       def on_threadpool?
         @threadpool and @threadpool.on_threadpool?

@@ -16,5 +16,10 @@ module ZK
   # argh, blah, this affects ZK.new everywhere (which is kind of the point, but
   # still gross)
   self.default_port = self.test_port
+
+  # only for testing is this done
+  if host = ENV['ZK_DEFAULT_HOST']
+    self.default_host = host
+  end
 end
 
