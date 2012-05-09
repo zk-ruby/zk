@@ -35,6 +35,18 @@ module Pendings
     end
   end
 
+  def pending_rbx(msg)
+    if ZK.rubinius?
+      if block_given?
+        pending(msg) { yield }
+      else
+        pending(msg)
+      end
+    else
+      yield if block_given?
+    end
+  end
+  alias pending_rubinius pending_rbx
 
   def pending_in_travis(msg)
     # defined in the somewhat ill-named 00_test_port_attr.rb

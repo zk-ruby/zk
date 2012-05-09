@@ -62,44 +62,57 @@ describe ZK::Client::Threaded do
 
       it %[should deliver callbacks in the child] do
         pending_in_travis "skip this test, flaky in travis"
+        pending_rbx('fails in rubinius') do
         
-        logger.debug { "Process.pid of parent: #{Process.pid}" }
+          logger.debug { "Process.pid of parent: #{Process.pid}" }
 
-        @zk = ZK.new do |z|
-          z.on_connected do
-            logger.debug { "on_connected fired, writing pid to path #{@pids_root}/#{$$}" }
-            z.create("#{@pids_root}/#{Process.pid}", Process.pid.to_s)
+          @zk = ZK.new do |z|
+            z.on_connected do
+              logger.debug { "on_connected fired, writing pid to path #{@pids_root}/#{$$}" }
+              begin
+                z.create("#{@pids_root}/#{Process.pid}", Process.pid.to_s)
+              rescue ZK::Exceptions::NodeExists
+              end
+            end
           end
-        end
 
-        @zk.create("#{@pids_root}/#{$$}", $$.to_s)
+          @parent_pid = $$
 
-        event_catcher = EventCatcher.new
+          @zk.create("#{@pids_root}/#{$$}", $$.to_s)
 
-        @zk.register(@pids_root, :only => :child) do |event|
-          event_catcher << event
-        end
+          event_catcher = EventCatcher.new
 
-        @pid = fork do
-          @zk.reopen
-          @zk.wait_until_connected
-
-          @zk.find(@base_path) { |n| puts "child: #{n.inspect}" }
-
-          exit! 0
-        end
-
-        Process.waitall
-
-        event_catcher.synchronize do
-          unless event_catcher.child.empty?
-            event_catcher.wait_for_child
-            event_catcher.child.should_not be_empty
+          @zk.register(@pids_root, :only => :child) do |event|
+            event_catcher << event
           end
+
+          @pid = fork do
+            @zk.reopen
+            @zk.wait_until_connected
+
+            wait_until(3) { @zk.exists?("#{@pids_root}/#{$$}") }
+
+            logger.debug { "in child: child pid path exists?: %p" % [@zk.exists?("#{@pids_root}/#{$$}")] }
+
+            exit! 0
+          end
+
+          _, stat = Process.wait2(@pid)
+
+          stat.should_not be_signaled
+          stat.should be_exited
+          stat.should be_success
+
+          event_catcher.synchronize do
+            unless event_catcher.child.empty?
+              event_catcher.wait_for_child
+              event_catcher.child.should_not be_empty
+            end
+          end
+
+          @zk.should be_exists("#{@pids_root}/#{@pid}")
+
         end
-
-        @zk.should be_exists("#{@pids_root}/#{@pid}")
-
       end # should deliver callbacks in the child
     end # forked
   end # # jruby guard
