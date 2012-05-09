@@ -102,13 +102,29 @@ shared_examples_for 'client' do
     it %[should barf if both :sequence and :sequential are given] do
       lambda { @zk.create(@base_path, 'data', :sequence => true, :sequential => true) }.should raise_error(ArgumentError)
     end
+
+    describe %[:ignore option] do
+      it %[should squelch node_exists] do
+        @zk.create(@base_path)
+
+        lambda do 
+
+          @zk.create(@base_path, :ignore => :node_exists).should be_nil
+
+        end.should_not raise_error(ZK::Exceptions::NoNode)
+      end
+    end
+
   end
 
   describe :stat do
     describe 'for a missing node' do
       before do
         @missing_path = '/thispathdoesnotexist'
-        @zk.delete(@missing_path) rescue ZK::Exceptions::NoNode
+        begin
+          @zk.delete(@missing_path) 
+        rescue ZK::Exceptions::NoNode
+        end
       end
 
       it %[should not raise any error] do

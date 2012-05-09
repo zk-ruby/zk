@@ -28,6 +28,7 @@ module ZK
     # @private
     attr_accessor :zk
 
+
     # @private
     # :nodoc:
     def initialize(zookeeper_client, opts={})
@@ -52,7 +53,6 @@ module ZK
     #
     # @private
     def reopen_after_fork!
-      logger.debug { "#{self.class}##{__method__} reopening callbacks" }
       @mutex = Monitor.new
       # XXX: need to test this w/ actor-style callbacks
       @callbacks.values.flatten.each { |cb| cb.reopen_after_fork! if cb.respond_to?(:reopen_after_fork!) }

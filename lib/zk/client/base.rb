@@ -211,6 +211,13 @@ module ZK
       #   may be specified instead of :ephemeral and :sequence options. If `:mode` *and* either of
       #   the `:ephermeral` or `:sequential` options are given, the `:mode` option will win
       #
+      # @option opts [:no_node,:node_exists] :ignore (nil) Do not raise an error if
+      #   one of the given statuses is returned from ZooKeeper.  This option
+      #   may be given as either a symbol (for a single option) or as an Array
+      #   of symbols for multiple ignores.  This is useful when you want to
+      #   create a node but don't care if it's already been created, and don't
+      #   want to have to wrap it in a begin/rescue/end block.
+      #
       # @raise [ZK::Exceptions::NodeExists] if a node with the same `path` already exists
       # 
       # @raise [ZK::Exceptions::NoNode] if the parent node does not exist
@@ -218,7 +225,9 @@ module ZK
       # @raise [ZK::Exceptions::NoChildrenForEphemerals] if the parent node of
       #   the given path is ephemeral
       #
-      # @return [String] the path created on the server
+      # @return [String] if created successfully the path created on the server
+      #
+      # @return [nil] if :ignore option is given and one of the errors listed 
       #
       # @todo Document the asynchronous methods
       #
@@ -335,7 +344,7 @@ module ZK
           end
         end
 
-        rv = check_rc(cnx.create(h), h)
+        rv = call_and_check_rc(:create, h)
 
         h[:callback] ? rv : rv[:path]
       end
@@ -396,7 +405,7 @@ module ZK
         h = { :path => path }.merge(opts)
 
         rv = setup_watcher!(:data, h) do
-          check_rc(cnx.get(h), h)
+          call_and_check_rc(:get, h)
         end
 
         opts[:callback] ? rv : rv.values_at(:data, :stat)
@@ -461,7 +470,7 @@ module ZK
 
         h = { :path => path, :data => data }.merge(opts)
 
-        rv = check_rc(cnx.set(h), h)
+        rv = call_and_check_rc(:set, h)
 
         opts[:callback] ? rv : rv[:stat]
       end
@@ -604,7 +613,7 @@ module ZK
         h = { :path => path }.merge(opts)
 
         rv = setup_watcher!(:child, h) do
-          check_rc(cnx.get_children(h), h)
+          call_and_check_rc(:get_children, h)
         end
 
         opts[:callback] ? rv : rv[:children]
@@ -662,7 +671,7 @@ module ZK
 
 
         h = { :path => path, :version => -1 }.merge(opts)
-        rv = check_rc(cnx.delete(h), h)
+        rv = call_and_check_rc(:delete, h)
         opts[:callback] ? rv : nil
       end
 
@@ -708,7 +717,7 @@ module ZK
         #   zk.acls("/path", :callback => callback, :context => context)
 
         h = { :path => path }.merge(opts)
-        rv = check_rc(cnx.get_acl(h), h)
+        rv = call_and_check_rc(:get_acl, h)
         opts[:callback] ? rv : rv.values_at(:children, :stat)
       end
 
@@ -739,7 +748,7 @@ module ZK
       #
       def set_acl(path, acls, opts={})
         h = { :path => path, :acl => acls }.merge(opts)
-        rv = check_rc(cnx.set_acl(h), h)
+        rv = call_and_check_rc(:set_acl, h)
         opts[:callback] ? rv : rv[:stat]
       end
 
@@ -909,18 +918,27 @@ module ZK
           Process.pid != @pid
         end
 
+        def call_and_check_rc(meth, opts)
+          scrubbed_opts = opts.dup
+          scrubbed_opts.delete(:ignore)
+
+          rv = cnx.__send__(meth, scrubbed_opts)
+
+          check_rc(rv, opts)
+        end
+
         # @private
-        def check_rc(hash, opts={})
-          code   = hash[:rc]
-          inputs = opts[:inputs]
+        # XXX: make this actually call the method on cnx
+        def check_rc(rv_hash, inputs)
+          code   = rv_hash[:rc]
 
           if code && (code != Zookeeper::ZOK)
-            return hash if ignore_set(opts[:ignore]).include?(code)
+            return rv_hash if ignore_set(inputs[:ignore]).include?(code)
             
             msg = inputs ? "inputs: #{inputs.inspect}" : nil
             raise Exceptions::KeeperException.by_code(code), msg 
           else
-            hash
+            rv_hash
           end
         end
 
