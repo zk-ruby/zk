@@ -63,6 +63,12 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 
 ## NEWS ##
 
+### v1.3.1 ###
+
+* [fix a bug][bug 1.3.1] where a forked client would not have its 'outstanding watches' cleared, so some events would never be delivered
+
+[bug 1.3.1]: https://github.com/slyphon/zk/compare/release/1.3.0...9f68cee958fdaad8d32b6d042bf0a2c9ab5ec9b0
+
 ### v1.3.0 ###
 
 Phusion Passenger and Unicorn users are encouraged to upgrade!
