@@ -117,7 +117,6 @@ module ZK
       def reopen(timeout=nil)
 #         timeout ||= @session_timeout # XXX: @session_timeout ?
 #         cnx.reopen(timeout)
-
 #         @threadpool.start!    
 #         state
       end
@@ -129,6 +128,8 @@ module ZK
         wrap_state_closed_error { cnx.close if cnx && !cnx.closed? }
       end
 
+      # Connect to the server/cluster. This is called automatically by the
+      # constructor by default. 
       def connect(opts={})
       end
        

@@ -110,9 +110,13 @@ module ZK
       #   * see {https://github.com/slyphon/zk/wiki/EventDeliveryModel the wiki} for a
       #     discussion and demonstration of the effect of this setting.
       #
-      # @option opts [Fixnum] :timeout how long we will wait for the connection
-      #   to be established. If timeout is nil, we will wait forever: *use
-      #   carefully*.
+      # @option opts [Fixnum] :timeout used as a default for calls to {#reopen}
+      #   and {#connect} (including the initial default immediate connection)
+      #
+      # @option opts [true,false] :connect (true) Immediately connect to the
+      #   server. It may be useful to pass false if you wish to do callback
+      #   setup without passing a block. You must then call {#connect} 
+      #   explicitly.
       #
       # @yield [self] calls the block with the new instance after the event
       #   handler and threadpool have been set up, but before any connections
@@ -141,14 +145,15 @@ module ZK
 
         yield self if block_given?
 
-        connect_immediately = opts.fetch(:connect, true)
-
         @mutex.synchronize do
-          connect if connect_immediately
+          connect if opts.fetch(:connect, true)
         end
       end
 
-      def connect(opts={})
+      # @option opts [Fixnum] :timeout how long we will wait for the connection
+      #   to be established. If timeout is nil, we will wait forever: *use
+      #   carefully*.
+       def connect(opts={})
         @mutex.synchronize do
           return if @cnx
           timeout = opts.fetch(:timeout, @connection_timeout)
