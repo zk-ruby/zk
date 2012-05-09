@@ -1,6 +1,8 @@
 --no-private
 --tag hidden_example:Hidden
+--tag hidden_option:Hidden
 --hide-tag hidden_example
+--hide-tag hidden_option
 --markup markdown
 -
 LICENSE
