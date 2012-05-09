@@ -53,6 +53,16 @@ module ZK
       attr_reader :cnx
       protected :cnx
 
+      # maps from a symbol given as an option, to the numeric error constant that should
+      # not raise an exception
+      #
+      # @private
+      ERROR_IGNORE_MAP = {
+        :no_node      => Zookeeper::ZNONODE,
+        :node_exists  => Zookeeper::ZNODEEXISTS,
+        :not_empty    => Zookeeper::ZNOTEMPTY,
+      }
+
       # @deprecated for backwards compatibility only
       # use ZK::Client::Base#event_handler instead
       def watcher
@@ -900,14 +910,43 @@ module ZK
         end
 
         # @private
-        def check_rc(hash, inputs=nil)
-          code = hash[:rc]
+        def check_rc(hash, opts={})
+          code   = hash[:rc]
+          inputs = opts[:inputs]
+
           if code && (code != Zookeeper::ZOK)
+            return hash if ignore_set(opts[:ignore]).include?(code)
+            
             msg = inputs ? "inputs: #{inputs.inspect}" : nil
             raise Exceptions::KeeperException.by_code(code), msg 
           else
             hash
           end
+        end
+
+        # arg is either a symbol (for one ignore) or an array
+        # this method checks for validity, returns a set of the integers that
+        # can be ignored or the empty set if arg is nil
+        def ignore_set(arg)
+          return Set.new if arg.nil?
+
+          sym_array =
+            case arg
+            when Symbol
+              [arg]
+            when Array
+              arg
+            else
+              raise ArgumentError, ":ignore option needs to be one of: #{ERROR_IGNORE_MAP.keys.inspect}, as a symbol or array of symbols, not #{arg.inspect}" 
+            end
+
+          bad_keys = sym_array - ERROR_IGNORE_MAP.keys
+
+          unless bad_keys.empty?
+            raise ArgumentError, "Sorry, #{bad_keys.inspect} not valid for :ignore, valid arguments are: #{ERROR_IGNORE_MAP.keys.inspect}"
+          end
+
+          Set.new(ERROR_IGNORE_MAP.values_at(*sym_array))
         end
 
         # @private
