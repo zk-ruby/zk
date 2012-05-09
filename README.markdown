@@ -63,6 +63,14 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 
 ## NEWS ##
 
+### v1.3.0 ###
+
+Phusion Passenger and Unicorn users are encouraged to upgrade!
+
+* __fork()__: ZK should now work reliably after a fork() if you call `reopen()` ASAP in the child process (before continuing any ZK work). Additionally, your event-handler (blocks set up with `zk.register`) will still work in the child. You will have to make calls like `zk.stat(path, :watch => true)` to tell ZooKeeper to notify you of events (as the child will have a new session), but everything should work.
+
+* See the fork-handling documentation [on the wiki](http://github.com/slyphon/zk/wiki/Forking).
+
 ### v1.2.0 ###
 
 You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/tPbNBw) from the zookeeper 1.0.0 release

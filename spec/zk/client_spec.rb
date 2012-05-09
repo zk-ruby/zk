@@ -98,7 +98,8 @@ describe ZK::Client::Threaded do
           end
         end
 
-        @zk.find(@base_path) { |n| puts "parent: #{n.inspect}" } 
+        @zk.should be_exists("#{@pids_root}/#{@pid}")
+
       end # should deliver callbacks in the child
     end # forked
   end # # jruby guard
