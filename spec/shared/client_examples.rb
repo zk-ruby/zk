@@ -107,11 +107,12 @@ shared_examples_for 'client' do
       it %[should squelch node_exists] do
         @zk.create(@base_path)
 
-        lambda do 
+        proc { @zk.create(@base_path, :ignore => :node_exists).should be_nil }.should_not raise_error(ZK::Exceptions::NoNode)
+      end
 
-          @zk.create(@base_path, :ignore => :node_exists).should be_nil
+      it %[should squelch no_node] do
+        proc { @zk.create("#{@base_path}/foo/bar/baz", :ignore => :no_node).should be_nil }.should_not raise_error(ZK::Exceptions::NoNode)
 
-        end.should_not raise_error(ZK::Exceptions::NoNode)
       end
     end
 

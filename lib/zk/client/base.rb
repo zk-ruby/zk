@@ -187,36 +187,56 @@ module ZK
       #   creates a znode at the absolute `path` with blank data and given
       #   options
       #
+      #   @option opts [Zookeeper::Callbacks::StringCallback] :callback (nil) provide a callback object
+      #     that will be called when the znode has been created
+      #   
+      #   @option opts [Object] :context (nil) an object passed to the `:callback`
+      #     given as the `context` param
+      #
+      #   @option opts [:ephemeral_sequential, :persistent_sequential, :persistent, :ephemeral] :mode (nil)
+      #     may be specified instead of :ephemeral and :sequence options. If `:mode` *and* either of
+      #     the `:ephermeral` or `:sequential` options are given, the `:mode` option will win
+      #
+      #   @option opts [:no_node,:node_exists] :ignore (nil) Do not raise an error if
+      #     one of the given statuses is returned from ZooKeeper.  This option
+      #     may be given as either a symbol (for a single option) or as an Array
+      #     of symbols for multiple ignores.  This is useful when you want to
+      #     create a node but don't care if it's already been created, and don't
+      #     want to have to wrap it in a begin/rescue/end block.
+      #
+      #     * `:no_node`: silences the error case where you try to
+      #       create `/foo/bar/baz` but any of the parent paths (`/foo` or
+      #       `/foo/bar`) don't exist. 
+      #
+      #     * `:node_exists`: silences the error case where you try to create
+      #       `/foo/bar` but it already exists.
+      #
       # @overload create(path, data, opts={})
       #   creates a znode at the absolute `path` with given data and options
       # 
-      # @option opts [Integer] :acl defaults to <tt>Zookeeper::Constants::ZOO_OPEN_ACL_UNSAFE</tt>, 
-      #   otherwise the ACL for the node. Should be a `ZOO_*` constant defined under the 
-      #   Zookeeper::ACLs module in the zookeeper gem.
+      #   @option opts [Zookeeper::Callbacks::StringCallback] :callback (nil) provide a callback object
+      #     that will be called when the znode has been created
+      #   
+      #   @option opts [Object] :context (nil) an object passed to the `:callback`
+      #     given as the `context` param
       #
-      # @option opts [bool] :ephemeral (false) if true, the created node will be ephemeral
+      #   @option opts [:ephemeral_sequential, :persistent_sequential, :persistent, :ephemeral] :mode (nil)
+      #     may be specified instead of :ephemeral and :sequence options. If `:mode` *and* either of
+      #     the `:ephermeral` or `:sequential` options are given, the `:mode` option will win
       #
-      # @option opts [bool] :sequence (false) if true, the created node will be sequential
+      #   @option opts [:no_node,:node_exists] :ignore (nil) Do not raise an error if
+      #     one of the given statuses is returned from ZooKeeper.  This option
+      #     may be given as either a symbol (for a single option) or as an Array
+      #     of symbols for multiple ignores.  This is useful when you want to
+      #     create a node but don't care if it's already been created, and don't
+      #     want to have to wrap it in a begin/rescue/end block.
       #
-      # @option opts [bool] :sequential (false) alias for :sequence option. if both are given
-      #   an ArgumentError is raised
+      #     * `:no_node`: silences the error case where you try to
+      #       create `/foo/bar/baz` but any of the parent paths (`/foo` or
+      #       `/foo/bar`) don't exist. 
       #
-      # @option opts [Zookeeper::Callbacks::StringCallback] :callback (nil) provide a callback object
-      #   that will be called when the znode has been created
-      # 
-      # @option opts [Object] :context (nil) an object passed to the `:callback`
-      #   given as the `context` param
-      #
-      # @option opts [:ephemeral_sequential, :persistent_sequential, :persistent, :ephemeral] :mode (nil)
-      #   may be specified instead of :ephemeral and :sequence options. If `:mode` *and* either of
-      #   the `:ephermeral` or `:sequential` options are given, the `:mode` option will win
-      #
-      # @option opts [:no_node,:node_exists] :ignore (nil) Do not raise an error if
-      #   one of the given statuses is returned from ZooKeeper.  This option
-      #   may be given as either a symbol (for a single option) or as an Array
-      #   of symbols for multiple ignores.  This is useful when you want to
-      #   create a node but don't care if it's already been created, and don't
-      #   want to have to wrap it in a begin/rescue/end block.
+      #     * `:node_exists`: silences the error case where you try to create
+      #       `/foo/bar` but it already exists.
       #
       # @raise [ZK::Exceptions::NodeExists] if a node with the same `path` already exists
       # 
