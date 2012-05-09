@@ -650,11 +650,19 @@ module ZK
       # @option opts [bool] :watch (false) set to true if you want your registered
       #   callbacks for this node to be called on change
       #
-      # @option opts [Zookeeper::Callbacks::StringsCallback] :callback to make this
+      # @hidden_option opts [Zookeeper::Callbacks::StringsCallback] :callback to make this
       #   call asynchronously
       #
-      # @option opts [Object] :context an object passed to the `:callback`
+      # @hidden_option opts [Object] :context an object passed to the `:callback`
       #   given as the `context` param
+      #
+      # @option opts [:no_node] :ignore (nil) Do not raise an error if
+      #   one of the given statuses is returned from ZooKeeper. This option
+      #   may be given as either a symbol (for a single option) or as an Array
+      #   of symbols for multiple ignores. 
+      #
+      #   * `:no_node`: silences the error case where you try to
+      #     set `/foo/bar/baz` but it doesn't exist.
       # 
       # @example get children for path
       #
@@ -671,19 +679,19 @@ module ZK
       #   zk.children("/path", :watch => true)
       #   # => ["child_0", "child_1"]
       #
+      # @hidden_example
+      #
+      #   class ChildrenCallback
+      #     def process_result(return_code, path, context, children)
+      #       # do processing here
+      #     end
+      #   end
+      #  
+      #   callback = ChildrenCallback.new
+      #   context = Object.new
+      #   zk.children("/path", :callback => callback, :context => context)
+      #
       def children(path, opts={})
-        # ===== get children asynchronously
-        #
-        #   class ChildrenCallback
-        #     def process_result(return_code, path, context, children)
-        #       # do processing here
-        #     end
-        #   end
-        #  
-        #   callback = ChildrenCallback.new
-        #   context = Object.new
-        #   zk.children("/path", :callback => callback, :context => context)
-
 
         h = { :path => path }.merge(opts)
 

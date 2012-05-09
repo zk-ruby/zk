@@ -1,4 +1,25 @@
 This file notes feature differences and bugfixes contained between releases. 
+### v1.4.0 ###
+
+Added a new `:ignore` option for convenience when you don't care if an operation fails. In the case of a failure, the method will return nil instead of raising an exception.
+
+```
+# so instead of having to do:
+
+begin
+  zk.delete('/some/path')
+rescue ZK::Exceptions;:NoNode
+end
+
+# you can do
+
+zk.delete('/some/path', :ignore => :no_node)
+
+```
+
+This option works for `children`, `create`, `delete`, `get`, `get_acl`, `set`, and `set_acl`. `stat` will ignore the option (because it doesn't care about the state of a node).
+
+
 ### v1.3.1 ###
 
 * [fix a bug][bug 1.3.1] where a forked client would not have its 'outstanding watches' cleared, so some events would never be delivered
