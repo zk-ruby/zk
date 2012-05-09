@@ -61,6 +61,7 @@ module ZK
         :no_node      => Zookeeper::ZNONODE,
         :node_exists  => Zookeeper::ZNODEEXISTS,
         :not_empty    => Zookeeper::ZNOTEMPTY,
+        :bad_version  => Zookeeper::ZBADVERSION,
       }
 
       # @deprecated for backwards compatibility only
@@ -198,9 +199,9 @@ module ZK
       #     the `:ephermeral` or `:sequential` options are given, the `:mode` option will win
       #
       #   @option opts [:no_node,:node_exists] :ignore (nil) Do not raise an error if
-      #     one of the given statuses is returned from ZooKeeper.  This option
+      #     one of the given statuses is returned from ZooKeeper. This option
       #     may be given as either a symbol (for a single option) or as an Array
-      #     of symbols for multiple ignores.  This is useful when you want to
+      #     of symbols for multiple ignores. This is useful when you want to
       #     create a node but don't care if it's already been created, and don't
       #     want to have to wrap it in a begin/rescue/end block.
       #
@@ -225,9 +226,9 @@ module ZK
       #     the `:ephermeral` or `:sequential` options are given, the `:mode` option will win
       #
       #   @option opts [:no_node,:node_exists] :ignore (nil) Do not raise an error if
-      #     one of the given statuses is returned from ZooKeeper.  This option
+      #     one of the given statuses is returned from ZooKeeper. This option
       #     may be given as either a symbol (for a single option) or as an Array
-      #     of symbols for multiple ignores.  This is useful when you want to
+      #     of symbols for multiple ignores. This is useful when you want to
       #     create a node but don't care if it's already been created, and don't
       #     want to have to wrap it in a begin/rescue/end block.
       #
@@ -237,6 +238,8 @@ module ZK
       #
       #     * `:node_exists`: silences the error case where you try to create
       #       `/foo/bar` but it already exists.
+      #
+      # @since 1.4.0: `:ignore` option
       #
       # @raise [ZK::Exceptions::NodeExists] if a node with the same `path` already exists
       # 
@@ -466,6 +469,24 @@ module ZK
       # @option opts [Object] :context an object passed to the `:callback`
       #   given as the `context` param
       #
+      # @option opts [:no_node,:bad_version] :ignore (nil) Do not raise an error if
+      #   one of the given statuses is returned from ZooKeeper. This option
+      #   may be given as either a symbol (for a single option) or as an Array
+      #   of symbols for multiple ignores. This is useful when you want to
+      #   set a node if it exists but don't care if it doesn't.
+      #
+      #   * `:no_node`: silences the error case where you try to
+      #     set `/foo/bar/baz` but it doesn't exist.
+      #
+      #   * `:bad_version`: silences the error case where you give a `:version`
+      #     but it doesn't match the server's version. 
+      #
+      # @since 1.4.0: `:ignore` option
+      #
+      # @return [Stat] the stat of the node after a successful update
+      #
+      # @return [nil] if `:ignore` is given and our update was not successful
+      #
       # @example unconditionally set the data of "/path"
       #
       #   zk.set("/path", "foo")
@@ -474,25 +495,59 @@ module ZK
       #
       #   zk.set("/path", "foo", :version => 0)
       #
+      # @example set the data of a non-existent node, check for success
+      #   
+      #   if zk.set("/path/does/not/exist", 'blah', :ignore => :no_node)
+      #     puts 'the node existed and we updated it to say "blah"'
+      #   else
+      #     puts "pffft, i didn't wanna update that stupid node anyway"
+      #   end
+      #
+      # @example fail to set the data of a node, ignore bad_version
+      # 
+      #   data, stat = zk.get('/path')
+      #
+      #   if zk.set("/path", 'blah', :version => stat.version, :ignore => :bad_version)
+      #     puts 'the node existed, had the right version, and we updated it to say "blah"'
+      #   else
+      #     puts "guess someone beat us to it"
+      #   end
+      #
+      # @hidden_example set data asynchronously
+      #
+      #   class StatCallback
+      #     def process_result(return_code, path, context, stat)
+      #       # do processing here
+      #     end
+      #   end
+      #  
+      #   callback = StatCallback.new
+      #   context = Object.new
+      #
+      #   zk.set("/path", "foo", :callback => callback, :context => context)
+      #
       def set(path, data, opts={})
-        # ===== set data asynchronously
-        #
-        #   class StatCallback
-        #     def process_result(return_code, path, context, stat)
-        #       # do processing here
-        #     end
-        #   end
-        #  
-        #   callback = StatCallback.new
-        #   context = Object.new
-        #
-        #   zk.set("/path", "foo", :callback => callback, :context => context)
-
         h = { :path => path, :data => data }.merge(opts)
 
         rv = call_and_check_rc(:set, h)
 
-        opts[:callback] ? rv : rv[:stat]
+        logger.debug { "rv: #{rv.inspect}" }
+
+        # the reason we check the :rc here is: if the user set an :ignore which
+        # has successfully squashed an error code from turning into an exception
+        # we want to return nil. If the user was successful, we want to return
+        # the Stat we got back from the server
+        #
+        # in the case of an async request, we want to return the result code of
+        # the async operation (the submission)
+        
+        if opts[:callback]
+          rv 
+        elsif (rv[:rc] == Zookeeper::ZOK)
+          rv[:stat]
+        else
+          nil
+        end
       end
 
       # Return the stat of the node of the given path. Return nil if the node
@@ -668,6 +723,24 @@ module ZK
       #
       # @option opts [Object] :context an object passed to the `:callback`
       #   given as the `context` param
+      #
+      # @option opts [:no_node,:not_empty,:bad_version] :ignore (nil) Do not
+      #   raise an error if one of the given statuses is returned from ZooKeeper.
+      #   This option may be given as either a symbol (for a single option) or as
+      #   an Array of symbols for multiple ignores. This is useful when you want
+      #   to delete a node but don't care if it's already been deleted, and don't
+      #   want to have to wrap it in a begin/rescue/end block.
+      #
+      #   * `:no_node`: silences the error case where you try to
+      #     delete `/foo/bar/baz` but it doesn't exist.
+      #
+      #   * `:not_empty`: silences the error case where you try to delete
+      #     `/foo/bar` but it has children.
+      #
+      #   * `:bad_version`: silences the error case where you give a `:version`
+      #     but it doesn't match the server's version. 
+      #
+      # @since 1.4.0: `:ignore` option
       # 
       # @example delete a node
       #   zk.delete("/path")
@@ -675,21 +748,20 @@ module ZK
       # @example delete a node with a specific version
       #   zk.delete("/path", :version => 5)
       #
+      # @hidden_example
+      #
+      #   class VoidCallback
+      #     def process_result(return_code, path, context)
+      #       # do processing here
+      #     end
+      #   end
+      #  
+      #   callback = VoidCallback.new
+      #   context = Object.new
+      #
+      #   zk.delete(/path", :callback => callback, :context => context)
+      #
       def delete(path, opts={})
-        # ===== delete node asynchronously
-        #
-        #   class VoidCallback
-        #     def process_result(return_code, path, context)
-        #       # do processing here
-        #     end
-        #   end
-        #  
-        #   callback = VoidCallback.new
-        #   context = Object.new
-        #
-        #   zk.delete(/path", :callback => callback, :context => context)
-
-
         h = { :path => path, :version => -1 }.merge(opts)
         rv = call_and_check_rc(:delete, h)
         opts[:callback] ? rv : nil
@@ -723,19 +795,19 @@ module ZK
       #   zk.get_acl("/path", :stat => stat)
       #   # => [ACL]
       #
+      # @hidden_example
+      #
+      #   class AclCallback
+      #     def processResult(return_code, path, context, acl, stat)
+      #       # do processing here
+      #     end
+      #   end
+      #  
+      #   callback = AclCallback.new
+      #   context = Object.new
+      #   zk.acls("/path", :callback => callback, :context => context)
+      #
       def get_acl(path, opts={})
-        # ===== get acl asynchronously
-        #
-        #   class AclCallback
-        #     def processResult(return_code, path, context, acl, stat)
-        #       # do processing here
-        #     end
-        #   end
-        #  
-        #   callback = AclCallback.new
-        #   context = Object.new
-        #   zk.acls("/path", :callback => callback, :context => context)
-
         h = { :path => path }.merge(opts)
         rv = call_and_check_rc(:get_acl, h)
         opts[:callback] ? rv : rv.values_at(:children, :stat)

@@ -112,10 +112,28 @@ shared_examples_for 'client' do
 
       it %[should squelch no_node] do
         proc { @zk.create("#{@base_path}/foo/bar/baz", :ignore => :no_node).should be_nil }.should_not raise_error(ZK::Exceptions::NoNode)
-
       end
     end
+  end
 
+  describe :delete do
+    describe %[:ignore option] do
+      it %[should squelch not_empty] do
+        @zk.create(@base_path)
+        @zk.create("#{@base_path}/blah")
+
+        proc { @zk.delete(@base_path, :ignore => :not_empty).should be_nil }.should_not raise_error
+      end
+
+      it %[should squelch no_node] do
+        proc { @zk.delete("#{@base_path}/foo/bar/baz", :ignore => :no_node).should be_nil }.should_not raise_error
+      end
+
+      it %[should squelch bad_version] do
+        @zk.create(@base_path)
+        proc { @zk.delete("#{@base_path}", :version => 7, :ignore => :bad_version).should be_nil }.should_not raise_error
+      end
+    end
   end
 
   describe :stat do
@@ -138,6 +156,19 @@ shared_examples_for 'client' do
 
       it %[should return a stat that not exists?] do
         @zk.stat(@missing_path).should_not be_exists
+      end
+    end
+  end
+
+  describe :set do
+    describe %[:ignore option] do
+      it %[should squelch no_node] do
+        proc { @zk.set("#{@base_path}/foo/bar/baz", '', :ignore => :no_node).should be_nil }.should_not raise_error
+      end
+
+      it %[should squelch bad_version] do
+        @zk.create(@base_path)
+        proc { @zk.set("#{@base_path}", '', :version => 7, :ignore => :bad_version).should be_nil }.should_not raise_error
       end
     end
   end
