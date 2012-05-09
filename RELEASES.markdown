@@ -1,4 +1,5 @@
 This file notes feature differences and bugfixes contained between releases. 
+
 ### v1.4.0 ###
 
 Added a new `:ignore` option for convenience when you don't care if an operation fails. In the case of a failure, the method will return nil instead of raising an exception.

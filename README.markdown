@@ -8,6 +8,8 @@ ZK is licensed under the [MIT][] license.
 
 The key place to start in the documentation is with ZK::Client::Base ([rubydoc.info][ZK::Client::Base], [local](/docs/ZK/Client/Base)).
 
+See the [RELEASES][] file for information on what changed between versions.
+
 This library is heavily used in a production deployment and is actively developed and maintained.
 
 Development is sponsored by [Snapfish][] and has been generously released to the Open Source community by HPDC, L.P.
@@ -17,6 +19,7 @@ Development is sponsored by [Snapfish][] and has been generously released to the
 [zookeeper gem]: https://github.com/slyphon/zookeeper "slyphon-zookeeper gem"
 [MIT]: http://www.gnu.org/licenses/license-list.html#Expat "MIT (Expat) License"
 [Snapfish]: http://www.snapfish.com/ "Snapfish"
+[RELEASES]: https://github.com/slyphon/zk/blob/master/RELEASES.markdown
 
 ## What is ZooKeeper? ##
 
@@ -63,6 +66,27 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 
 ## NEWS ##
 
+### v1.4.0 ###
+
+Added a new `:ignore` option for convenience when you don't care if an operation fails. In the case of a failure, the method will return nil instead of raising an exception.
+
+```
+# so instead of having to do:
+
+begin
+  zk.delete('/some/path')
+rescue ZK::Exceptions;:NoNode
+end
+
+# you can do
+
+zk.delete('/some/path', :ignore => :no_node)
+
+```
+
+This option works for `children`, `create`, `delete`, `get`, `get_acl`, `set`, and `set_acl`. `stat` will ignore the option (because it doesn't care about the state of a node).
+
+
 ### v1.3.1 ###
 
 * [fix a bug][bug 1.3.1] where a forked client would not have its 'outstanding watches' cleared, so some events would never be delivered
@@ -94,13 +118,6 @@ You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/
 * Deprecation of the `lock!` and `unlock!` methods. These may change to be exception-raising in a future relase, so document and refactor that `lock` and `unlock` are the way to go.
 
 * Fixed a race condition in `event_catcher_spec.rb` that would cause 100% cpu usage and hang.
-
-
-### v1.1.0 ###
-
-* NEW! Thread-per-Callback event delivery model! [Read all about it!](https://github.com/slyphon/zk/wiki/EventDeliveryModel). Provides a simple, sane way to increase the concurrency in your ZK-based app while maintaining the ordering guarantees ZooKeeper makes. Each callback can perform whatever work it needs to without blocking other callbacks from receiving events. Inspired by [Celluloid's](https://github.com/celluloid/celluloid) actor model.
-
-* Use the [zk-server](https://github.com/slyphon/zk-server) gem to run a standalone ZooKeeper server for tests (`rake SPAWN_ZOOKEEPER=1`). Makes live-fire testing of any project that uses ZK easy to run anywhere!
 
 
 ## Caveats
