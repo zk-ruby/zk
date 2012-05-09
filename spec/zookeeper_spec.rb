@@ -2,7 +2,10 @@ require 'spec_helper'
 
 shared_examples_for 'ZK basic' do
   before do
-    @zk.create(@base_path) rescue ZK::Exceptions::NodeExists
+    begin
+      @zk.create(@base_path)
+    rescue ZK::Exceptions::NodeExists
+    end
   end
 
   describe ZK, "with no paths" do

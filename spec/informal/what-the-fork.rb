@@ -69,7 +69,10 @@ class WhatTheFork
   ensure
     if pid
       _debug "ensuring #{pid} is really dead"
-      Process.kill(9, pid) rescue Errno::ESRCH
+      begin
+        Process.kill(9, pid) 
+      rescue Errno::ESRCH
+      end
     end
   end
 

@@ -239,7 +239,8 @@ module ZK
       protected
         # the inauguration, as it were
         def acknowledge_win!
-          @zk.create(leader_ack_path, @data, :ephemeral => true) rescue Exceptions::NodeExists
+          @zk.create(leader_ack_path, @data, :ephemeral => true) 
+        rescue Exceptions::NodeExists
         end
 
         # return the list of ephemeral vote nodes

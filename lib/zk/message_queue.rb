@@ -120,9 +120,17 @@ module ZK
         locks << lock
       end
       children.each do |path|
-        @zk.delete("#{full_queue_path}/#{path}") rescue ZK::Exceptions::NoNode
+        begin
+          @zk.delete("#{full_queue_path}/#{path}") 
+        rescue ZK::Exceptions::NoNode
+        end
       end
-      @zk.delete(full_queue_path) rescue ZK::Exceptions::NoNode
+
+      begin
+        @zk.delete(full_queue_path) 
+      rescue ZK::Exceptions::NoNode
+      end
+
       locks.each do |lock|
         lock.unlock!
       end

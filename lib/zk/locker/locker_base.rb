@@ -256,7 +256,12 @@ module ZK
         def cleanup_lock_path!
           logger.debug { "removing lock path #{@lock_path}" }
           zk.delete(@lock_path)
-          zk.delete(root_lock_path) rescue NotEmpty
+
+          begin
+            zk.delete(root_lock_path) 
+          rescue NotEmpty
+          end
+
           @lock_path = nil
         end
     end # LockerBase

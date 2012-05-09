@@ -28,7 +28,10 @@ describe ZK::Pool do
 
       report_realtime("closing") do
         ZK.open("localhost:#{ZK.test_port}") do |zk|
-          zk.delete('/test_pool') rescue ZK::Exceptions::NoNode
+          begin
+            zk.delete('/test_pool')
+          rescue ZK::Exceptions::NoNode
+          end
         end
       end
     end
@@ -119,7 +122,10 @@ describe ZK::Pool do
       @path = '/_testWatch'
 
       @connection_pool.with_connection do |zk|
-        zk.delete(@path) rescue ZK::Exceptions::NoNode
+        begin
+          zk.delete(@path) 
+        rescue ZK::Exceptions::NoNode
+        end
       end
 
       @connection_pool.with_connection do |zk|

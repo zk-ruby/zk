@@ -13,7 +13,10 @@ class Events
   end
 
   def run
-    @zk.delete(@path) rescue ZK::Exceptions::NoNode
+    begin
+      @zk.delete(@path) 
+    rescue ZK::Exceptions::NoNode
+    end
 
     @zk.register(@path) do |event|
       if event.node_changed? or event.node_created?

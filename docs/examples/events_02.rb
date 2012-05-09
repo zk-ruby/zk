@@ -23,7 +23,11 @@ class Events
       end
     end
 
-    @zk.delete(@path) rescue ZK::Exceptions::NoNode
+    begin
+      @zk.delete(@path) 
+    rescue ZK::Exceptions::NoNode
+    end
+
     @zk.stat(@path, watch: true)
     @zk.create(@path, 'Hello, events!')
 

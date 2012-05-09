@@ -743,7 +743,11 @@ module ZK
           num =
             case level
             when String, Symbol
-              ZookeeperBase.const_get(:"ZOO_LOG_LEVEL_#{level.to_s.upcase}") rescue NameError
+              begin
+                ZookeeperBase.const_get(:"ZOO_LOG_LEVEL_#{level.to_s.upcase}")
+              rescue NameError
+                nil
+              end
             when Integer
               level
             end
