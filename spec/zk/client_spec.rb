@@ -60,7 +60,7 @@ describe ZK::Client::Threaded do
         ZK.open(*connection_args) { |z| z.rm_rf(@base_path) }
       end
 
-      it %[should deliver callbacks in the child] do
+      it %[should deliver callbacks in the child], :fork => true do
         pending_in_travis "skip this test, flaky in travis"
         pending_rbx('fails in rubinius')
         
@@ -77,25 +77,103 @@ describe ZK::Client::Threaded do
         end
 
         @parent_pid = $$
-
+        
         @zk.create("#{@pids_root}/#{$$}", $$.to_s)
 
         event_catcher = EventCatcher.new
 
-        @zk.register(@pids_root, :only => :child) do |event|
-          event_catcher << event
+        @zk.register(@pids_root) do |event|
+          if event.node_child?
+            event_catcher << event
+          else
+            @zk.children(@pids_root, :watch => true)
+          end
         end
+
+        logger.debug { "parent watching for children on #{@pids_root}" }
+        @zk.children(@pids_root, :watch => true)  # side-effect, register watch
 
         @pid = fork do
           @zk.reopen
           @zk.wait_until_connected
 
-          wait_until(3) { @zk.exists?("#{@pids_root}/#{$$}") }
+          child_pid_path = "#{@pids_root}/#{$$}"
 
-          logger.debug { "in child: child pid path exists?: %p" % [@zk.exists?("#{@pids_root}/#{$$}")] }
+          create_latch = Zookeeper::Latch.new
 
-          exit! 0
+          create_sub = @zk.register(child_pid_path) do |event|
+            if event.node_created?
+              logger.debug { "got created event, releasing create_latch" }
+              create_latch.release
+            else
+              if @zk.exists?(child_pid_path, :watch => true)
+                logger.debug { "created behind our backs, releasing create_latch" }
+                create_latch.release 
+              end
+            end
+          end
+
+          if @zk.exists?(child_pid_path, :watch => true)
+            logger.debug { "woot! #{child_pid_path} exists!" }
+            create_sub.unregister
+          else
+            logger.debug { "awaiting the create_latch to release" }
+            create_latch.await
+          end
+
+          logger.debug { "now testing for delete event totally created in child" }
+
+          delete_latch = Zookeeper::Latch.new
+
+          delete_event = nil
+
+          delete_sub = @zk.register(child_pid_path) do |event|
+            if event.node_deleted?
+              delete_event = event
+              logger.debug { "child got delete event on #{child_pid_path}" }
+              delete_latch.release
+            else
+              unless @zk.exists?(child_pid_path, :watch => true)
+                logger.debug { "child: someone deleted #{child_pid_path} behind our back" }
+                delete_latch.release 
+              end
+            end
+          end
+
+          @zk.exists?(child_pid_path, :watch => true)
+
+          @zk.delete(child_pid_path)
+
+          logger.debug { "awaiting deletion event notification" }
+          delete_latch.await unless delete_event
+
+          logger.debug { "deletion event: #{delete_event}" }
+
+          if delete_event
+            exit! 0
+          else
+            exit! 1
+          end
         end
+
+        # replicates deletion watcher inside child
+        child_pid_path = "#{@pids_root}/#{@pid}"
+
+        delete_latch = Latch.new
+
+        delete_sub = @zk.register(child_pid_path) do |event|
+          if event.node_deleted?
+            logger.debug { "parent got delete event on #{child_pid_path}" }
+            delete_latch.release
+          else
+            unless @zk.exists?(child_pid_path, :watch => true)
+              logger.debug { "child: someone deleted #{child_pid_path} behind our back" }
+              delete_latch.release
+            end
+          end
+        end
+
+        delete_latch.await if @zk.exists?(child_pid_path, :watch => true)
 
         _, stat = Process.wait2(@pid)
 
@@ -103,14 +181,7 @@ describe ZK::Client::Threaded do
         stat.should be_exited
         stat.should be_success
 
-        event_catcher.synchronize do
-          unless event_catcher.child.empty?
-            event_catcher.wait_for_child
-            event_catcher.child.should_not be_empty
-          end
-        end
 
-        @zk.should be_exists("#{@pids_root}/#{@pid}")
       end # should deliver callbacks in the child
     end # forked
   end # # jruby guard
