@@ -43,8 +43,8 @@ module ZK
     #
     class Base
       # The Eventhandler is used by client code to register callbacks to handle
-      # events triggerd for given paths. 
-      #
+      # events triggered for given paths. 
+      # 
       # @see ZK::Client::Base#register
       attr_reader :event_handler
       
@@ -905,9 +905,18 @@ module ZK
       # to remove the block from further updates by calling its `.unsubscribe` method.
       #
       # You can specify a list of event types after the path that you wish to
-      # receive in your block. This allows you to register different blocks for
-      # different types of events.
-      #
+      # receive in your block using the `:only` option. This allows you to
+      # register different blocks for different types of events. This sounds
+      # more convenient, but __there is a potential pitfall__. The `:only`
+      # option does filtering behind the scenes, so if you need a `:created`
+      # event, but a `:changed` event is delivered instead, *and you don't have
+      # a handler registered* for the `:changed` event which re-watches, then
+      # you will most likely just miss it and blame the author. You should try
+      # to stick to the style where you use a single block to test for the
+      # different event types, re-registering as necessary. If you find that
+      # block gets too out of hand, then use the `:only` option and break the
+      # logic up between handlers.
+      # 
       # @note All node watchers are one-shot handlers. After an event is delivered to
       #   your handler, you *must* re-watch the node to receive more events. This
       #   leads to a pattern you will find throughout ZK code that avoids races,

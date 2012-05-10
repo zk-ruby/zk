@@ -61,7 +61,7 @@ describe ZK::Client::Threaded do
       end
 
       it %[should deliver callbacks in the child], :fork => true do
-        pending_in_travis "skip this test, flaky in travis"
+#         pending_in_travis "skip this test, flaky in travis"
         pending_rbx('fails in rubinius')
         
         logger.debug { "Process.pid of parent: #{Process.pid}" }
