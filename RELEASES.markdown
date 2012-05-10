@@ -2,7 +2,7 @@ This file notes feature differences and bugfixes contained between releases.
 
 ### v1.4.0 ###
 
-Added a new `:ignore` option for convenience when you don't care if an operation fails. In the case of a failure, the method will return nil instead of raising an exception.
+* Added a new `:ignore` option for convenience when you don't care if an operation fails. In the case of a failure, the method will return nil instead of raising an exception. This option works for `children`, `create`, `delete`, `get`, `get_acl`, `set`, and `set_acl`. `stat` will ignore the option (because it doesn't care about the state of a node).
 
 ```
 # so instead of having to do:
@@ -18,8 +18,7 @@ zk.delete('/some/path', :ignore => :no_node)
 
 ```
 
-This option works for `children`, `create`, `delete`, `get`, `get_acl`, `set`, and `set_acl`. `stat` will ignore the option (because it doesn't care about the state of a node).
-
+* MASSIVE fork/parent/child test around event delivery and much greater stability expected for linux (with the zookeeper-1.0.3 gem). Again, please see the documentation on the wiki about [proper fork procedure](http://github.com/slyphon/zk/wiki/Forking).
 
 ### v1.3.1 ###
 
