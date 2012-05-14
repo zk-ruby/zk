@@ -155,7 +155,7 @@ describe ZK::Pool do
     # These tests are seriously yucky, but they show that when a client is !connected?
     # the pool behaves properly and will not return that client to the caller.
     
-    describe 'health checking with disconnected client' do
+    describe 'health checking with disconnected client', :rbx => :broken do
       before do
         wait_until(2) { @connection_pool.available_size == 2 }
         @connection_pool.available_size.should == 2
@@ -196,7 +196,6 @@ describe ZK::Pool do
         @connections.should include(@mcnx1)
       end
     end
-
   end # Simple
 
   describe :Bounded do

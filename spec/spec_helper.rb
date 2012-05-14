@@ -32,6 +32,14 @@ RSpec.configure do |config|
     config.extend(mod)
   end
 
+  if ZK.rubinius?
+    config.filter_run_excluding :rbx => :broken
+  end
+
+  if ZK.jruby?
+    config.filter_run_excluding :fork_required => true
+  end
+
   if ZK.spawn_zookeeper?
     require 'zk-server'
 

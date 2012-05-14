@@ -66,6 +66,10 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 
 ## NEWS ##
 
+### v1.4.1 ###
+
+* All users of resque or other libraries that depend on `fork()` are encouraged to upgrade immediately. This version of ZK features the `zookeeper-1.1.0` gem with a completely rewritten backend that provides true fork safety. The rules still apply (you must call `#reopen` on your client as soon as possible in the child process) but you can be assured a much more stable experience.
+
 ### v1.4.0 ###
 
 * Added a new `:ignore` option for convenience when you don't care if an operation fails. In the case of a failure, the method will return nil instead of raising an exception. This option works for `children`, `create`, `delete`, `get`, `get_acl`, `set`, and `set_acl`. `stat` will ignore the option (because it doesn't care about the state of a node).
