@@ -153,12 +153,22 @@ module ZK
       # @option opts [Fixnum] :timeout how long we will wait for the connection
       #   to be established. If timeout is nil, we will wait forever: *use
       #   carefully*.
-       def connect(opts={})
+      def connect(opts={})
         @mutex.synchronize do
           return if @cnx
           timeout = opts.fetch(:timeout, @connection_timeout)
           @cnx = create_connection(@host, timeout, @event_handler.get_default_watcher_block)
         end
+      end
+
+      # @private
+      def pause
+        @cnx && @cnx.pause
+      end
+
+      # @private
+      def resume
+        @cnx && @cnx.resume
       end
 
       # (see Base#reopen)
@@ -169,7 +179,7 @@ module ZK
           # ok, just to sanity check here
           raise "[BUG] we hit the fork-reopening code in JRuby!!" if defined?(::JRUBY_VERSION)
 
-          logger.debug { "#{self.class}##{__method__} reopening everything, fork detected!" }
+#           logger.debug { "#{self.class}##{__method__} reopening everything, fork detected!" }
 
           @mutex = Monitor.new
           @threadpool.reopen_after_fork!      # prune dead threadpool threads after a fork()
@@ -179,7 +189,7 @@ module ZK
           old_cnx, @cnx = @cnx, nil
           old_cnx.close! if old_cnx # && !old_cnx.closed?
         else
-          logger.debug { "#{self.class}##{__method__} not reopening, no fork detected" }
+          @cnx.reopen(timeout)
         end
 
         @mutex.synchronize { @close_requested = false }

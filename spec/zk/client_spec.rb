@@ -90,8 +90,13 @@ describe ZK::Client::Threaded do
       @zk.children(@pids_root, :watch => true)  # side-effect, register watch
 
       @pid = fork do
+        GC.start
+
+        Zookeeper.debug_level = 4
         @zk.reopen
+        $stderr.puts "Reopen returned"
         @zk.wait_until_connected
+        $stderr.puts "we are connected"
 
         child_pid_path = "#{@pids_root}/#{$$}"
 
@@ -150,7 +155,7 @@ describe ZK::Client::Threaded do
         else
           exit! 1
         end
-      end
+      end # fork()
 
       # replicates deletion watcher inside child
       child_pid_path = "#{@pids_root}/#{@pid}"
@@ -171,11 +176,15 @@ describe ZK::Client::Threaded do
 
       delete_latch.await if @zk.exists?(child_pid_path, :watch => true)
 
-      _, stat = Process.wait2(@pid)
+      begin
+        _, stat = Process.wait2(@pid)
 
-      stat.should_not be_signaled
-      stat.should be_exited
-      stat.should be_success
+        stat.should_not be_signaled
+        stat.should be_exited
+        stat.should be_success
+      rescue Errno::ECHILD
+        $stderr.puts "got ECHILD in parent"
+      end
 
 
     end # should deliver callbacks in the child

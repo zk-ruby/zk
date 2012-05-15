@@ -1,8 +1,6 @@
 source :rubygems
 
-# gem 'slyphon-zookeeper', :path => '~/zookeeper'
-
-# gem 'zookeeper', :path => "~/zookeeper"
+gem 'zookeeper', :path => "~/zookeeper"
 
 # this is the last known commit that we tested against and is passing.
 # keep closer track of this stuff to make bisecting easier and travis more
