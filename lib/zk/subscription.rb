@@ -23,8 +23,15 @@ module ZK
         reopen_after_fork!
       end
 
+      def unregistered?
+        @parent.nil?
+      end
+
+      # calls unregister on parent, then sets parent to nil
       def unregister
-        parent.unregister(self)
+        return false unless @parent
+        @parent.unregister(self)
+        @parent = nil
       end
       alias unsubscribe unregister
 
@@ -55,7 +62,7 @@ module ZK
 
       def unsubscribe_with_threaded_callback
         synchronize do
-          @threaded_callback.shutdown
+          @threaded_callback && @threaded_callback.shutdown
           unsubscribe_without_threaded_callback
         end
       end

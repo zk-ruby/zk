@@ -135,7 +135,7 @@ module ZK
       # close the underlying connection and clear all pending events.
       #
       def close!
-        event_handler.clear!
+        event_handler.close
         close
       end
 

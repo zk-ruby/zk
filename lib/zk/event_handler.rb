@@ -231,6 +231,14 @@ module ZK
       end
     end 
 
+    # shut down the EventHandlerSubscriptions 
+    def close
+      synchronize do
+        @callbacks.values.flatten.each(&:close)
+        clear!
+      end
+    end
+
     # @private
     def synchronize
       @mutex.synchronize { yield }

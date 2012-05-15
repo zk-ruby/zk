@@ -39,6 +39,10 @@ module ZK
         false
       end
 
+      # take any action to free resources associated with this subscription
+      def close
+      end
+
       protected
         def prep_interests(a)
 #           logger.debug { "prep_interests: #{a.inspect}" }

@@ -21,6 +21,11 @@ module ZK
       def async?
         true
       end
+
+      # calls unsubscribe and shuts down 
+      def close
+        unsubscribe
+      end
     end
   end
 end
