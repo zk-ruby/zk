@@ -179,15 +179,17 @@ module ZK
           # ok, just to sanity check here
           raise "[BUG] we hit the fork-reopening code in JRuby!!" if defined?(::JRUBY_VERSION)
 
-#           logger.debug { "#{self.class}##{__method__} reopening everything, fork detected!" }
+          logger.debug { "#{self.class}##{__method__} reopening everything, fork detected!" }
+
+#           old_cnx, @cnx = @cnx, nil
+#           old_cnx.close! if old_cnx # && !old_cnx.closed?
+
+          @cnx = nil
 
           @mutex = Monitor.new
           @threadpool.reopen_after_fork!      # prune dead threadpool threads after a fork()
           @event_handler.reopen_after_fork!
           @pid = Process.pid
-
-          old_cnx, @cnx = @cnx, nil
-          old_cnx.close! if old_cnx # && !old_cnx.closed?
         else
           @cnx.reopen(timeout)
         end

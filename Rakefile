@@ -67,3 +67,18 @@ if File.exists?(release_ops_path)
   task :clean => 'yard:clean'
 end
 
+# cargo culted from http://blog.flavorjon.es/2009/06/easily-valgrind-gdb-your-ruby-c.html
+VALGRIND_BASIC_OPTS = %w[
+  --num-callers=50
+  --error-limit=no
+  --partial-loads-ok=yes
+  --undef-value-errors=no
+  --trace-children=yes
+  --track-fds=yes
+  --leak-check=yes
+].join(' ')
+
+task :valgrind do
+  sh "valgrind #{VALGRIND_BASIC_OPTS} #{ENV['VALGRIND_EXTRA_OPTS']} bundle exec rspec spec"
+end
+

@@ -89,10 +89,18 @@ describe ZK::Client::Threaded do
       logger.debug { "parent watching for children on #{@pids_root}" }
       @zk.children(@pids_root, :watch => true)  # side-effect, register watch
 
+      @zk.close!
+
       @pid = fork do
+        Zookeeper::CZookeeper.zoo_set_log_level(4)
+        Zookeeper.debug_level = 4
+
+        $stderr.puts "CHILD: #{$$}"
+
+        sleep
+
         GC.start
 
-        Zookeeper.debug_level = 4
         @zk.reopen
         $stderr.puts "Reopen returned"
         @zk.wait_until_connected
@@ -158,23 +166,23 @@ describe ZK::Client::Threaded do
       end # fork()
 
       # replicates deletion watcher inside child
-      child_pid_path = "#{@pids_root}/#{@pid}"
+#       child_pid_path = "#{@pids_root}/#{@pid}"
 
-      delete_latch = Latch.new
+#       delete_latch = Latch.new
 
-      delete_sub = @zk.register(child_pid_path) do |event|
-        if event.node_deleted?
-          logger.debug { "parent got delete event on #{child_pid_path}" }
-          delete_latch.release
-        else
-          unless @zk.exists?(child_pid_path, :watch => true)
-            logger.debug { "child: someone deleted #{child_pid_path} behind our back" }
-            delete_latch.release
-          end
-        end
-      end
+#       delete_sub = @zk.register(child_pid_path) do |event|
+#         if event.node_deleted?
+#           logger.debug { "parent got delete event on #{child_pid_path}" }
+#           delete_latch.release
+#         else
+#           unless @zk.exists?(child_pid_path, :watch => true)
+#             logger.debug { "child: someone deleted #{child_pid_path} behind our back" }
+#             delete_latch.release
+#           end
+#         end
+#       end
 
-      delete_latch.await if @zk.exists?(child_pid_path, :watch => true)
+#       delete_latch.await if @zk.exists?(child_pid_path, :watch => true)
 
       begin
         _, stat = Process.wait2(@pid)
@@ -186,6 +194,7 @@ describe ZK::Client::Threaded do
         $stderr.puts "got ECHILD in parent"
       end
 
+      sleep rescue nil
 
     end # should deliver callbacks in the child
   end # forked
