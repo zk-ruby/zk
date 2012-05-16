@@ -48,35 +48,7 @@ module ZK
 
       reopen_after_fork!
     end
-
-    # stops the dispatching of events. already in-flight callbacks may still be running, but
-    # no new events will be dispatched until {#start} is called
-    #
-    # any events that are delivered while we are stopped will be lost
-    #
-    def stop
-      synchronize do
-        return if @state == :stopped
-        @state = :stopped
-      end
-    end
-
-    # called to re-enable event delivery
-    def start
-      synchronize do
-        return if @state == :running
-        @state = :running
-      end
-    end
-
-    def running?
-      synchronize { @state == :running }
-    end
-
-    def stopped?
-      synchronize { @state == :stopped }
-    end
-    
+   
     # do not call this method. it is inteded for use only when we've forked and 
     # all other threads are dead.
     #
@@ -329,9 +301,6 @@ module ZK
 
       # @private
       def safe_call(callbacks, *args)
-        # oddly, a `while cb = callbacks.shift` here will have thread safety issues
-        # as cb will be nil when the defer block is called on the threadpool
-        
         callbacks.each do |cb|
           next unless cb.respond_to?(:call)
 
