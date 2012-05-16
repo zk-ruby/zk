@@ -180,6 +180,7 @@ module ZK
           old_cnx.close! if old_cnx # && !old_cnx.closed?
         else
           logger.debug { "#{self.class}##{__method__} not reopening, no fork detected" }
+          @cnx.reopen(timeout)
         end
 
         @mutex.synchronize { @close_requested = false }
