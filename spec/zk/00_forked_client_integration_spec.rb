@@ -23,6 +23,7 @@ describe 'forked client integration' do
     it %[should deliver callbacks in the child], :fork => true do
       10.times do 
         ClientForker.run(@cnx_args, @base_path) do |forker|
+          logger.debug { "CHILD EXITED: #{forker.stat.pid}" }
           forker.stat.should_not be_signaled
           forker.stat.should be_exited
           forker.stat.should be_success

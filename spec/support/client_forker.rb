@@ -34,10 +34,17 @@ class ClientForker
   rescue Errno::ESRCH
   end
 
+  def _debug(str=nil, &blk)
+    str ||= blk.call
+    $stderr.puts "[#{$$}] #{str}"
+  end
+
   def run
     before
 
     logger.debug { "Process.pid of parent: #{Process.pid}" }
+
+    Zookeeper.logger = ZK.logger
 
     @zk = ZK.new(*cnx_args) do |z|
       z.on_connected do
@@ -55,46 +62,72 @@ class ClientForker
 
     event_catcher = EventCatcher.new
 
-    @zk.register(@pids_root) do |event|
-      if event.node_child?
-        event_catcher << event
-      else
-        @zk.children(@pids_root, :watch => true)
-      end
-    end
+#     @zk.register(@pids_root) do |event|
+#       if event.node_child?
+#         event_catcher << event
+#       else
+#         @zk.children(@pids_root, :watch => true)
+#       end
+#     end
 
-    logger.debug { "parent watching for children on #{@pids_root}" }
-    @zk.children(@pids_root, :watch => true)  # side-effect, register watch
+#     logger.debug { "parent watching for children on #{@pids_root}" }
+#     @zk.children(@pids_root, :watch => true)  # side-effect, register watch
+
+#     trap('SIGIOT') do
+#       $stderr.puts "\n\nCAUGHT SIGIOT! SLEEPING! #{$$}"
+#       $stderr.flush
+#       sleep
+#     end
+
+    @orig_session_id = @zk.session_id
 
     @pid = fork do
+      GC.start
+      $stderr.reopen('/tmp/child.out', 'a')
+      $stderr.sync = true
+      _debug "IN CHILD"
+
+      _debug "calling reopen"
       @zk.reopen
+      _debug "reopen returned"
+
+      raise "client id not changed" if @zk.session_id == @orig_session_id
+
+      _debug "waiting until connected"
       @zk.wait_until_connected
+      _debug "connected returned"
 
       child_pid_path = "#{@pids_root}/#{$$}"
 
+      _debug "creating create_latch"
       create_latch = Zookeeper::Latch.new
+      _debug "created create_latch"
 
       create_sub = @zk.register(child_pid_path) do |event|
         if event.node_created?
-          logger.debug { "got created event, releasing create_latch" }
+          _debug "got created event, releasing create_latch"
           create_latch.release
         else
           if @zk.exists?(child_pid_path, :watch => true)
-            logger.debug { "created behind our backs, releasing create_latch" }
+            _debug "created behind our backs, releasing create_latch"
             create_latch.release 
           end
         end
       end
+      
+      _debug "registered create_sub"
 
       if @zk.exists?(child_pid_path, :watch => true)
-        logger.debug { "woot! #{child_pid_path} exists!" }
+        _debug "woot! #{child_pid_path} exists!"
         create_sub.unregister
       else
-        logger.debug { "awaiting the create_latch to release" }
+        _debug "awaiting the create_latch to release"
         create_latch.await
       end
 
-      logger.debug { "now testing for delete event totally created in child" }
+      _debug "now testing for delete event totally created in child"
+
+      _debug "now testing for delete event totally created in child"
 
       delete_latch = Zookeeper::Latch.new
 
@@ -103,24 +136,28 @@ class ClientForker
       delete_sub = @zk.register(child_pid_path) do |event|
         if event.node_deleted?
           delete_event = event
-          logger.debug { "child got delete event on #{child_pid_path}" }
+          _debug "child got delete event on #{child_pid_path}"
           delete_latch.release
         else
           unless @zk.exists?(child_pid_path, :watch => true)
-            logger.debug { "child: someone deleted #{child_pid_path} behind our back" }
+            _debug "child: someone deleted #{child_pid_path} behind our back"
             delete_latch.release 
           end
         end
       end
 
+      _debug "setting watch"
+
       @zk.exists?(child_pid_path, :watch => true)
+
+      _debug "deleting pid path: #{child_pid_path}"
 
       @zk.delete(child_pid_path)
 
-      logger.debug { "awaiting deletion event notification" }
+      _debug "awaiting deletion event notification"
       delete_latch.await unless delete_event
 
-      logger.debug { "deletion event: #{delete_event}" }
+      _debug "deletion event: #{delete_event}"
 
       if delete_event
         exit! 0
@@ -150,7 +187,7 @@ class ClientForker
 
     _, @stat = Process.wait2(@pid)
 
-#     $stderr.puts "#{@pid} exited with status: #{stat.inspect}"
+    $stderr.puts "#{@pid} exited with status: #{@stat.inspect}" unless @stat.success?
   ensure
     kill_child!
     tear_down
