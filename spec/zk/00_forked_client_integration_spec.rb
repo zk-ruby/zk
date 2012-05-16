@@ -20,7 +20,7 @@ describe 'forked client integration' do
       ZK.open(*connection_args) { |z| z.rm_rf(@base_path) }
     end
 
-    it %[should deliver callbacks in the child], :fork => true do
+    it %[should deliver callbacks in the child] do
       10.times do 
         ClientForker.run(@cnx_args, @base_path) do |forker|
           forker.stat.should_not be_signaled
