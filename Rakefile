@@ -75,10 +75,20 @@ VALGRIND_BASIC_OPTS = %w[
   --undef-value-errors=no
   --trace-children=yes
   --track-fds=yes
-  --leak-check=yes
+  --tool=memcheck
 ].join(' ')
+  #--leak-check=yes
 
 task :valgrind do
-  sh "valgrind #{VALGRIND_BASIC_OPTS} #{ENV['VALGRIND_EXTRA_OPTS']} bundle exec rspec spec"
+  require 'time'
+  require 'date'
+
+#   logfile = File.join('/tmp', Time.now.strftime('%Y%m%d_%H%M%S_zk_valgrind.out'))
+
+  logfile = '/tmp/valgrind.out'
+
+  File.open('/tmp/valgrind.out', 'w') do |fp|
+    sh "valgrind #{VALGRIND_BASIC_OPTS} #{ENV['VALGRIND_EXTRA_OPTS']} --log-fd=#{fp.to_i} rspec spec"
+  end
 end
 

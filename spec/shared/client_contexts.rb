@@ -1,5 +1,6 @@
 shared_context 'connection opts' do
-  let(:connection_opts) { { :thread => :per_callback, :timeout => 5 } }
+#   let(:connection_opts) { { :thread => :per_callback, :timeout => 5 } }
+  let(:connection_opts) { { :thread => :single, :timeout => 5 } }
   let(:connection_host) { "#{ZK.default_host}:#{ZK.test_port}" }
   let(:connection_args) { [connection_host, connection_opts] }
 end

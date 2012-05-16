@@ -6,33 +6,33 @@ describe ZK::Client::Threaded do
     it_should_behave_like 'client'
   end
 
-  describe :close! do
-    describe 'from a threadpool thread' do
-      include_context 'connection opts'
+#   describe :close! do
+#     describe 'from a threadpool thread' do
+#       include_context 'connection opts'
 
-      before do
-        @zk = ZK::Client::Threaded.new(*connection_args).tap { |z| wait_until { z.connected? } }
-      end
+#       before do
+#         @zk = ZK::Client::Threaded.new(*connection_args).tap { |z| wait_until { z.connected? } }
+#       end
 
-      after do
-        @zk.close! unless @zk.closed?
-      end
+#       after do
+#         @zk.close! unless @zk.closed?
+#       end
 
-      it %[should do the right thing and not fail] do
-        # this is an extra special case where the user obviously hates us
+#       it %[should do the right thing and not fail] do
+#         # this is an extra special case where the user obviously hates us
 
-        @zk.should be_kind_of(ZK::Client::Threaded) # yeah yeah, just be sure
+#         @zk.should be_kind_of(ZK::Client::Threaded) # yeah yeah, just be sure
 
-        @zk.defer do
-          @zk.close!
-        end
+#         @zk.defer do
+#           @zk.close!
+#         end
 
-        wait_until(5) { @zk.closed? }.should be_true 
-      end
-    end
-  end
+#         wait_until(5) { @zk.closed? }.should be_true 
+#       end
+#     end
+#   end
 
-  describe :forked, :fork_required => true, :rbx => :broken do
+  describe :forked, :fork_required => true, :rbx => :broken, :this => :one do
     include_context 'connection opts'
 
     before do
@@ -89,17 +89,29 @@ describe ZK::Client::Threaded do
       logger.debug { "parent watching for children on #{@pids_root}" }
       @zk.children(@pids_root, :watch => true)  # side-effect, register watch
 
-      @zk.close!
+#       Zookeeper::CZookeeper.zoo_set_log_level(4)
+#       @zk.close!
+#       @zk = nil
+#       GC.start
+
+      th = Thread.new { Queue.new.pop }
+#       Thread.pass until th.status == 'sleep'
+
+      Thread.list
 
       @pid = fork do
-        Zookeeper::CZookeeper.zoo_set_log_level(4)
-        Zookeeper.debug_level = 4
+#         Zookeeper::CZookeeper.zoo_set_log_level(4)
+#         Zookeeper.debug_level = 4
 
         $stderr.puts "CHILD: #{$$}"
+        $stderr.flush
 
-        sleep
+#         sleep
 
         GC.start
+
+        $stderr.puts "GC COMPLETE: #{$$}"
+        $stderr.flush
 
         @zk.reopen
         $stderr.puts "Reopen returned"
@@ -193,8 +205,7 @@ describe ZK::Client::Threaded do
       rescue Errno::ECHILD
         $stderr.puts "got ECHILD in parent"
       end
-
-      sleep rescue nil
+#       sleep rescue nil
 
     end # should deliver callbacks in the child
   end # forked

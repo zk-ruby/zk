@@ -1,5 +1,5 @@
 shared_examples_for 'client' do
-  describe :mkdir_p do
+  describe :mkdir_p, :this => :one do
     before(:each) do
       @path_ary = %w[test mkdir_p path creation]
       @bogus_path = File.join('/', *@path_ary)
@@ -16,7 +16,7 @@ shared_examples_for 'client' do
   end
 
   # nail down all possible cases
-  describe :create do
+  describe :create, :this => :one do
     describe 'only path given' do
       it %[should create a node with blank data] do
         @zk.create(@base_path)
@@ -116,7 +116,7 @@ shared_examples_for 'client' do
     end
   end
 
-  describe :delete do
+  describe :delete, :this => :one do
     describe %[:ignore option] do
       it %[should squelch not_empty] do
         @zk.create(@base_path)
@@ -136,7 +136,7 @@ shared_examples_for 'client' do
     end
   end
 
-  describe :stat do
+  describe :stat, :this => :one do
     describe 'for a missing node' do
       before do
         @missing_path = '/thispathdoesnotexist'
@@ -160,7 +160,7 @@ shared_examples_for 'client' do
     end
   end
 
-  describe :set do
+  describe :set, :this => :one do
     describe %[:ignore option] do
       it %[should squelch no_node] do
         proc { @zk.set("#{@base_path}/foo/bar/baz", '', :ignore => :no_node).should be_nil }.should_not raise_error
@@ -178,7 +178,7 @@ shared_examples_for 'client' do
       @path = '/_bogualkjdhsna'
     end
 
-    describe 'no node initially' do
+    describe 'no node initially', :this => :one do
       before do
         @zk.exists?(@path).should be_false
       end
@@ -191,7 +191,7 @@ shared_examples_for 'client' do
           @a = true
         end
 
-        th.join(2)
+        th.join(2).should == th
         @a.should be_true
       end
     end

@@ -181,8 +181,8 @@ module ZK
 
           logger.debug { "#{self.class}##{__method__} reopening everything, fork detected!" }
 
-#           old_cnx, @cnx = @cnx, nil
-#           old_cnx.close! if old_cnx # && !old_cnx.closed?
+          old_cnx, @cnx = @cnx, nil
+          old_cnx.close! if old_cnx # && !old_cnx.closed?
 
           @cnx = nil
 
@@ -191,7 +191,7 @@ module ZK
           @event_handler.reopen_after_fork!
           @pid = Process.pid
         else
-          @cnx.reopen(timeout)
+          @cnx.reopen(timeout) if @cnx
         end
 
         @mutex.synchronize { @close_requested = false }
@@ -223,19 +223,19 @@ module ZK
         # if the user *doesn't* hate us, then we just join the shutdown_thread immediately
         # and wait for it to exit
         #
-        shutdown_thread = Thread.new do
+#         shutdown_thread = Thread.new do
           @threadpool.shutdown(2)
           super
-        end
+#         end
 
-        shutdown_thread.join unless on_tpool
+#         shutdown_thread.join unless on_tpool
 
         nil
       end
 
       # {see Base#close}
       def close
-        super
+        wrap_state_closed_error { cnx.close if cnx && !cnx.closed? }
       end
 
       # (see Threadpool#on_threadpool?)
