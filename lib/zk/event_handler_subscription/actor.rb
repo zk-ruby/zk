@@ -26,6 +26,14 @@ module ZK
       def close
         unsubscribe
       end
+
+      def pause_before_fork_in_parent
+        threaded_callback && threaded_callback.pause_before_fork_in_parent
+      end
+
+      def resume_after_fork_in_parent
+        threaded_callback && threaded_callback.resume_after_fork_in_parent
+      end
     end
   end
 end

@@ -43,6 +43,15 @@ module ZK
       def close
       end
 
+      # stop anything non-fork-safe in parent
+      def pause_before_fork_in_parent
+      end
+      
+      # take any action necessary to deliver events after a fork
+      # in the parent
+      def resume_after_fork_in_parent
+      end
+
       protected
         def prep_interests(a)
 #           logger.debug { "prep_interests: #{a.inspect}" }

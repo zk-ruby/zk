@@ -188,6 +188,12 @@ module ZK
         state
       end
 
+      def pause_before_fork_in_parent
+      end
+
+      def resume_after_fork_in_parent
+      end
+
       # (see Base#close!)
       #
       # @note We will make our best effort to do the right thing if you call

@@ -58,11 +58,13 @@ module ZK
         alias_method_chain :unsubscribe, :threaded_callback
         alias_method_chain :callable, :threaded_callback_wrapper
         alias_method_chain :reopen_after_fork!, :threaded_refresh
+
+        attr_reader :threaded_callback
       end
 
       def unsubscribe_with_threaded_callback
         synchronize do
-          @threaded_callback && @threaded_callback.shutdown
+          threaded_callback && threaded_callback.shutdown
           unsubscribe_without_threaded_callback
         end
       end

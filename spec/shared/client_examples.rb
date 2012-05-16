@@ -257,7 +257,9 @@ shared_examples_for 'client' do
 
         wait_until(2) do 
           begin
-            @events << @queue.pop(true)
+            event = @queue.pop(true)
+            logger.debug { "got event: #{event}" }
+            @events << event
             true
           rescue ThreadError
             false
