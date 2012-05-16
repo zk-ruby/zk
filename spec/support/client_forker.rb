@@ -150,7 +150,7 @@ class ClientForker
 
     _, @stat = Process.wait2(@pid)
 
-    $stderr.puts "#{@pid} exited with status: #{stat.inspect}"
+#     $stderr.puts "#{@pid} exited with status: #{stat.inspect}"
   ensure
     kill_child!
     tear_down
