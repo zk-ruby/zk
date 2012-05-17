@@ -5,6 +5,7 @@ module ZK
   # for background processing.
   class ThreadedCallback
     include ZK::Logging
+    include ZK::Exceptions
 
     attr_reader :callback
 
@@ -85,6 +86,8 @@ module ZK
     # shuts down the event delivery thread, but keeps the queue so we can continue
     # delivering queued events when {#resume_after_fork_in_parent} is called
     def pause_before_fork_in_parent
+      raise InvalidStateError, "@state was not :running, @state: #{@state.inspect}" if @state != :running
+
       @mutex.lock
       begin
         return if @state == :paused 
@@ -102,8 +105,8 @@ module ZK
     end
 
     def resume_after_fork_in_parent
-      raise "@state was not :paused, @state: #{@state.inspect}" if @state != :paused
-      raise "@thread was not nil! #{@thread.inspect}" if @thread 
+      raise InvalidStateError, "@state was not :paused, @state: #{@state.inspect}" if @state != :paused
+      raise InvalidStateError, "@thread was not nil! #{@thread.inspect}" if @thread 
 
       @mutex.lock
       begin

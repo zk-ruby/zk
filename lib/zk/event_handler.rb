@@ -211,6 +211,12 @@ module ZK
       end
     end
 
+    def pause_before_fork_in_parent
+    end
+
+    def resume_after_fork_in_parent
+    end
+
     # @private
     def synchronize
       @mutex.synchronize { yield }
