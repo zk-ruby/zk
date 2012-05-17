@@ -12,6 +12,7 @@ describe 'ZK::Client#locker' do
     @zk3 = ZK.new("localhost:#{ZK.test_port}", connection_opts)
     @connections = [@zk, @zk2, @zk3]
     wait_until { @connections.all? { |c| c.connected? } }
+    logger.debug { "all connections connected" }
     @path_to_lock = "/lock_tester"
   end
 
@@ -19,7 +20,7 @@ describe 'ZK::Client#locker' do
     @zk.close!
     @zk2.close!
     @zk3.close!
-    wait_until{ @connections.all? { |c| !c.connected? } } 
+    wait_until { @connections.all? { |c| c.closed? } } 
   end
 
   it "should be able to acquire the lock if no one else is locking it" do

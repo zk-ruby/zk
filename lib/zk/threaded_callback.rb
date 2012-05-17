@@ -19,24 +19,33 @@ module ZK
       @mutex.synchronize { @state == :running }
     end
 
+    # @private
+    def alive?
+      @thread && @thread.alive?
+    end
+
     # how long to wait on thread shutdown before we return
     def shutdown(timeout=5)
       logger.debug { "#{self.class}##{__method__}" }
 
       @mutex.lock
       begin
-        return if @state == :shutdown
+        return true if @state == :shutdown
 
         @state = :shutdown
         @cond.broadcast
-        return unless @thread 
       ensure
-        @mutex.unlock
+        @mutex.unlock rescue nil
       end
 
-      unless @thread.join(timeout)
+      return true unless @thread 
+
+      unless @thread.join(timeout) == @thread
         logger.error { "#{self.class} timed out waiting for dispatch thread, callback: #{callback.inspect}" }
+        return false
       end
+
+      true
     end
 
     def call(*args)
@@ -45,7 +54,7 @@ module ZK
         @array << args
         @cond.broadcast
       ensure
-        @mutex.unlock
+        @mutex.unlock rescue nil
       end
     end
 
@@ -76,16 +85,16 @@ module ZK
     # shuts down the event delivery thread, but keeps the queue so we can continue
     # delivering queued events when {#resume_after_fork_in_parent} is called
     def pause_before_fork_in_parent
-      return unless @thread and @thread.alive?
-
       @mutex.lock
       begin
         return if @state == :paused 
         @state = :paused
         @cond.broadcast
       ensure
-        @mutex.unlock
+        @mutex.unlock rescue nil
       end
+
+      return unless @thread and @thread.alive?
 
       logger.debug { "joining dispatch thread" }
       @thread.join
@@ -101,7 +110,7 @@ module ZK
         @state = :running
         spawn_dispatch_thread
       ensure
-        @mutex.unlock
+        @mutex.unlock rescue nil
       end
     end
 
@@ -124,9 +133,11 @@ module ZK
               return 
             end
 
+            next if @array.empty? # just being paranoid here
+
             args = @array.shift
           ensure
-            @mutex.unlock
+            @mutex.unlock rescue nil
           end
             
           begin

@@ -140,8 +140,10 @@ module ZK
         @reconnect = opts.fetch(:reconnect, true)
 
         @mutex = Monitor.new
+        @cond  = @mutex.new_cond
 
-        @close_requested = false
+
+        @cli_state = :running # this is to distinguish between *our* state and the underlying connection state
 
         yield self if block_given?
 
@@ -175,23 +177,44 @@ module ZK
           @threadpool.reopen_after_fork!      # prune dead threadpool threads after a fork()
           @event_handler.reopen_after_fork!
           @pid = Process.pid
+          @cli_state = :running                   # reset state to running if we were paused
 
           old_cnx, @cnx = @cnx, nil
           old_cnx.close! if old_cnx # && !old_cnx.closed?
         else
-          logger.debug { "#{self.class}##{__method__} not reopening, no fork detected" }
-          @cnx.reopen(timeout)
+          @mutex.synchronize do
+            if @cli_state == :paused
+              # XXX: what to do in this case? does it matter?
+            end
+
+            logger.debug { "#{self.class}##{__method__} reopening, no fork detected" }
+            @cnx.reopen(timeout)                # ok, we werent' forked, so just reopen
+          end
         end
 
-        @mutex.synchronize { @close_requested = false }
         connect
         state
       end
 
+      # Before forking, call this method to peform a "stop the world" operation on all
+      # objects associated with this connection. This means that this client will spin down
+      # and join all threads (so make sure none of your callbacks will block forever), 
+      # and will tke no action to keep the session alive. With the default settings,
+      # if a ping is not received within 20 seconds, the session is considered dead
+      # and must be re-established so be sure to call {#resume_after_fork_in_parent}
+      # before that deadline, or you will have to re-establish your session.
+      #
+      # @raise [InvalidStateError] when called and not in running? state
       def pause_before_fork_in_parent
+        raise InvalidStateError, "client must be running? when you call #{__method__}" unless running?
+
+        [@cnx, @threadpool, @event_handler].each(&:pause_before_fork_in_parent)
       end
 
       def resume_after_fork_in_parent
+        raise InvalidStateError, "client must be paused? when you call #{__method__}" unless paused?
+
+        [@event_handler, @threadpool, @cnx].each(&:resume_after_fork_in_parent)
       end
 
       # (see Base#close!)
@@ -204,8 +227,9 @@ module ZK
       #
       def close!
         @mutex.synchronize do 
-          return if @close_requested
-          @close_requested = true 
+          return if [:closed, :close_requested].include?(@cli_state)
+          logger.debug { "moving to :close_requested state" }
+          @cli_state = :close_requested
         end
 
         on_tpool = on_threadpool?
@@ -221,6 +245,11 @@ module ZK
         shutdown_thread = Thread.new do
           @threadpool.shutdown(2)
           super
+
+          @mutex.synchronize do
+            logger.debug { "moving to :closed state" }
+            @cli_state = :closed
+          end
         end
 
         shutdown_thread.join unless on_tpool
@@ -251,7 +280,7 @@ module ZK
           return unless @reconnect
 
           @mutex.synchronize do
-            unless @close_requested  # a legitimate shutdown case
+            unless dead_or_dying?  # a legitimate shutdown case
 
               logger.error { "Got event #{event.state_name}, calling reopen(0)! things may be messed up until this works itself out!" }
                
@@ -265,11 +294,35 @@ module ZK
         logger.error { "BUG: Exception caught in raw_event_handler: #{e.to_std_format}" } 
       end
 
+      def closed?
+        return true if @mutex.synchronize { @cli_state == :closed }
+        super
+      end
+
+      # are we in running (not-paused) state?
+      def running?
+        @mutex.synchronize { @cli_state == :running }
+      end
+
+      # are we in paused state?
+      def paused?
+        @mutex.synchronized { @cli_state == :paused }
+      end
+
+      # has shutdown time arrived?
+      def close_requested?
+        @mutex.synchronized { @cli_state == :close_requested }
+      end
+
       protected
         # @private
         def create_connection(*args)
           ::Zookeeper.new(*args)
         end
-      end
+
+        def dead_or_dying?
+          (@cli_state == :close_requested) || (@cli_state == :closed)
+        end
+    end
   end
 end
