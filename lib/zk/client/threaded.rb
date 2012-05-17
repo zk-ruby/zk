@@ -218,7 +218,7 @@ module ZK
           @cli_state = :paused
         end
         logger.debug { "#{self.class}##{__method__}" }
-        [@cnx, @threadpool, @event_handler].each(&:pause_before_fork_in_parent)
+        [@event_handler, @threadpool, @cnx].each(&:pause_before_fork_in_parent)
       end
 
       def resume_after_fork_in_parent
