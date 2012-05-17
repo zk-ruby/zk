@@ -13,6 +13,7 @@ module ZK
       @callback = callback || blk
 
       @state  = :running
+      @array  = []
       reopen_after_fork!
     end
 
@@ -79,7 +80,6 @@ module ZK
 
       @mutex  = Mutex.new
       @cond   = ConditionVariable.new
-      @array  = []
       spawn_dispatch_thread
     end
 
@@ -99,7 +99,8 @@ module ZK
 
       return unless @thread and @thread.alive?
 
-      logger.debug { "joining dispatch thread" }
+      logger.debug { "#{self.class}##{__method__} joining dispatch thread" }
+
       @thread.join
       @thread = nil
     end
@@ -111,6 +112,7 @@ module ZK
         raise InvalidStateError, "@thread was not nil! #{@thread.inspect}" if @thread 
 
         @state = :running
+        logger.debug { "#{self.class}##{__method__} spawning dispatch thread" }
         spawn_dispatch_thread
       ensure
         @mutex.unlock rescue nil

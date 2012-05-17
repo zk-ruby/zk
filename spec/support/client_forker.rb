@@ -14,16 +14,34 @@ class ClientForker
     @pids_root = "#{@base_path}/pid"
   end
 
+  LBORDER = ('-' * 35) << '< '
+  RBORDER = ' >' << ('-' * 35) 
+
+  def mark(thing)
+    logger << "\n#{LBORDER}#{thing}#{RBORDER}\n\n"
+  end
+
+  def mark_around(thing)
+    mark "#{thing}: ENTER"
+    yield
+  ensure
+    mark "#{thing}: EXIT"
+  end
+
   def before
-    ZK.open(*cnx_args) do |z|
-      z.rm_rf(@base_path)
-      z.mkdir_p(@pids_root)
+    mark_around('BEFORE') do
+      ZK.open(*cnx_args) do |z|
+        z.rm_rf(@base_path)
+        z.mkdir_p(@pids_root)
+      end
     end
   end
 
   def tear_down
-    @zk.rm_rf(@base_path)
-    @zk.close! unless @zk.closed?
+    mark_around('TEAR_DOWN') do
+      @zk.close! unless @zk.closed?
+      ZK.open(*cnx_args) { |z| z.rm_rf(@base_path) }
+    end
   end
 
   def kill_child!
@@ -34,8 +52,25 @@ class ClientForker
   rescue Errno::ESRCH
   end
 
+  CLEAR      = "\e[0m".freeze
+  YELLOW     = "\e[33m".freeze    # Set the terminal's foreground ANSI color to yellow.
+
+  def yellow_log_formatter()
+    orig_formatter = ::Logger::Formatter.new
+
+    proc do |s,dt,pn,msg|
+      "#{CLEAR}#{YELLOW}#{orig_formatter.call(s,dt,pn,msg)}#{CLEAR}"
+    end
+  end
+
+  def colorize_logs_in_child!
+    ZK.logger.formatter = yellow_log_formatter()
+    Zookeeper.logger.formatter = yellow_log_formatter()
+  end
+
   def run
     before
+    mark 'BEGIN TEST'
 
     logger.debug { "Process.pid of parent: #{Process.pid}" }
 
@@ -66,7 +101,13 @@ class ClientForker
     logger.debug { "parent watching for children on #{@pids_root}" }
     @zk.children(@pids_root, :watch => true)  # side-effect, register watch
 
+    @zk.pause_before_fork_in_parent
+
+    mark 'FORK'
+
     @pid = fork do
+      colorize_logs_in_child!
+
       @zk.reopen
       @zk.wait_until_connected
 
@@ -91,7 +132,11 @@ class ClientForker
         create_sub.unregister
       else
         logger.debug { "awaiting the create_latch to release" }
-        create_latch.await
+        create_latch.await(2) 
+        unless @zk.exists?(child_pid_path)
+          logger.debug { require 'pp'; PP.pp(@zk.event_handler, '') }
+          raise "child pid path not created after 2 sec"
+        end
       end
 
       logger.debug { "now testing for delete event totally created in child" }
@@ -129,6 +174,8 @@ class ClientForker
       end
     end # forked child
 
+    @zk.resume_after_fork_in_parent
+
     # replicates deletion watcher inside child
     child_pid_path = "#{@pids_root}/#{@pid}"
 
@@ -152,6 +199,7 @@ class ClientForker
 
 #     $stderr.puts "#{@pid} exited with status: #{stat.inspect}"
   ensure
+    mark "END TEST"
     kill_child!
     tear_down
   end

@@ -99,4 +99,32 @@ class ::Module
   end
 end
 
+require 'logger'
+
+# lets you clone a a Logger instance but change properties, this is 
+# used by the test suite to change the progname for different components
+# @private
+class ::Logger
+  unless method_defined?(:clone_new_log)
+    attr_writer :logdev
+
+    def clone_new_log(opts={})
+      self.class.new(nil).tap do |noo_log|
+        noo_log.progname  = opts.fetch(:progname, self.progname)
+        noo_log.formatter = opts.fetch(:formatter, self.formatter)
+        noo_log.level     = opts.fetch(:level, self.level)
+        noo_log.logdev    = @logdev
+      end
+    end
+  end
+
+  def debug_pp(title)
+    debug do 
+      str = "---< #{title} >---\n"
+      require 'pp'
+      str << PP.pp(yield, '') 
+    end
+  end
+end
+
 

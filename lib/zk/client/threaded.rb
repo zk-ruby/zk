@@ -142,7 +142,6 @@ module ZK
         @mutex = Monitor.new
         @cond  = @mutex.new_cond
 
-
         @cli_state = :running # this is to distinguish between *our* state and the underlying connection state
 
         yield self if block_given?
@@ -174,13 +173,22 @@ module ZK
           logger.debug { "#{self.class}##{__method__} reopening everything, fork detected!" }
 
           @mutex = Monitor.new
-          @threadpool.reopen_after_fork!      # prune dead threadpool threads after a fork()
-          @event_handler.reopen_after_fork!
           @pid = Process.pid
-          @cli_state = :running                   # reset state to running if we were paused
+          @cli_state = :running                     # reset state to running if we were paused
 
           old_cnx, @cnx = @cnx, nil
           old_cnx.close! if old_cnx # && !old_cnx.closed?
+
+          @mutex.synchronize do
+            @event_handler.reopen_after_fork!
+            @threadpool.reopen_after_fork!          # prune dead threadpool threads after a fork()
+
+            logger.debug_pp("event handler after reopen") { @event_handler }
+            logger.debug_pp("threadpool after reopen") { @threadpool }
+
+            connect
+          end
+
         else
           @mutex.synchronize do
             if @cli_state == :paused
@@ -192,7 +200,6 @@ module ZK
           end
         end
 
-        connect
         state
       end
 
@@ -206,15 +213,22 @@ module ZK
       #
       # @raise [InvalidStateError] when called and not in running? state
       def pause_before_fork_in_parent
-        raise InvalidStateError, "client must be running? when you call #{__method__}" unless running?
-
+        @mutex.synchronize do
+          raise InvalidStateError, "client must be running? when you call #{__method__}" unless running?
+          @cli_state = :paused
+        end
+        logger.debug { "#{self.class}##{__method__}" }
         [@cnx, @threadpool, @event_handler].each(&:pause_before_fork_in_parent)
       end
 
       def resume_after_fork_in_parent
-        raise InvalidStateError, "client must be paused? when you call #{__method__}" unless paused?
+        @mutex.synchronize do
+          raise InvalidStateError, "client must be paused? when you call #{__method__}" unless paused?
+          @cli_state = :running
+        end
 
-        [@event_handler, @threadpool, @cnx].each(&:resume_after_fork_in_parent)
+        logger.debug { "#{self.class}##{__method__}" }
+        [@cnx, @event_handler, @threadpool].each(&:resume_after_fork_in_parent)
       end
 
       # (see Base#close!)
@@ -306,12 +320,12 @@ module ZK
 
       # are we in paused state?
       def paused?
-        @mutex.synchronized { @cli_state == :paused }
+        @mutex.synchronize { @cli_state == :paused }
       end
 
       # has shutdown time arrived?
       def close_requested?
-        @mutex.synchronized { @cli_state == :close_requested }
+        @mutex.synchronize { @cli_state == :close_requested }
       end
 
       protected

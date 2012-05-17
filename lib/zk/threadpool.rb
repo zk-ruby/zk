@@ -101,9 +101,14 @@ module ZK
     # This will reset the state of the pool and any blocks registered will be
     # lost
     #
+    #
     # @private
     def reopen_after_fork!
-      return false unless @state == :running
+      # ok, we know that only the child process calls this, right?
+      return false unless (@state == :running) or (@state == :paused)
+      logger.debug { "#{self.class}##{__method__}" }
+
+      @state = :running
       @mutex = Mutex.new
       @cond  = ConditionVariable.new
       @queue = []

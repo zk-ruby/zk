@@ -1,12 +1,17 @@
 module ZK
-#   LOG_FILE = File.open(File.join(ZK::ZK_ROOT, 'test.log'), 'a').tap { |f| f.sync = true }
-  LOG_FILE = File.join(ZK::ZK_ROOT, 'test.log')
-#   LOG_FILE = $stderr
+  LOG_FILE = ENV['ZK_DEBUG'] ? $stderr : File.join(ZK::ZK_ROOT, 'test.log')
 end
 
 # ZK.logger = ENV['TRAVIS'] ? Logger.new($stderr) : Logger.new(ZK::LOG_FILE)
 
-ZK.logger = Logger.new(ZK::LOG_FILE).tap { |l| l.level = Logger::DEBUG }
+ZK.logger = Logger.new(ZK::LOG_FILE).tap do |l| 
+  l.level = Logger::DEBUG
+  l.progname = ' zk'
+end
+
+Zookeeper.logger.progname = 'zoo'
+
+# Zookeeper.logger = ZK.logger.clone_new_log(:progname => 'zoo')
 
 # Zookeeper.logger = ZK.logger
 # Zookeeper.set_debug_level(4)

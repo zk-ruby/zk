@@ -33,6 +33,8 @@ module ZK
     def initialize(zookeeper_client, opts={})
       @zk = zookeeper_client
 
+      @orig_pid = Process.pid
+
       @thread_opt = opts.fetch(:thread, :single)
       EventHandlerSubscription.class_for_thread_option(@thread_opt) # this is side-effecty, will raise an ArgumentError if given a bad value. 
 
@@ -54,6 +56,7 @@ module ZK
     #
     # @private
     def reopen_after_fork!
+      logger.debug { "#{self.class}##{__method__}" }
       @mutex = Monitor.new
       # XXX: need to test this w/ actor-style callbacks
       
@@ -147,7 +150,7 @@ module ZK
     def process(event)
       @zk.raw_event_handler(event)
 
-#       logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
+      logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
       event.zk = @zk
 
       cb_keys = 
@@ -221,6 +224,7 @@ module ZK
         return false if @state == :paused
         @state = :paused
       end
+      logger.debug { "#{self.class}##{__method__}" }
 
       @callbacks.values.flatten.each(&:pause_before_fork_in_parent)
     end
@@ -231,6 +235,7 @@ module ZK
         raise InvalidStateError, "expected :paused, was #{@state.inspect}" if @state != :paused
         @state = :running
       end
+      logger.debug { "#{self.class}##{__method__}" }
 
       @callbacks.values.flatten.each(&:resume_after_fork_in_parent)
     end
@@ -331,7 +336,10 @@ module ZK
           if cb.async?
             cb.call(*args)
           else
-            zk.defer { cb.call(*args) }
+            zk.defer do 
+              logger.debug { "called #{cb.inspect} with #{args.inspect} on threadpool" }
+              cb.call(*args)
+            end
           end
         end
       end

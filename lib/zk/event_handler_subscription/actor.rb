@@ -29,11 +29,13 @@ module ZK
 
       def pause_before_fork_in_parent
         synchronize do
+          logger.debug { "#{self.class}##{__method__}" }
           threaded_callback && threaded_callback.pause_before_fork_in_parent
         end
       end
 
       def resume_after_fork_in_parent
+        logger.debug { "#{self.class}##{__method__}" }
         threaded_callback && threaded_callback.resume_after_fork_in_parent
       end
     end
