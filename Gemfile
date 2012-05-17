@@ -2,15 +2,15 @@ source :rubygems
 
 # gem 'slyphon-zookeeper', :path => '~/zookeeper'
 
-gem 'zookeeper', :path => "~/zookeeper"
+# gem 'zookeeper', :path => "~/zookeeper"
 
 # this is the last known commit that we tested against and is passing.
 # keep closer track of this stuff to make bisecting easier and travis more
 # accurate
 
-# git 'git://github.com/slyphon/zookeeper.git', :tag => 'dev/zk/00001' do
-#   gem 'zookeeper', '~> 1.0.0'
-# end
+git 'git://github.com/slyphon/zookeeper.git', :tag => 'dev/zk/00004' do
+  gem 'zookeeper', '~> 1.1.0'
+end
 
 
 gem 'rake', :group => [:development, :test]
@@ -32,6 +32,7 @@ group :development do
   gem 'guard',        :require => false
   gem 'guard-rspec',  :require => false
   gem 'guard-shell',  :require => false
+  gem 'guard-bundler',  :require => false
 end
 
 group :test do

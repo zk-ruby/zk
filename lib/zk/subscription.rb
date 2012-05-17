@@ -74,6 +74,8 @@ module ZK
         @threaded_callback = ThreadedCallback.new(@callable)
       end
     
+      # the threaded callback is lazily constructed, so threads aren't spun up
+      # until needed.
       def callable_with_threaded_callback_wrapper(*args)
         synchronize do 
           @threaded_callback ||= ThreadedCallback.new(@callable) 

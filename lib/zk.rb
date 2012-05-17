@@ -14,12 +14,17 @@ require 'time'
 require 'date'
 
 module ZK
+  # just like stdlib Monitor but provides the SAME API AS MUTEX, FFS!
+  # @private
+  class Monitor < Zookeeper::Monitor
+  end
 end
 
 require 'zk/core_ext'
 require 'zk/logging'
 require 'zk/exceptions'
 require 'zk/extensions'
+require 'zk/suspendable'
 require 'zk/event'
 require 'zk/stat'
 require 'zk/subscription'

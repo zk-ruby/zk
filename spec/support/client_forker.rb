@@ -51,7 +51,7 @@ class ClientForker
 
     @parent_pid = $$
     
-    @zk.create("#{@pids_root}/#{$$}", $$.to_s)
+    @zk.create("#{@pids_root}/#{$$}", $$.to_s, :ignore => :node_exists)
 
     event_catcher = EventCatcher.new
 

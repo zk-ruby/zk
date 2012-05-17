@@ -28,7 +28,9 @@ module ZK
       end
 
       def pause_before_fork_in_parent
-        threaded_callback && threaded_callback.pause_before_fork_in_parent
+        synchronize do
+          threaded_callback && threaded_callback.pause_before_fork_in_parent
+        end
       end
 
       def resume_after_fork_in_parent

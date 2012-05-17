@@ -2,6 +2,7 @@ module ZK
   # a simple threadpool for running blocks of code off the main thread
   class Threadpool
     include Logging
+    include Exceptions
 
     DEFAULT_SIZE = 5
 
@@ -27,6 +28,17 @@ module ZK
       @error_callbacks = []
 
       start!
+    end
+
+    # are all of our threads alive?
+    # returns false if there are no running threads
+    def alive?
+      @mutex.lock
+      begin
+        !@threadpool.empty? and @threadpool.all?(&:alive?)
+      ensure
+        @mutex.unlock rescue nil
+      end
     end
 
     # Queue an operation to be run on an internal threadpool. You may either
@@ -77,9 +89,9 @@ module ZK
       @mutex.synchronize do
         return false if @state == :running
         @state = :running
+        spawn_threadpool
       end
 
-      spawn_threadpool
       true
     end
 
@@ -99,20 +111,35 @@ module ZK
       spawn_threadpool
     end
 
+    # @private
     def pause_before_fork_in_parent
+      threads = nil
+
       @mutex.lock
       begin
-        
-
+        raise InvalidStateError, "invalid state, expected to be :running, was #{@state.inspect}" if @state != :running
+        return false if @state == :paused
+        @state = :paused
+        @cond.broadcast   # wake threads, let them die
+        threads = @threadpool.slice!(0, @threadpool.length)
       ensure
         @mutex.unlock rescue nil
       end
+
+      join_all(threads)
+      true
     end
 
-    def pause_before_fork_in_parent
-    end
-
+    # @private
     def resume_after_fork_in_parent
+      @mutex.lock
+      begin
+        raise InvalidStateError, "expected :paused, was #{@state.inspect}" if @state != :paused
+      ensure
+        @mutex.unlock rescue nil
+      end
+
+      start!
     end
 
     # register a block to be called back with unhandled exceptions that occur
@@ -135,12 +162,13 @@ module ZK
     # the default timeout is 2 seconds per thread
     # 
     def shutdown(timeout=2)
-      threads = []
+      threads = nil
 
       @mutex.lock
       begin
-        return unless @state == :running
+        return false if @state == :shutdown
         @state = :shutdown
+
         @queue.clear
         threads, @threadpool = @threadpool, []
         @cond.broadcast
@@ -148,19 +176,23 @@ module ZK
         @mutex.unlock rescue nil
       end
 
-      while th = threads.shift
-        begin
-          th.join(timeout)
-        rescue Exception => e
-          logger.error { "Caught exception shutting down threadpool" }
-          logger.error { e.to_std_format }
-        end
-      end
+      join_all(threads)
 
       nil
     end
 
     private
+      def join_all(threads, timeout=nil)
+        while th = threads.shift
+          begin
+            th.join(timeout)
+          rescue Exception => e
+            logger.error { "Caught exception shutting down threadpool" }
+            logger.error { e.to_std_format }
+          end
+        end
+      end
+      
       def dispatch_to_error_handler(e)
         # make a copy that will be free from thread manipulation
         # and doesn't require holding the lock
@@ -212,13 +244,11 @@ module ZK
         end
       end
 
-      def spawn_threadpool #:nodoc:
-        @mutex.synchronize do
-          until @threadpool.size >= @size.to_i
-            @threadpool << Thread.new(&method(:worker_thread_body))
-          end
-          logger.debug { "spawn threadpool complete" }
+      def spawn_threadpool
+        until @threadpool.size >= @size.to_i
+          @threadpool << Thread.new(&method(:worker_thread_body))
         end
+        logger.debug { "spawn threadpool complete" }
       end
 
       def worker_thread_body

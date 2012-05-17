@@ -98,5 +98,57 @@ describe ZK::Threadpool do
       @a.first.should be_true
     end
   end
+
+  describe :pause_before_fork_in_parent do
+    it %[should stop all running threads] do
+      @threadpool.should be_running
+      @threadpool.should be_alive
+      @threadpool.pause_before_fork_in_parent
+
+      @threadpool.should_not be_alive
+    end
+
+    it %[should raise InvalidStateError if already paused] do
+      @threadpool.pause_before_fork_in_parent
+      lambda { @threadpool.pause_before_fork_in_parent }.should raise_error(ZK::Exceptions::InvalidStateError)
+    end
+  end
+
+  describe :resume_after_fork_in_parent do
+    before do
+      @threadpool.pause_before_fork_in_parent
+    end
+
+    it %[should start all threads running again] do
+      @threadpool.resume_after_fork_in_parent
+      @threadpool.should be_alive
+    end
+
+    it %[should raise InvalidStateError if not in paused state] do
+      @threadpool.shutdown
+      lambda { @threadpool.resume_after_fork_in_parent }.should raise_error(ZK::Exceptions::InvalidStateError)
+    end
+
+    it %[should run callbacks deferred while paused] do
+      calls = []
+
+      num = 5
+
+      latch = Latch.new(num)
+
+      num.times do |n|
+        @threadpool.defer do
+          calls << n
+          latch.release
+        end
+      end
+
+      @threadpool.resume_after_fork_in_parent
+
+      latch.await(2)
+
+      calls.should_not be_empty
+    end
+  end
 end
 

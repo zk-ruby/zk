@@ -56,6 +56,8 @@ module ZK
     def reopen_after_fork!
       @mutex = Monitor.new
       # XXX: need to test this w/ actor-style callbacks
+      
+      @state = :running
       @callbacks.values.flatten.each { |cb| cb.reopen_after_fork! if cb.respond_to?(:reopen_after_fork!) }
       @outstanding_watches.values.each { |set| set.clear }
       nil
@@ -136,7 +138,7 @@ module ZK
     end
     alias :unsubscribe :unregister
 
-    # called from the client-registered callback when an event fires
+    # called from the Client registered callback when an event fires
     #
     # @note this is *ONLY* dealing with asynchronous callbacks! watchers
     #   and session events go through here, NOT anything else!!
@@ -207,14 +209,30 @@ module ZK
     def close
       synchronize do
         @callbacks.values.flatten.each(&:close)
+        @state = :closed
         clear!
       end
     end
 
+    # @private
     def pause_before_fork_in_parent
+      synchronize do
+        raise InvalidStateError, "invalid state, expected to be :running, was #{@state.inspect}" if @state != :running
+        return false if @state == :paused
+        @state = :paused
+      end
+
+      @callbacks.values.flatten.each(&:pause_before_fork_in_parent)
     end
 
+    # @private
     def resume_after_fork_in_parent
+      synchronize do
+        raise InvalidStateError, "expected :paused, was #{@state.inspect}" if @state != :paused
+        @state = :running
+      end
+
+      @callbacks.values.flatten.each(&:resume_after_fork_in_parent)
     end
 
     # @private

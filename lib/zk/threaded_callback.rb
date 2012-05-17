@@ -86,11 +86,11 @@ module ZK
     # shuts down the event delivery thread, but keeps the queue so we can continue
     # delivering queued events when {#resume_after_fork_in_parent} is called
     def pause_before_fork_in_parent
-      raise InvalidStateError, "@state was not :running, @state: #{@state.inspect}" if @state != :running
-
       @mutex.lock
       begin
+        raise InvalidStateError, "@state was not :running, @state: #{@state.inspect}" if @state != :running
         return if @state == :paused 
+
         @state = :paused
         @cond.broadcast
       ensure
@@ -105,11 +105,11 @@ module ZK
     end
 
     def resume_after_fork_in_parent
-      raise InvalidStateError, "@state was not :paused, @state: #{@state.inspect}" if @state != :paused
-      raise InvalidStateError, "@thread was not nil! #{@thread.inspect}" if @thread 
-
       @mutex.lock
       begin
+        raise InvalidStateError, "@state was not :paused, @state: #{@state.inspect}" if @state != :paused
+        raise InvalidStateError, "@thread was not nil! #{@thread.inspect}" if @thread 
+
         @state = :running
         spawn_dispatch_thread
       ensure
@@ -118,6 +118,7 @@ module ZK
     end
 
     protected
+      # intentionally *not* synchronized
       def spawn_dispatch_thread
         @thread = Thread.new(&method(:dispatch_thread_body))
       end
