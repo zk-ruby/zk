@@ -225,6 +225,10 @@ module ZK
     ruby_19? and not jruby? or rubinius?
   end
 
+  def self.mri_193?
+    (RUBY_VERSION == '1.9.3') and not jruby? or rubinius?
+  end
+
   def self.ruby_19?
     (RUBY_VERSION =~ /\A1\.9\.[2-9]\Z/)
   end
