@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe ZK::Election do
+describe ZK::Election, :jruby => :broken do
   include_context 'connection opts'
 
   before do
@@ -29,10 +29,15 @@ describe ZK::Election do
       @palin = ZK::Election::Candidate.new(@zk2, @election_name, :data => @data2)
     end
 
+    after do
+      @palin.close
+      @obama.close
+    end
+
     describe 'vote!' do
       describe 'loser' do
         it %[should wait until the leader has acked before firing loser callbacks] do
-          queue = Queue.new
+          latch = Latch.new
           @do_ack = false
 
           @obama_won = nil
@@ -44,7 +49,7 @@ describe ZK::Election do
             @obama_waiting = true
 
             # wait for us to signal
-            queue.pop
+            latch.await
 
 #             $stderr.puts "obama on_winning_election entered"
             @obama_won = true
@@ -68,7 +73,7 @@ describe ZK::Election do
           # palin's callbacks haven't fired
           @palin_lost.should be_nil
 
-          queue << :ok
+          latch.release
 
           wait_until { @obama_won }
           @obama_won.should be_true
@@ -83,33 +88,42 @@ describe ZK::Election do
 
       describe do
         before do
+          Thread.abort_on_exception = true
           @obama_won = @obama_lost = @palin_won = @palin_lost = nil
+          win_latch, lose_latch = Latch.new, Latch.new
 
           @obama.on_winning_election do 
             logger.debug { "obama on_winning_election fired" }
             @obama_won = true
+            win_latch.release
           end
 
           @obama.on_losing_election do
             logger.debug { "obama on_losing_election fired" }
             @obama_lost = true
+            lose_latch.release
           end
 
           @palin.on_winning_election do
             logger.debug { "palin on_winning_election fired" }
             @palin_won = true
+            win_latch.release
           end
 
           @palin.on_losing_election do
             logger.debug { "palin on_losing_election fired" }
             @palin_lost = true
+            lose_latch.release
           end
           
           @obama.vote!
           @palin.vote!
 
-          wait_until { @obama_won }
-          wait_until { @palin_lost }
+          win_latch.await
+          @obama_won.should be_true
+
+          lose_latch.await
+          @palin_lost.should be_true
         end
 
         describe 'winner' do

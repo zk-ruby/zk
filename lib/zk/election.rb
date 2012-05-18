@@ -1,7 +1,5 @@
 module ZK
-  # NOTE: this module should be considered experimental. there are several
-  # specs that have recently started failing under 1.9.2 (didn't fail under
-  # 1.8.7 or jruby 1.6) that need fixing. 
+  # NOTE: this module should be considered experimental.
   #
   # ==== Overview
   #
@@ -72,6 +70,14 @@ module ZK
         opts = DEFAULT_OPTS.merge(opts)
         @root_election_node = opts[:root_election_node]
         @mutex = Monitor.new
+        @closed = false
+      end
+
+      def close
+        @mutex.synchronize do
+          return if @closed
+          @closed = true
+        end
       end
 
       # holds the ephemeral nodes of this election
@@ -109,6 +115,7 @@ module ZK
       # role. 
       def on_leader_ack(&block)
         creation_sub = @zk.register(leader_ack_path, :only => [:created, :changed]) do |event|
+          return if @closed
           begin
             logger.debug { "in #{leader_ack_path} watcher, got creation event, notifying" }
             safe_call(block)
@@ -119,6 +126,7 @@ module ZK
 
         deletion_sub = @zk.register(leader_ack_path, :only => [:deleted, :child]) do |event|
           if @zk.exists?(leader_ack_path, :watch => true)
+            return if @closed
             begin
               logger.debug { "in #{leader_ack_path} watcher, node created behind our back, notifying" }
               safe_call(block)
@@ -269,12 +277,15 @@ module ZK
         end
 
         def handle_winning_election
+          @mutex.synchronize { return if @closed }
           @leader = true  
           fire_winning_callbacks!
           acknowledge_win!
         end
 
         def handle_losing_election(our_idx, ballots)
+          @mutex.synchronize { return if @closed }
+
           @leader = false
 
           on_leader_ack do

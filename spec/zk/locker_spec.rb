@@ -243,7 +243,8 @@ shared_examples_for 'ExclusiveLocker' do
         ex_locker2.lock(true)
       end
 
-      wait_until { ex_locker2.waiting? }
+      th.run
+      wait_until(5) { ex_locker2.waiting? }
       ex_locker2.lock_path.should_not be_nil
 
       wait_until { zk.exists?(ex_locker2.lock_path) }

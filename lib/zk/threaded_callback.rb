@@ -148,7 +148,6 @@ module ZK
           begin
             callback.call(*args)
           rescue Exception => e
-            logger.error { "error caught in handler for path: #{path.inspect}, interests: #{interests.inspect}" }
             logger.error { e.to_std_format }
           end
         end

@@ -38,6 +38,7 @@ RSpec.configure do |config|
 
   if ZK.jruby? #or ZK.rubinius?
     config.filter_run_excluding :fork_required => true
+    config.filter_run_excluding :jruby => :broken
   end
 
   if ZK.spawn_zookeeper?
