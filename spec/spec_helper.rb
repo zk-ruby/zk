@@ -68,7 +68,7 @@ RSpec.configure do |config|
   end
 
   # these make tests run slow
-  if ZK.mri_193? and not ZK.travis?
+  if ENV['ZK_LEAK_CHECK']
     config.after do 
       leak_check(ZK::Client::Threaded) { |o| !o.closed? }
       leak_check(ZK::ThreadedCallback, &:alive?)

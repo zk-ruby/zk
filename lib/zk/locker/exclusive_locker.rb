@@ -74,7 +74,7 @@ module ZK
 
         def block_until_write_lock!
           begin
-            path = [root_lock_path, next_lowest_node].join('/')
+            path = "#{root_lock_path}/#{next_lowest_node}"
             logger.debug { "SharedLocker#block_until_write_lock! path=#{path.inspect}" }
             @zk.block_until_node_deleted(path)
           rescue WeAreTheLowestLockNumberException

@@ -337,7 +337,7 @@ module ZK
             cb.call(*args)
           else
             zk.defer do 
-              logger.debug { "called #{cb.inspect} with #{args.inspect} on threadpool" }
+#               logger.debug { "called #{cb.inspect} with #{args.inspect} on threadpool" }
               cb.call(*args)
             end
           end

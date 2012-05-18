@@ -183,8 +183,8 @@ module ZK
             @event_handler.reopen_after_fork!
             @threadpool.reopen_after_fork!          # prune dead threadpool threads after a fork()
 
-            logger.debug_pp("event handler after reopen") { @event_handler }
-            logger.debug_pp("threadpool after reopen") { @threadpool }
+#             logger.debug_pp("event handler after reopen") { @event_handler }
+#             logger.debug_pp("threadpool after reopen") { @threadpool }
 
             connect
           end
@@ -242,7 +242,7 @@ module ZK
       def close!
         @mutex.synchronize do 
           return if [:closed, :close_requested].include?(@cli_state)
-          logger.debug { "moving to :close_requested state" }
+#           logger.debug { "moving to :close_requested state" }
           @cli_state = :close_requested
         end
 
@@ -261,7 +261,7 @@ module ZK
           super
 
           @mutex.synchronize do
-            logger.debug { "moving to :closed state" }
+#             logger.debug { "moving to :closed state" }
             @cli_state = :closed
           end
         end

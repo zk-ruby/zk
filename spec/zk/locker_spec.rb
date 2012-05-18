@@ -243,7 +243,12 @@ shared_examples_for 'ExclusiveLocker' do
         ex_locker2.lock(true)
       end
 
-      wait_until { th.status == 'sleep' }
+      wait_until { ex_locker2.waiting? }
+      ex_locker2.lock_path.should_not be_nil
+
+      wait_until { zk.exists?(ex_locker2.lock_path) }
+
+      zk.exists?(ex_locker2.lock_path).should be_true
 
       ex_locker.unlock.should be_true
       ex_locker.should_not be_locked
