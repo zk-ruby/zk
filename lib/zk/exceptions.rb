@@ -132,6 +132,8 @@ module ZK
     # called when the client is reopened, resumed, or paused when in an invalid state
     class InvalidStateError < ZKError; end
 
+    class WakeUpException < ZKError; end
+
     # raised when a chrooted conection is requested but the root doesn't exist
     class ChrootPathDoesNotExistError < NoNode
       def initialize(host_string, chroot_path)

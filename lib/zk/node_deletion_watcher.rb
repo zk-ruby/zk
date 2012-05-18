@@ -4,6 +4,15 @@ module ZK
     include Exceptions
     include Logging
 
+    # @private
+    module Constants
+      NOT_YET     = :not_yet
+      BLOCKED     = :yes
+      NOT_ANYMORE = :not_anymore
+      INTERRUPTED = :interrupted
+    end
+    include Constants
+
     attr_reader :zk, :path
 
     def initialize(zk, path)
@@ -24,7 +33,7 @@ module ZK
     end
 
     def blocked?
-      @mutex.synchronize { @blocked == :yes }
+      @mutex.synchronize { @blocked == BLOCKED }
     end
 
     # this is for testing, allows us to wait until this object has gone into
@@ -41,18 +50,18 @@ module ZK
     #
     def wait_until_blocked(timeout=nil)
       @mutex.synchronize do
-        return true unless @blocked == :not_yet
+        return true unless @blocked == NOT_YET
 
         start = Time.now
         time_to_stop = timeout ? (start + timeout) : nil
 
         @cond.wait(timeout)
 
-        if (time_to_stop and (Time.now > time_to_stop)) and (@blocked == :not_yet)
+        if (time_to_stop and (Time.now > time_to_stop)) and (@blocked == NOT_YET)
           return nil
         end
 
-        (@blocked == :not_yet) ? nil : true
+        (@blocked == NOT_YET) ? nil : true
       end
     end
 
@@ -67,8 +76,8 @@ module ZK
     def interrupt!
       @mutex.synchronize do
         case @blocked
-        when :not_yet, :yes
-          @result = :interrupted
+        when NOT_YET, BLOCKED
+          @result = INTERRUPTED
           @cond.broadcast
         else
           return
@@ -81,21 +90,27 @@ module ZK
         raise InvalidStateError, "Already fired for #{path}" if @result
         register_callbacks
 
-        return true unless zk.exists?(path, :watch => true)
+        unless zk.exists?(path, :watch => true)
+          # we are done, these are one-shot, so write the results
+          @result = :deleted
+          @blocked = NOT_ANYMORE
+          @cond.broadcast # wake any waiting threads
+          return true
+        end
 
         logger.debug { "ok, going to block: #{path}" }
 
         while true
-          @blocked = :yes
+          @blocked = BLOCKED
           @cond.broadcast                 # wake threads waiting for @blocked to change
           @cond.wait_until { @result }    # wait until we get a result
-          @blocked = :not_anymore
+          @blocked = NOT_ANYMORE
 
           case @result
           when :deleted
             logger.debug { "path #{path} was deleted" }
             return true
-          when :interrupted
+          when INTERRUPTED
             raise ZK::Exceptions::WakeUpException
           when ZOO_EXPIRED_SESSION_STATE
             raise Zookeeper::Exceptions::SessionExpired
