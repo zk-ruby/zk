@@ -18,15 +18,13 @@ module ZK
       # obtain an exclusive lock.
       #
       def lock(blocking=false)
-        return true if @locked
+        return true if synchronize { @locked }
         create_lock_path!(EXCLUSIVE_LOCK_PREFIX)
 
         if got_write_lock?
-          @locked = true
+          synchronize { @locked = true }
         elsif blocking
-          in_waiting_status do
-            block_until_write_lock!
-          end
+          block_until_write_lock!
         else
           cleanup_lock_path!
           false
@@ -75,12 +73,18 @@ module ZK
         def block_until_write_lock!
           begin
             path = "#{root_lock_path}/#{next_lowest_node}"
-            logger.debug { "SharedLocker#block_until_write_lock! path=#{path.inspect}" }
-            @zk.block_until_node_deleted(path)
+            logger.debug { "#{self.class}##{__method__} path=#{path.inspect}" }
+
+            synchronize do
+              @node_deletion_watcher = NodeDeletionWatcher.new(zk, path)
+              @cond.broadcast
+            end
+
+            @node_deletion_watcher.block_until_deleted
           rescue WeAreTheLowestLockNumberException
           end
 
-          @locked = true
+          synchronize { @locked = true }
         end
     end # ExclusiveLocker
   end # Locker

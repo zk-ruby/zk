@@ -3,6 +3,8 @@ module ZK
     class SharedLocker < LockerBase
       include Exceptions
 
+
+
       # (see LockerBase#lock)
       # obtain a shared lock.
       #
@@ -100,13 +102,19 @@ module ZK
           begin
             path = "#{root_lock_path}/#{next_lowest_write_lock_name}"
             logger.debug { "SharedLocker#block_until_read_lock! path=#{path.inspect}" }
-            @zk.block_until_node_deleted(path)
+
+            synchronize do
+              @node_deletion_watcher = NodeDeletionWatcher.new(zk, path)
+              @cond.broadcast
+            end
+
+            @node_deletion_watcher.block_until_deleted
           rescue NoWriteLockFoundException
             # next_lowest_write_lock_name may raise NoWriteLockFoundException,
             # which means we should not block as we have the lock (there is nothing to wait for)
           end
 
-          @locked = true
+          synchronize { @locked = true }
         end
     end # SharedLocker
   end # Locker

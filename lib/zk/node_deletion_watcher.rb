@@ -100,7 +100,7 @@ module ZK
 
         logger.debug { "ok, going to block: #{path}" }
 
-        while true
+        while true # this is probably unnecessary
           @blocked = BLOCKED
           @cond.broadcast                 # wake threads waiting for @blocked to change
           @cond.wait_until { @result }    # wait until we get a result

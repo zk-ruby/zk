@@ -236,30 +236,39 @@ shared_examples_for 'ExclusiveLocker' do
 
     it %[should raise LockAssertionFailedError if there is an exclusive lock with a number lower than ours] do
       # this should *really* never happen
-      ex_locker.lock.should be_true
-      exl_path = ex_locker.lock_path
+      
+      rlp = ex_locker.root_lock_path
+
+      zk.mkdir_p(rlp)
+
+      bogus_path = zk.create("#{rlp}/#{ZK::Locker::EXCLUSIVE_LOCK_PREFIX}", :sequential => true, :ephemeral => true)
+
+#       ex_locker.lock.should be_true
+#       exl_path = ex_locker.lock_path
 
       th = Thread.new do
         ex_locker2.lock(true)
       end
 
-      th.run
-      wait_until(5) { ex_locker2.waiting? }
-      ex_locker2.lock_path.should_not be_nil
+#       ex_locker2.should be_waiting
+#       ex_locker2.lock_path.should_not be_nil
 
+      wait_until { ex_locker2.waiting? }
       wait_until { zk.exists?(ex_locker2.lock_path) }
 
       zk.exists?(ex_locker2.lock_path).should be_true
 
-      ex_locker.unlock.should be_true
-      ex_locker.should_not be_locked
-      zk.exists?(exl_path).should be_false
+      zk.delete(bogus_path)
+
+#       ex_locker.unlock.should be_true
+#       ex_locker.should_not be_locked
+#       zk.exists?(exl_path).should be_false
 
       th.join(5).should == th
 
-      ex_locker2.lock_path.should_not == exl_path
+      ex_locker2.lock_path.should_not == bogus_path
 
-      zk.create(exl_path, :ephemeral => true)
+      zk.create(bogus_path, :ephemeral => true)
 
       lambda { ex_locker2.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
     end
@@ -319,14 +328,14 @@ shared_examples_for 'ExclusiveLocker' do
           ary << :locked
         end
 
-        th.run
+        ex_locker.wait_until_blocked(5)
       
         ary.should be_empty
         ex_locker.should_not be_locked
 
         zk.delete(@read_lock_path)
 
-        th.join(2)
+        th.join(2).should == th
 
         ary.length.should == 1
         ex_locker.should be_locked
@@ -435,8 +444,13 @@ shared_examples_for 'shared-exclusive interaction' do
         end
       end
 
-      ex_th.join_until { @ex_lock.waiting? }
+      logger.debug { "about to wait for @ex_lock to be blocked" }
+
+      @ex_lock.wait_until_blocked(5)
       @ex_lock.should be_waiting
+
+      logger.debug { "@ex_lock is waiting" }
+
       @ex_lock.should_not be_locked
 
       # this is the important one, does the second shared lock get blocked by
@@ -453,15 +467,19 @@ shared_examples_for 'shared-exclusive interaction' do
         end
       end
 
-      sh2_th.join_until { @sh_lock2.waiting? }
+      logger.debug { "about to wait for @sh_lock2 to be blocked" }
+
+      @sh_lock2.wait_until_blocked(5)
       @sh_lock2.should be_waiting
+
+      logger.debug { "@sh_lock2 is waiting" }
 
       @sh_lock.unlock.should be_true
 
-      ex_th.join_until { ex_th[:got_lock] }
+      ex_th.join(5).should == ex_th
       ex_th[:got_lock].should be_true
 
-      sh2_th.join_until { sh2_th[:got_lock] }
+      sh2_th.join(5).should == sh2_th
       sh2_th[:got_lock].should be_true
 
       @array.length.should == 2

@@ -127,51 +127,11 @@ module ZK
       #   a deleted event. Includes the {InterruptedSession} module.
       #
       def block_until_node_deleted(abs_node_path)
-        subs = []
-
         assert_we_are_not_on_the_event_dispatch_thread!
 
         raise ArgumentError, "argument must be String-ish, not: #{abs_node_path.inspect}" unless abs_node_path
 
-        queue = Queue.new
-
-        node_deletion_cb = lambda do |event|
-          if event.node_deleted?
-            queue.enq(:deleted) 
-          else
-            queue.enq(:deleted) unless exists?(abs_node_path, :watch => true)
-          end
-        end
-
-        subs << event_handler.register(abs_node_path, &node_deletion_cb)
-
-        # NOTE: this pattern may be necessary for other features with blocking semantics!
-
-        session_cb = lambda do |event|
-          queue.enq(event.state)
-        end
-
-        [:expired_session, :connecting, :closed].each do |sym|
-          subs << event_handler.register_state_handler(sym, &session_cb)
-        end
-        
-        # set up the callback, but bail if we don't need to wait
-        return true unless exists?(abs_node_path, :watch => true)  
-
-        case queue.pop
-        when :deleted
-          true
-        when ZOO_EXPIRED_SESSION_STATE
-          raise Zookeeper::Exceptions::SessionExpired
-        when ZOO_CONNECTING_STATE
-          raise Zookeeper::Exceptions::NotConnected
-        when ZOO_CLOSED_STATE
-          raise Zookeeper::Exceptions::ConnectionClosed
-        else
-          raise "Hit unexpected case in block_until_node_deleted"
-        end
-      ensure
-        subs.each(&:unregister)
+        NodeDeletionWatcher.new(self, abs_node_path).block_until_deleted
       end
     end
   end

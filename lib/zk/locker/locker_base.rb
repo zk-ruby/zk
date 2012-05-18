@@ -53,6 +53,9 @@ module ZK
         @waiting = false
         @lock_path = nil
         @root_lock_path = "#{@root_lock_node}/#{@path.gsub("/", "__")}"
+        @mutex  = Monitor.new
+        @cond   = @mutex.new_cond
+        @node_deletion_watcher = nil
       end
       
       # block caller until lock is aquired, then yield
@@ -78,7 +81,7 @@ module ZK
       # @return [nil] if lock_path is not set
       # @return [String] last path component of our lock path
       def lock_basename
-        lock_path and File.basename(lock_path)
+        synchronize { lock_path and File.basename(lock_path) }
       end
 
       # returns our current idea of whether or not we hold the lock, which does
@@ -91,8 +94,8 @@ module ZK
       # @return [true] if we hold the lock
       # @return [false] if we don't hold the lock
       #
-      def locked?(check_if_any=false)
-        false|@locked 
+      def locked?
+        synchronize { !!@locked }
       end
 
       # * If this instance holds the lock {#locked? is true} we return true (as
@@ -119,12 +122,14 @@ module ZK
       # @return [false] we did not own the lock
       #
       def unlock
-        if @locked
-          cleanup_lock_path!
-          @locked = false
-          true
-        else
-          false # i know, i know, but be explicit
+        synchronize do
+          if @locked
+            cleanup_lock_path!
+            @locked = false
+            true
+          else
+            false # i know, i know, but be explicit
+          end
         end
       end
 
@@ -161,10 +166,23 @@ module ZK
       end
 
       # returns true if this locker is waiting to acquire lock 
+      # this should be used in tests only, pretty much
       #
       # @private
       def waiting? 
-        false|@waiting
+        synchronize do
+          !!(@node_deletion_watcher and @node_deletion_watcher.blocked?)
+        end
+      end
+
+      # blocks the caller until this lock is blocked
+      # @private
+      def wait_until_blocked(timeout=nil)
+        synchronize do
+          @cond.wait_until { @node_deletion_watcher }
+        end
+
+        @node_deletion_watcher.wait_until_blocked(timeout)
       end
 
       # This is for users who wish to check that the assumption is correct
@@ -196,19 +214,33 @@ module ZK
       #   end
       #
       def assert!
-        raise LockAssertionFailedError, "have not obtained the lock yet"            unless locked?
-        raise LockAssertionFailedError, "not connected"                             unless zk.connected?
-        raise LockAssertionFailedError, "lock_path was #{lock_path.inspect}"        unless lock_path
-        raise LockAssertionFailedError, "the lock path #{lock_path} did not exist!" unless zk.exists?(lock_path)
-        raise LockAssertionFailedError, "we do not actually hold the lock"          unless got_lock?
+        synchronize do
+          raise LockAssertionFailedError, "have not obtained the lock yet"            unless locked?
+          raise LockAssertionFailedError, "not connected"                             unless zk.connected?
+          raise LockAssertionFailedError, "lock_path was #{lock_path.inspect}"        unless lock_path
+          raise LockAssertionFailedError, "the lock path #{lock_path} did not exist!" unless zk.exists?(lock_path)
+          raise LockAssertionFailedError, "we do not actually hold the lock"          unless got_lock?
+        end
       end
 
       protected 
+        def synchronize
+          @mutex.synchronize { yield }
+        end
+
         def in_waiting_status
-          w, @waiting = @waiting, true
+          w = nil
+
+          synchronize do
+            logger.debug { "entering wait state for #{lock_path}" } 
+            w, @waiting = @waiting, true
+          end
+
           yield
         ensure
-          @waiting = w
+          synchronize do
+            @waiting = w
+          end
         end
 
         def digit_from(path)
@@ -245,7 +277,10 @@ module ZK
         # defaults to 'lock'
         #
         def create_lock_path!(prefix='lock')
-          @lock_path = @zk.create("#{root_lock_path}/#{prefix}", "", :mode => :ephemeral_sequential)
+          synchronize do
+            @lock_path = @zk.create("#{root_lock_path}/#{prefix}", "", :mode => :ephemeral_sequential)
+          end
+
           logger.debug { "got lock path #{@lock_path}" }
           @lock_path
         rescue NoNode
@@ -258,7 +293,7 @@ module ZK
           zk.delete(@lock_path)
 
           begin
-            zk.delete(root_lock_path) 
+            zk.delete(root_lock_path, :ignore => :not_empty) 
           rescue NotEmpty
           end
 
