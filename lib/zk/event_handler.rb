@@ -56,7 +56,7 @@ module ZK
     #
     # @private
     def reopen_after_fork!
-      logger.debug { "#{self.class}##{__method__}" }
+#       logger.debug { "#{self.class}##{__method__}" }
       @mutex = Monitor.new
       # XXX: need to test this w/ actor-style callbacks
       
@@ -150,7 +150,7 @@ module ZK
     def process(event)
       @zk.raw_event_handler(event)
 
-      logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
+#       logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
       event.zk = @zk
 
       cb_keys = 

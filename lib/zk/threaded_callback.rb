@@ -27,7 +27,7 @@ module ZK
 
     # how long to wait on thread shutdown before we return
     def shutdown(timeout=5)
-      logger.debug { "#{self.class}##{__method__}" }
+#       logger.debug { "#{self.class}##{__method__}" }
 
       @mutex.lock
       begin
@@ -65,7 +65,7 @@ module ZK
     #
     # @private
     def reopen_after_fork!
-      logger.debug { "#{self.class}##{__method__}" }
+#       logger.debug { "#{self.class}##{__method__}" }
 
       unless @state == :paused
         raise InvalidStateError, "state should have been :paused, not: #{@state.inspect}"
@@ -98,7 +98,7 @@ module ZK
 
       return unless @thread and @thread.alive?
 
-      logger.debug { "#{self.class}##{__method__} joining dispatch thread" }
+#       logger.debug { "#{self.class}##{__method__} joining dispatch thread" }
 
       @thread.join
       @thread = nil
@@ -111,7 +111,7 @@ module ZK
         raise InvalidStateError, "@thread was not nil! #{@thread.inspect}" if @thread 
 
         @state = :running
-        logger.debug { "#{self.class}##{__method__} spawning dispatch thread" }
+#         logger.debug { "#{self.class}##{__method__} spawning dispatch thread" }
         spawn_dispatch_thread
       ensure
         @mutex.unlock rescue nil
@@ -151,8 +151,8 @@ module ZK
             logger.error { e.to_std_format }
           end
         end
-      ensure
-        logger.debug { "#{self.class}##{__method__} returning" }
+#       ensure
+#         logger.debug { "#{self.class}##{__method__} returning" }
       end
   end
 end
