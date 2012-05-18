@@ -18,9 +18,9 @@ module ZK
 
       def initialize(parent, block)
         raise ArgumentError, "block must repsond_to?(:call)" unless block.respond_to?(:call)
-        @parent = parent
+        @parent   = parent
         @callable = block
-        reopen_after_fork!
+        @mutex    = Monitor.new
       end
 
       def unregistered?
@@ -33,7 +33,11 @@ module ZK
         @parent.unregister(self)
         @parent = nil
       end
-      alias unsubscribe unregister
+
+      # an alias for unregister
+      def unsubscribe
+        unregister
+      end
 
       # @private
       def call(*args)
@@ -49,38 +53,6 @@ module ZK
         def synchronize
           @mutex.synchronize { yield }
         end
-    end
-
-    module ActorStyle
-      extend Concern
-
-      included do
-        alias_method_chain :unsubscribe, :threaded_callback
-        alias_method_chain :callable, :threaded_callback_wrapper
-        alias_method_chain :reopen_after_fork!, :threaded_refresh
-
-        attr_reader :threaded_callback
-      end
-
-      def unsubscribe_with_threaded_callback
-        synchronize do
-          threaded_callback && threaded_callback.shutdown
-          unsubscribe_without_threaded_callback
-        end
-      end
-
-      def reopen_after_fork_with_threaded_refresh!
-        reopen_after_fork_without_threaded_refresh!
-        @threaded_callback = ThreadedCallback.new(@callable)
-      end
-    
-      # the threaded callback is lazily constructed, so threads aren't spun up
-      # until needed.
-      def callable_with_threaded_callback_wrapper(*args)
-        synchronize do 
-          @threaded_callback ||= ThreadedCallback.new(@callable) 
-        end
-      end
     end
   end
 end

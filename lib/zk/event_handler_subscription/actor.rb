@@ -16,27 +16,52 @@ module ZK
     # guarantees), just perhaps at different times.
     #
     class Actor < Base
-      include Subscription::ActorStyle
+      # @private
+      attr_reader :threaded_callback
+
+      def initialize(parent, path, callback, opts={})
+        super
+        @threaded_callback = ThreadedCallback.new(@callable)
+      end
 
       def async?
         true
       end
 
+      def call(*args)
+        @threaded_callback.call(*args)
+      end
+      
       # calls unsubscribe and shuts down 
       def close
-        unsubscribe
+        unregister
+      end
+
+      def unregister
+        synchronize do
+          @threaded_callback.shutdown
+          super
+        end
+      end
+
+      def reopen_after_fork!
+        logger.debug { "#{self.class}##{__method__}" }
+        super
+        @threaded_callback.reopen_after_fork!
       end
 
       def pause_before_fork_in_parent
         synchronize do
           logger.debug { "#{self.class}##{__method__}" }
-          threaded_callback && threaded_callback.pause_before_fork_in_parent
+          @threaded_callback.pause_before_fork_in_parent
+          super
         end
       end
 
       def resume_after_fork_in_parent
+        super
         logger.debug { "#{self.class}##{__method__}" }
-        threaded_callback && threaded_callback.resume_after_fork_in_parent
+        @threaded_callback.resume_after_fork_in_parent
       end
     end
   end

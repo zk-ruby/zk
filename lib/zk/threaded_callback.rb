@@ -12,8 +12,7 @@ module ZK
     def initialize(callback=nil, &blk)
       @callback = callback || blk
 
-      @state  = :running
-      @array  = []
+      @state  = :paused
       reopen_after_fork!
     end
 
@@ -68,9 +67,8 @@ module ZK
     def reopen_after_fork!
       logger.debug { "#{self.class}##{__method__}" }
 
-      unless @state == :running
-        logger.debug { "#{self.class}##{__method__} state was not running: #{@state.inspect}" }
-        return
+      unless @state == :paused
+        raise InvalidStateError, "state should have been :paused, not: #{@state.inspect}"
       end
 
       if @thread and @thread.alive?
@@ -80,7 +78,8 @@ module ZK
 
       @mutex  = Mutex.new
       @cond   = ConditionVariable.new
-      spawn_dispatch_thread
+      @array  = []
+      resume_after_fork_in_parent
     end
 
     # shuts down the event delivery thread, but keeps the queue so we can continue
