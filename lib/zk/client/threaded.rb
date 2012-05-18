@@ -257,7 +257,7 @@ module ZK
         # and wait for it to exit
         #
         shutdown_thread = Thread.new do
-          @threadpool.shutdown(2)
+          @threadpool.shutdown(10)
           super
 
           @mutex.synchronize do
@@ -266,9 +266,7 @@ module ZK
           end
         end
 
-        shutdown_thread.join unless on_tpool
-
-        nil
+        on_tpool ? shutdown_thread : shutdown_thread.join 
       end
 
       # {see Base#close}

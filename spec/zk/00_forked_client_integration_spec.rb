@@ -8,7 +8,7 @@ describe 'forked client integration' do
       @base_path = '/zktests'
       @pids_root = "#{@base_path}/pid"
       
-      @cnx_args = ["#{ZK.default_host}:#{ZK.test_port}", { :thread => :single, :timeout => 5 }]
+      @cnx_args = ["#{ZK.default_host}:#{ZK.test_port}", { :thread => :per_callback, :timeout => 5 }]
 
       ZK.open(*@cnx_args) do |z|
         z.rm_rf(@base_path)

@@ -11,7 +11,7 @@ describe ZK::Client::Threaded do
       include_context 'connection opts'
 
       before do
-        @zk = ZK::Client::Threaded.new(*connection_args).tap { |z| wait_until { z.connected? } }
+        @zk = ZK::Client::Threaded.new(*connection_args)
       end
 
       after do
@@ -23,9 +23,18 @@ describe ZK::Client::Threaded do
 
         @zk.should be_kind_of(ZK::Client::Threaded) # yeah yeah, just be sure
 
+        shutdown_thread = nil
+
         @zk.defer do
-          @zk.close!
+          shutdown_thread = @zk.close!
         end
+
+        wait_while { shutdown_thread.nil? }
+
+        shutdown_thread.should_not be_nil
+        shutdown_thread.should be_kind_of(Thread)
+
+        shutdown_thread.join(5).should == shutdown_thread
 
         wait_until(5) { @zk.closed? }.should be_true 
       end

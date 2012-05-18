@@ -39,7 +39,7 @@ class ClientForker
 
   def tear_down
     mark_around('TEAR_DOWN') do
-      @zk.close! unless @zk.closed?
+      @zk.close! if @zk and !@zk.closed?
       ZK.open(*cnx_args) { |z| z.rm_rf(@base_path) }
     end
   end
@@ -107,6 +107,7 @@ class ClientForker
 
     @pid = fork do
       colorize_logs_in_child!
+      Thread.abort_on_exception = true
 
       @zk.reopen
       @zk.wait_until_connected

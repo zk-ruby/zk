@@ -365,6 +365,10 @@ describe ZK do
         end
       end
 
+      after do
+        @zk.close! if @zk and not @zk.closed?
+      end
+
       it %[should fire the registered callback] do
         wait_while { @event.nil? }
         @event.should_not be_nil

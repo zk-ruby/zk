@@ -36,7 +36,7 @@ RSpec.configure do |config|
     config.filter_run_excluding :rbx => :broken
   end
 
-  unless ZK.mri_193?
+  if ZK.jruby? #or ZK.rubinius?
     config.filter_run_excluding :fork_required => true
   end
 
@@ -55,6 +55,25 @@ RSpec.configure do |config|
     config.after(:suite) do
       ZK.logger.debug { "stopping zookeeper service" }
       ZK::Server.shutdown
+    end
+  end
+
+  # tester should return true if the object is a leak
+  def leak_check(klass, &tester)
+    count = 0
+    ObjectSpace.each_object(klass) { |o| count += 1 if tester.call(o) }
+    unless count.zero?
+      raise "There were #{count} leaked #{klass} objects after #{example.full_description.inspect}" 
+    end
+  end
+
+  # these make tests run slow
+  if ZK.mri_193?
+    config.after do 
+      leak_check(ZK::Client::Threaded) { |o| !o.closed? }
+      leak_check(ZK::ThreadedCallback, &:alive?)
+      leak_check(ZK::Threadpool, &:alive?)
+      leak_check(Thread) { |th| Thread.current != th && th.alive? }
     end
   end
 end
