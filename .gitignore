@@ -10,3 +10,4 @@ Gemfile.*
 wiki
 zookeeper
 coverage/
+.ctags_paths
