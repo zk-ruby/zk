@@ -55,17 +55,27 @@ describe ZK::Pool do
       it %[should shutdown gracefully] do
         release_q  = Queue.new
 
+        latch = Latch.new
+
         @about_to_block = false
 
+        @mutex = Mutex.new
+        @cond = ConditionVariable.new
+        @cnx = nil
+
         open_th = Thread.new do
-          @cnx = @connection_pool.checkout(true)
-          @about_to_block = true
-          # wait for signal to release our connection
-          release_q.pop
+          @mutex.synchronize do
+            @cnx = @connection_pool.checkout(true)
+            @cond.broadcast
+          end
+          latch.await(30) # don't time out
         end
 
-        wait_until(5) { @about_to_block }
-        @about_to_block.should be_true
+        @mutex.synchronize do
+          @cond.wait(@mutex) while @cnx.nil?
+        end
+
+        @cnx.should_not be_nil
 
         closing_th = Thread.new do
           @connection_pool.close_all!
@@ -75,14 +85,13 @@ describe ZK::Pool do
         @connection_pool.should be_closing
         logger.debug { "connection pool is closing" }
 
-        lambda { @connection_pool.with_connection { |c| } }.should raise_error(ZK::Exceptions::PoolIsShuttingDownException)
+        lambda { @connection_pool.with_connection { |c| c } }.should raise_error(ZK::Exceptions::PoolIsShuttingDownException)
 
-        release_q << :ok_let_go
+        latch.release
 
         open_th.join(5).should == open_th
 
-        wait_until(5) { @connection_pool.closed? }
-#         $stderr.puts "@connection_pool.pool_state: #{@connection_pool.pool_state.inspect}"
+        @connection_pool.wait_until_closed
 
         @connection_pool.should be_closed
 
@@ -94,7 +103,7 @@ describe ZK::Pool do
     end
 
     describe :force_close! do
-      it %[should raise PoolIsShuttingDownException in a thread blocked waiting for a connection] do
+      it %[should raise PoolIsShuttingDownException in a thread blocked waiting for a connection], :mri_187 => :broken do
         @cnx = []
 
         until @connection_pool.available_size <= 0
@@ -112,7 +121,16 @@ describe ZK::Pool do
 
         @connection_pool.force_close!
 
-        lambda { th.join(5) }.should raise_error(ZK::Exceptions::PoolIsShuttingDownException)
+        @connection_pool.wait_until_closed
+
+        lambda do 
+          begin
+            th.join(5) 
+          rescue
+            $stderr.puts $!.to_std_format
+            raise
+          end
+        end.should raise_error(ZK::Exceptions::PoolIsShuttingDownException)
       end
     end
 
@@ -129,21 +147,16 @@ describe ZK::Pool do
       end
 
       @connection_pool.with_connection do |zk|
-#         $stderr.puts "registering callback"
         zk.watcher.register(@path) do |event|
-#           $stderr.puts "callback fired! event: #{event.inspect}"
 
           @callback_called = true
           event.path.should == @path
-#           $stderr.puts "signaling other waiters"
         end
 
-#         $stderr.puts "setting up watcher"
         zk.exists?(@path, :watch => true).should be_false
       end
 
       @connection_pool.with_connection do |zk|
-#         $stderr.puts "creating path"
         zk.create(@path, "", :mode => :ephemeral).should == @path
       end
 

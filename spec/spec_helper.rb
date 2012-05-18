@@ -36,7 +36,11 @@ RSpec.configure do |config|
     config.filter_run_excluding :rbx => :broken
   end
 
-  if ZK.jruby? #or ZK.rubinius?
+  if ZK.mri_187?
+    config.filter_run_excluding :mri_187 => :broken
+  end
+
+  if ZK.jruby?
     config.filter_run_excluding :fork_required => true
     config.filter_run_excluding :jruby => :broken
   end

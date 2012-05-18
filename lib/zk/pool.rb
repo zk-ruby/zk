@@ -91,6 +91,13 @@ module ZK
         end
       end
 
+      # @private
+      def wait_until_closed
+        @mutex.synchronize do
+          @checkin_cond.wait_until { @state == :closed }
+        end
+      end
+
       # yields next available connection to the block
       #
       # raises PoolIsShuttingDownException immediately if close_all! has been
@@ -139,7 +146,7 @@ module ZK
         end
 
         def assert_open!
-          raise Exceptions::PoolIsShuttingDownException unless open? 
+          raise Exceptions::PoolIsShuttingDownException, "pool is shutting down" unless open? 
         end
 
     end # Base
@@ -195,7 +202,7 @@ module ZK
 
           @pool << connection
 
-          @checkin_cond.signal
+          @checkin_cond.broadcast
         end
       end
 
@@ -206,7 +213,8 @@ module ZK
 
       def checkout(blocking=true) 
         raise ArgumentError, "checkout does not take a block, use .with_connection" if block_given?
-        @mutex.synchronize do
+        @mutex.lock
+        begin
           while true
             assert_open!
 
@@ -236,7 +244,9 @@ module ZK
             else
               return false
             end
-          end # while 
+          end # while
+        ensure
+          @mutex.unlock rescue nil
         end
       end
 

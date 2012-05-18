@@ -180,6 +180,12 @@ module ZK
           old_cnx.close! if old_cnx # && !old_cnx.closed?
 
           @mutex.synchronize do
+            # it's important that we're holding the lock, as access to 'cnx' is
+            # synchronized, and we want to avoid a race where event handlers
+            # might see a nil connection. I've seen this exception occur *once*
+            # so it's pretty rare (it was on 1.8.7 too), but just to be double
+            # extra paranoid
+
             @event_handler.reopen_after_fork!
             @threadpool.reopen_after_fork!          # prune dead threadpool threads after a fork()
 
@@ -327,6 +333,18 @@ module ZK
       end
 
       protected
+        # in the threaded version of the client, synchronize access around cnx
+        # so that callers don't wind up with a nil object when we're in the middle
+        # of reopening it
+        def cnx
+          @mutex.lock
+          begin
+            return @cnx
+          ensure
+            @mutex.unlock rescue nil
+          end
+        end
+
         # @private
         def create_connection(*args)
           ::Zookeeper.new(*args)
