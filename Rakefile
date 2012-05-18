@@ -8,7 +8,7 @@ if File.exists?(release_ops_path)
   require File.join(release_ops_path, 'releaseops')
 
   # sets up the multi-ruby zk:test_all rake tasks
-  ReleaseOps::TestTasks.define_for(*%w[1.8.7 1.9.2 jruby rbx ree 1.9.3])
+  ReleaseOps::TestTasks.define_for(*%w[1.8.7 1.9.2 jruby ree 1.9.3])
 
   # sets up the task :default => 'spec:run' and defines a simple
   # "run the specs with the current rvm profile" task
