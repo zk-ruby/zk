@@ -253,7 +253,7 @@ module ZK
         until @threadpool.size >= @size.to_i
           @threadpool << Thread.new(&method(:worker_thread_body))
         end
-        logger.debug { "spawn threadpool complete" }
+#         logger.debug { "spawn threadpool complete" }
       end
 
       def worker_thread_body
@@ -273,7 +273,7 @@ module ZK
 
           next unless op
 
-          logger.debug { "got #{op.inspect} in thread" }
+#           logger.debug { "got #{op.inspect} in thread" }
 
           begin
             op.call if op
