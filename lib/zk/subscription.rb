@@ -29,9 +29,14 @@ module ZK
 
       # calls unregister on parent, then sets parent to nil
       def unregister
-        return false unless @parent
-        @parent.unregister(self)
-        @parent = nil
+        obj = nil
+
+        synchronize do
+          return false unless @parent
+          obj, @parent = @parent, nil
+        end
+
+        obj.unregister(self)
       end
 
       # an alias for unregister

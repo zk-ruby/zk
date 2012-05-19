@@ -38,10 +38,8 @@ module ZK
       end
 
       def unregister
-        synchronize do
-          @threaded_callback.shutdown
-          super
-        end
+        super
+        @threaded_callback.shutdown
       end
 
       def reopen_after_fork!
