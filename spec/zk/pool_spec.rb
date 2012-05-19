@@ -112,8 +112,15 @@ describe ZK::Pool do
 
         @cnx.length.should_not be_zero
         
+        # this exc nonsense is because 1.8.7's scheduler is broken
+        @exc = nil
+
         th = Thread.new do
-          @connection_pool.checkout(true)
+          begin
+            @connection_pool.checkout(true)
+          rescue
+            @exc = $!
+          end
         end
 
         # th.join_until { @connection_pool.count_waiters > 0 }
@@ -123,14 +130,8 @@ describe ZK::Pool do
 
         @connection_pool.wait_until_closed
 
-        lambda do 
-          begin
-            th.join(5) 
-          rescue
-            $stderr.puts $!.to_std_format
-            raise
-          end
-        end.should raise_error(ZK::Exceptions::PoolIsShuttingDownException)
+        th.join(5).should == th
+        @exc.should be_kind_of(ZK::Exceptions::PoolIsShuttingDownException)
       end
     end
 
