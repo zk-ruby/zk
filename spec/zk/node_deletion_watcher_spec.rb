@@ -31,15 +31,24 @@ describe ZK::NodeDeletionWatcher do
     it %[should wake up if interrupt! is called] do
       @zk.mkdir_p(@path)
 
-      th = Thread.new { @n.block_until_deleted }
+      @exc = nil
+
+      th = Thread.new do
+        begin
+          @n.block_until_deleted
+        rescue Exception => e
+          @exc = e
+        end
+      end
 
       @n.wait_until_blocked(5)
 
       @n.should be_blocked
 
       @n.interrupt!
+      th.join(5).should == th
 
-      lambda { th.join(5) }.should raise_error(ZK::Exceptions::WakeUpException)
+      @exc.should be_kind_of(ZK::Exceptions::WakeUpException)
     end
   end
 
