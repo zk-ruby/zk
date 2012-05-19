@@ -49,7 +49,7 @@ module ZK
         return true if locked? 
         stat = zk.stat(root_lock_path)
         !stat.exists? or stat.num_children == 0
-      rescue Exceptions::NoNode
+      rescue Exceptions::NoNode   # XXX: is this ever hit? stat shouldn't raise
         true
       end
 

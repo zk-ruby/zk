@@ -71,9 +71,9 @@ module ZK
         raise InvalidStateError, "state should have been :paused, not: #{@state.inspect}"
       end
 
-      if @thread and @thread.alive?
-        logger.debug { "#{self.class}##{__method__} thread was still alive!" }
-        return
+      if @thread 
+        raise InvalidStateError, "WTF?! did you fork in a callback? my thread was alive!" if @thread.alive?
+        @thread = nil
       end
 
       @mutex  = Mutex.new
@@ -96,9 +96,7 @@ module ZK
         @mutex.unlock rescue nil
       end
 
-      return unless @thread and @thread.alive?
-
-#       logger.debug { "#{self.class}##{__method__} joining dispatch thread" }
+      return unless @thread
 
       @thread.join
       @thread = nil
@@ -137,8 +135,6 @@ module ZK
 #               logger.warn { "ThreadedCallback, state is #{@state.inspect}, returning" } 
               return 
             end
-
-            next if @array.empty? # just being paranoid here
 
             args = @array.shift
           ensure

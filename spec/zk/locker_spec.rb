@@ -195,14 +195,16 @@ shared_examples_for 'SharedLocker' do
           ary << :locked
         end
 
-        ary.should be_empty
+        shared_locker.wait_until_blocked(5)
+        shared_locker.should be_waiting
         shared_locker.should_not be_locked
+        ary.should be_empty
 
         zk.delete(@write_lock_path)
 
-        th.join(2)
+        th.join(2).should == th
 
-        wait_until(2) { !ary.empty? }
+        ary.should_not be_empty
         ary.length.should == 1
 
         shared_locker.should be_locked
@@ -243,15 +245,9 @@ shared_examples_for 'ExclusiveLocker' do
 
       bogus_path = zk.create("#{rlp}/#{ZK::Locker::EXCLUSIVE_LOCK_PREFIX}", :sequential => true, :ephemeral => true)
 
-#       ex_locker.lock.should be_true
-#       exl_path = ex_locker.lock_path
-
       th = Thread.new do
         ex_locker2.lock(true)
       end
-
-#       ex_locker2.should be_waiting
-#       ex_locker2.lock_path.should_not be_nil
 
       wait_until { ex_locker2.waiting? }
       wait_until { zk.exists?(ex_locker2.lock_path) }
@@ -259,10 +255,6 @@ shared_examples_for 'ExclusiveLocker' do
       zk.exists?(ex_locker2.lock_path).should be_true
 
       zk.delete(bogus_path)
-
-#       ex_locker.unlock.should be_true
-#       ex_locker.should_not be_locked
-#       zk.exists?(exl_path).should be_false
 
       th.join(5).should == th
 
