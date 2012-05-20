@@ -19,7 +19,7 @@ module WaitWatchers
   #
   def wait_until(timeout=2)
     if ZK.travis? and timeout and timeout < 5
-      ZK.logger.debug { "TRAVIS: adjusting wait_until timeout from #{timeout} to 5 sec" }
+      logger.debug { "TRAVIS: adjusting wait_until timeout from #{timeout} to 5 sec" }
       timeout = 5
     end
 
@@ -35,7 +35,7 @@ module WaitWatchers
   # inverse of wait_until
   def wait_while(timeout=2)
     if ZK.travis? and timeout and timeout < 5
-      ZK.logger.debug { "TRAVIS: adjusting wait_while timeout from #{timeout} to 5 sec" }
+      logger.debug { "TRAVIS: adjusting wait_while timeout from #{timeout} to 5 sec" }
       timeout = 5
     end
 
