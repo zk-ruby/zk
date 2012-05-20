@@ -49,7 +49,7 @@ RSpec.configure do |config|
     require 'zk-server'
 
     config.before(:suite) do 
-      ZK.logger.debug { "Starting zookeeper service" }
+      ::Logging.logger['spec'].debug { "Starting zookeeper service" }
       ZK::Server.run do |c|
         c.client_port = ZK.test_port
         c.force_sync  = false
@@ -58,7 +58,7 @@ RSpec.configure do |config|
     end
 
     config.after(:suite) do
-      ZK.logger.debug { "stopping zookeeper service" }
+      ::Logging.logger['spec'].debug { "stopping zookeeper service" }
       ZK::Server.shutdown
     end
   end
