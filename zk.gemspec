@@ -14,6 +14,7 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency 'zookeeper', '~> 1.2.0'
   s.add_runtime_dependency 'backports', '~> 2.5.1'
+  s.add_runtime_dependency 'logging',   '~> 1.7.2'
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")

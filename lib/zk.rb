@@ -1,6 +1,6 @@
 require 'rubygems'
 
-require 'logger'
+require 'logging'
 require 'zookeeper'
 
 # XXX: after 1.0 we'll need this
@@ -21,9 +21,9 @@ module ZK
 end
 
 require 'zk/core_ext'
-require 'zk/logging'
 require 'zk/exceptions'
 require 'zk/extensions'
+require 'zk/logging'
 require 'zk/suspendable'
 require 'zk/event'
 require 'zk/stat'
@@ -52,9 +52,7 @@ module ZK
     KILL_TOKEN = Object.new 
   end
 
-  unless @logger
-    @logger = Logger.new($stderr).tap { |n| n.level = ENV['ZK_DEBUG'] ? Logger::DEBUG : Logger::ERROR }
-  end
+  @@logger = nil unless defined? @@logger
  
   @default_host   = 'localhost' unless @default_host
   @default_port   = 2181        unless @default_port
@@ -71,14 +69,6 @@ module ZK
     attr_accessor :default_chroot
   end
 
-  # @private
-  def self.default_connection_string
-    "#{default_host}:#{default_port}".tap do |str|
-      # XXX: this is seriously blech
-      str.replace(File.join(str, default_chroot)) if default_chroot != ''
-    end
-  end
-
   # The logger used by the ZK library. uses a Logger stderr with Logger::ERROR
   # level. The only thing that should ever be logged are exceptions that are
   # swallowed by background threads.
@@ -87,12 +77,20 @@ module ZK
   # implements the stdllb Logger API.
   #
   def self.logger
-    @logger
+    @@logger
   end
 
-  # Assign the Logger instance to be used by ZK
-  def self.logger=(logger)
-    @logger = logger
+  # set the ZK logger instance
+  def self.logger=(log)
+    @@logger = log
+  end
+
+  # @private
+  def self.default_connection_string
+    "#{default_host}:#{default_port}".tap do |str|
+      # XXX: this is seriously blech
+      str.replace(File.join(str, default_chroot)) if default_chroot != ''
+    end
   end
 
   # Create a new ZK::Client instance. If no arguments are given, the default
@@ -299,7 +297,6 @@ module ZK
       open(host) do |zk|                # do path stuff with the virgin connection
         unless zk.exists?(chroot_path)  # someting must be done
           if chroot_opt == :create      # here, let me...
-            logger.debug { "creating chroot path #{chroot_path}" }
             zk.mkdir_p(chroot_path)     # ...get that for you
           else                          # careful with that axe
             raise Exceptions::ChrootPathDoesNotExistError.new(host, chroot_path)  # ...eugene
@@ -310,4 +307,6 @@ module ZK
       cnx_str   # the possibly-modified connection string (with chroot info)
     end
 end
+
+ZK::Logging.set_default
 

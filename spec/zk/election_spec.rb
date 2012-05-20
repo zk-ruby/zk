@@ -5,7 +5,7 @@ describe ZK::Election, :jruby => :broken do
 
   before do
     ZK.open(connection_host) do |cnx| 
-      ZK.logger.debug { "REMOVING /_zkelection" }
+      logger.debug { "REMOVING /_zkelection" }
       cnx.rm_rf('/_zkelection')
     end
 

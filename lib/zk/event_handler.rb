@@ -150,7 +150,7 @@ module ZK
     def process(event)
       @zk.raw_event_handler(event)
 
-#       logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
+      logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
       event.zk = @zk
 
       cb_keys = 
@@ -161,8 +161,6 @@ module ZK
         else
           raise ZKError, "don't know how to process event: #{event.inspect}"
         end
-
-#       logger.debug { "EventHandler#process: cb_key: #{cb_key}" }
 
       cb_ary = synchronize do 
         clear_watch_restrictions(event)
@@ -337,7 +335,7 @@ module ZK
             cb.call(*args)
           else
             zk.defer do 
-#               logger.debug { "called #{cb.inspect} with #{args.inspect} on threadpool" }
+              logger.debug { "called #{cb.inspect} with #{args.inspect} on threadpool" }
               cb.call(*args)
             end
           end

@@ -1,35 +1,46 @@
 module ZK
-  LOG_FILE = ENV['ZK_DEBUG'] ? $stderr : File.join(ZK::ZK_ROOT, 'test.log')
+  TEST_LOG_PATH = File.join(ZK::ZK_ROOT, 'test.log')
 end
 
-# ZK.logger = ENV['TRAVIS'] ? Logger.new($stderr) : Logger.new(ZK::LOG_FILE)
+layout = Logging.layouts.pattern(
+  :pattern => '%.1l, [%d #%p] %30.30c{2}:  %m\n',
+  :date_pattern => '%Y-%m-%d %H:%M:%S.%6N' 
+)
 
-ZK.logger = Logger.new(ZK::LOG_FILE).tap do |l| 
-  l.level = Logger::DEBUG
-  l.progname = ' zk'
+appender = ENV['ZK_DEBUG'] ? Logging.appenders.stderr : Logging.appenders.file(ZK::TEST_LOG_PATH)
+appender.layout = layout
+
+%w[ZK ClientForker spec Zookeeper].each do |name|
+  ::Logging.logger[name].tap do |log|
+    log.appenders = [appender]
+    log.level = :debug
+  end
 end
 
-Zookeeper.logger.progname = 'zoo'
+# this logger is kinda noisy
+Logging.logger['ZK::EventHandler'].level = :info
+
+Zookeeper.logger = Logging.logger['Zookeeper']
+Zookeeper.logger.level = :info
 
 # Zookeeper.logger = ZK.logger.clone_new_log(:progname => 'zoo')
 
 # Zookeeper.logger = ZK.logger
 # Zookeeper.set_debug_level(4)
 
-ZK.logger.debug { "LOG OPEN" }
-
 module SpecGlobalLogger
   def logger
-    ZK.logger
+    @spec_global_logger ||= ::Logging.logger['spec']
   end
 
   # sets the log level to FATAL for the duration of the block
   def mute_logger
-    orig_level, ZK.logger.level = ZK.logger.level, Logger::FATAL
+    zk_log = Logging.logger['ZK']
+    orig_level, zk_log.level = zk_log.level, :off
     orig_zk_level, Zookeeper.debug_level = Zookeeper.debug_level, Zookeeper::Constants::ZOO_LOG_LEVEL_ERROR
     yield
   ensure
-    ZK.logger.level = orig_level
+    zk_log.level = orig_zk_level
   end
 end
 

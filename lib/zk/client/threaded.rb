@@ -170,7 +170,7 @@ module ZK
           # ok, just to sanity check here
           raise "[BUG] we hit the fork-reopening code in JRuby!!" if defined?(::JRUBY_VERSION)
 
-          logger.debug { "#{self.class}##{__method__} reopening everything, fork detected!" }
+          logger.debug { "reopening everything, fork detected!" }
 
           @mutex = Monitor.new
           @pid = Process.pid
@@ -201,7 +201,7 @@ module ZK
               # XXX: what to do in this case? does it matter?
             end
 
-            logger.debug { "#{self.class}##{__method__} reopening, no fork detected" }
+            logger.debug { "reopening, no fork detected" }
             @cnx.reopen(timeout)                # ok, we werent' forked, so just reopen
           end
         end

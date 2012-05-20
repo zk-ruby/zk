@@ -106,10 +106,11 @@ class ClientForker
     mark 'FORK'
 
     @pid = fork do
-      colorize_logs_in_child!
       Thread.abort_on_exception = true
+      ::Logging.reopen
 
       @zk.reopen
+
       @zk.wait_until_connected
 
       child_pid_path = "#{@pids_root}/#{$$}"
