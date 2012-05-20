@@ -21,7 +21,7 @@ module ZK
           ch_root.add_appenders(serr)
         end
 
-        ch_root.level = ENV['ZK_DEBUG'] ? :debug : :error
+        ch_root.level = ENV['ZK_DEBUG'] ? :debug : :off
       end
     end
 
