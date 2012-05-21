@@ -144,6 +144,12 @@ module ZK
 
         @cli_state = :running # this is to distinguish between *our* state and the underlying connection state
 
+        @fork_subs = [
+          ForkHooks.prepare_for_fork(method(:pause_before_fork_in_parent)),
+          ForkHooks.after_fork_in_parent(method(:resume_after_fork_in_parent)),
+          ForkHooks.after_fork_in_child(method(:reopen)),
+        ]
+
         yield self if block_given?
 
         @mutex.synchronize do
@@ -274,6 +280,9 @@ module ZK
       # {see Base#close}
       def close
         super
+        subs, @fork_subs = @fork_subs, []
+        subs.each(&:unsubscribe)
+        nil
       end
 
       # (see Threadpool#on_threadpool?)
