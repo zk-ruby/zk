@@ -12,6 +12,7 @@ require 'monitor'
 require 'set'
 require 'time'
 require 'date'
+require 'weakref'
 
 module ZK
   # just like stdlib Monitor but provides the SAME API AS MUTEX, FFS!
