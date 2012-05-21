@@ -79,6 +79,7 @@ RSpec.configure do |config|
       leak_check(ZK::ThreadedCallback, &:alive?)
       leak_check(ZK::Threadpool, &:alive?)
       leak_check(Thread) { |th| Thread.current != th && th.alive? }
+      ZK::ForkHook.hooks.values.flatten.should be_empty
     end
   end
 end

@@ -63,11 +63,6 @@ class ClientForker
     end
   end
 
-  def colorize_logs_in_child!
-    ZK.logger.formatter = yellow_log_formatter()
-    Zookeeper.logger.formatter = yellow_log_formatter()
-  end
-
   def run
     before
     mark 'BEGIN TEST'
@@ -101,7 +96,9 @@ class ClientForker
     logger.debug { "parent watching for children on #{@pids_root}" }
     @zk.children(@pids_root, :watch => true)  # side-effect, register watch
 
-    @zk.pause_before_fork_in_parent
+#     @zk.pause_before_fork_in_parent
+
+    ZK.install_fork_hook
 
     mark 'FORK'
 
@@ -109,7 +106,7 @@ class ClientForker
       Thread.abort_on_exception = true
       ::Logging.reopen
 
-      @zk.reopen
+#       @zk.reopen
 
       @zk.wait_until_connected
 
@@ -176,7 +173,7 @@ class ClientForker
       end
     end # forked child
 
-    @zk.resume_after_fork_in_parent
+#     @zk.resume_after_fork_in_parent
 
     # replicates deletion watcher inside child
     child_pid_path = "#{@pids_root}/#{@pid}"

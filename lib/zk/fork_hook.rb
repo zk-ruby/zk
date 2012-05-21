@@ -2,6 +2,7 @@ module ZK
   module ForkHook
     include ZK::Logging
 
+    @mutex = Mutex.new
     @hooks = {
       :prepare      => [],
       :after_child  => [],
@@ -9,32 +10,35 @@ module ZK
     } unless @hooks
 
     class << self
-      attr_reader :hooks
+      attr_reader :hooks, :mutex
 
       # @private
       def fire_prepare_hooks!
+        @mutex.lock
         safe_call(@hooks[:prepare].dup)
       end
 
       # @private
       def fire_after_child_hooks!
+        @mutex.unlock rescue nil
         safe_call(@hooks[:after_child].dup)
       end
 
       # @private
       def fire_after_parent_hooks!
+        @mutex.unlock rescue nil
         safe_call(@hooks[:after_parent].dup)
       end
       
       # @private
       def clear!
-        @hooks.values(&:clear)
+        @mutex.synchronize { @hooks.values(&:clear) }
       end
 
       # @private
       def unregister(sub)
-        if hook_list = @hooks[sub.hook_type]
-          hook_list.delete(sub)
+        @mutex.synchronize do
+          @hooks.fetch(sub.hook_type, []).delete(sub)
         end
       end
 
@@ -60,7 +64,7 @@ module ZK
         end
 
         ForkSubscription.new(hook_type, block).tap do |sub|
-          @hooks[hook_type] << sub
+          @mutex.synchronize { @hooks[hook_type] << sub }
         end
       end
 

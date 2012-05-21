@@ -145,15 +145,24 @@ module ZK
         @cli_state = :running # this is to distinguish between *our* state and the underlying connection state
 
         @fork_subs = [
-          ForkHooks.prepare_for_fork(method(:pause_before_fork_in_parent)),
-          ForkHooks.after_fork_in_parent(method(:resume_after_fork_in_parent)),
-          ForkHooks.after_fork_in_child(method(:reopen)),
+          ForkHook.prepare_for_fork(method(:pause_before_fork_in_parent)),
+          ForkHook.after_fork_in_parent(method(:resume_after_fork_in_parent)),
+          ForkHook.after_fork_in_child(method(:reopen)),
         ]
 
         yield self if block_given?
 
         @mutex.synchronize do
           connect if opts.fetch(:connect, true)
+        end
+      end
+
+      def self.finalize(opts={})
+        proc do
+          opts.fetch(:fork_hooks, []).each(&:unsubscribe)
+          if cnx = opts[:cnx]
+            cnx.close! if cnx
+          end
         end
       end
 
