@@ -15,9 +15,7 @@ module ZK
         if got_read_lock?      
           @locked = true
         elsif blocking
-          in_waiting_status do
-            block_until_read_lock!
-          end
+          block_until_read_lock!
         else
           # we didn't get the lock, and we're not gonna wait around for it, so
           # clean up after ourselves

@@ -228,21 +228,6 @@ module ZK
           @mutex.synchronize { yield }
         end
 
-        def in_waiting_status
-          w = nil
-
-          synchronize do
-            logger.debug { "entering wait state for #{lock_path}" } 
-            w, @waiting = @waiting, true
-          end
-
-          yield
-        ensure
-          synchronize do
-            @waiting = w
-          end
-        end
-
         def digit_from(path)
           self.class.digit_from_lock_path(path)
         end
@@ -292,11 +277,7 @@ module ZK
           logger.debug { "removing lock path #{@lock_path}" }
           zk.delete(@lock_path)
 
-          begin
-            zk.delete(root_lock_path, :ignore => :not_empty) 
-          rescue NotEmpty
-          end
-
+          zk.delete(root_lock_path, :ignore => :not_empty) 
           @lock_path = nil
         end
     end # LockerBase

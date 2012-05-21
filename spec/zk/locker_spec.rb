@@ -249,7 +249,10 @@ shared_examples_for 'ExclusiveLocker' do
         ex_locker2.lock(true)
       end
 
-      wait_until { ex_locker2.waiting? }
+      logger.debug { "calling wait_until_blocked" }
+      ex_locker2.wait_until_blocked(2)
+      ex_locker2.should be_waiting
+
       wait_until { zk.exists?(ex_locker2.lock_path) }
 
       zk.exists?(ex_locker2.lock_path).should be_true

@@ -77,7 +77,7 @@ module ZK
   # implements the stdllb Logger API.
   #
   def self.logger
-    @@logger || ::Logging.logger['ZK']
+    @@logger
   end
 
   # set the ZK logger instance
