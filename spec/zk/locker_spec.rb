@@ -307,11 +307,11 @@ shared_examples_for 'ExclusiveLocker' do
     describe 'blocking' do
       before do
         zk.mkdir_p(root_lock_path)
-        @read_lock_path = zk.create('/_zklocking/shlock/read', '', :mode => :ephemeral_sequential)
       end
 
       it %[should block waiting for the lock] do
         ary = []
+        read_lock_path = zk.create('/_zklocking/shlock/read', '', :mode => :ephemeral_sequential)
 
         ex_locker.lock.should be_false
 
@@ -325,15 +325,15 @@ shared_examples_for 'ExclusiveLocker' do
         ary.should be_empty
         ex_locker.should_not be_locked
 
-        zk.delete(@read_lock_path)
+        zk.delete(read_lock_path)
 
         th.join(2).should == th
 
         ary.length.should == 1
         ex_locker.should be_locked
       end
-    end
-  end
+    end # blocking
+  end # lock
 end # ExclusiveLocker
 
 shared_examples_for 'shared-exclusive interaction' do

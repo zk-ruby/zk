@@ -189,12 +189,8 @@ module ZK
             @event_handler.reopen_after_fork!
             @threadpool.reopen_after_fork!          # prune dead threadpool threads after a fork()
 
-#             logger.debug_pp("event handler after reopen") { @event_handler }
-#             logger.debug_pp("threadpool after reopen") { @threadpool }
-
             connect
           end
-
         else
           @mutex.synchronize do
             if @cli_state == :paused
@@ -303,7 +299,8 @@ module ZK
               logger.error { "Got event #{event.state_name}, calling reopen(0)! things may be messed up until this works itself out!" }
                
               # reopen(0) means that we don't want to wait for the connection
-              # to reach the connected state before returning
+              # to reach the connected state before returning as we're on the
+              # event thread.
               reopen(0)
             end
           end
@@ -337,12 +334,7 @@ module ZK
         # so that callers don't wind up with a nil object when we're in the middle
         # of reopening it
         def cnx
-          @mutex.lock
-          begin
-            return @cnx
-          ensure
-            @mutex.unlock rescue nil
-          end
+          @mutex.synchronize { @cnx }
         end
 
         # @private
