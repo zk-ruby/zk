@@ -126,6 +126,7 @@ module ZK
           if @locked
             cleanup_lock_path!
             @locked = false
+            @node_deletion_watcher = nil
             true
           else
             false # i know, i know, but be explicit
@@ -166,7 +167,7 @@ module ZK
       end
 
       # returns true if this locker is waiting to acquire lock 
-      # this should be used in tests only, pretty much
+      # this should be used in tests only. 
       #
       # @private
       def waiting? 

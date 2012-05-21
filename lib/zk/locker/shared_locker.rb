@@ -3,8 +3,6 @@ module ZK
     class SharedLocker < LockerBase
       include Exceptions
 
-
-
       # (see LockerBase#lock)
       # obtain a shared lock.
       #
