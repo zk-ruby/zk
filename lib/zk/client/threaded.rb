@@ -163,6 +163,12 @@ module ZK
         @mutex.synchronize do
           connect if opts.fetch(:connect, true)
         end
+
+        ObjectSpace.define_finalizer(self, self.class.finalizer(@fork_subs))
+      end
+
+      def self.finalizer(hooks)
+        proc { hooks.each(&:unregister) }
       end
 
       # @option opts [Fixnum] :timeout how long we will wait for the connection

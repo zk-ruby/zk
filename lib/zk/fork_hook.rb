@@ -53,9 +53,6 @@ module ZK
       while cb = cbs.shift
         begin
           cb.call
-        rescue WeakRef::RefError
-          # clean weakrefs out of the original callback arrays if they're bad
-          callbacks.delete(cb)
         rescue Exception => e
           logger.error { e.to_std_format }
         end
@@ -74,7 +71,7 @@ module ZK
 
       ForkSubscription.new(hook_type, block).tap do |sub|
         # use a WeakRef so that the original objects can be GC'd
-        @mutex.synchronize { @hooks[hook_type] << WeakRef.new(sub) } 
+        @mutex.synchronize { @hooks[hook_type] << sub } 
       end
     end
 
