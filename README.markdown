@@ -65,6 +65,27 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 [zk-eventmachine]: https://github.com/slyphon/zk-eventmachine
 
 ## NEWS ##
+### v1.5.0 ###
+
+Ok, now seriously this time. I think all of the forking issues are done. 
+
+* Implemented a 'stop the world' feature to ensure safety when forking. All threads are stopped, but state is preserved. `fork()` can then be called safely, and after fork returns, all threads will be restarted in the parent, and the connection will be torn down and reopened in the child. 
+
+* The easiest, and supported, way of doing this is now to call `ZK.install_fork_hook` after requiring zk. This will install an `alias_method_chain` style hook around the `Kernel.fork` method, which handles pausing all clients in the parent, calling fork, then resuming in the parent and reconnecting in the child. If you're using ZK in resque, I *highly* recommend using this approach, as it will give the most consistent results.
+
+In your app that requires an open ZK instance and `fork()`:
+
+```ruby
+
+require 'zk'
+ZK.install_fork_hook
+
+```
+
+Then use fork as you normally would.
+
+* Logging is now off by default, but we now use the excellent, can't-recommend-it-enough, [logging](https://github.com/TwP/logging) gem. If you want to tap into the ZK logs, you can assign a stdlib compliant logger to `ZK.logger` and that will be used. Otherwise, you can use the Logging framework's controls. All ZK logs are consolidated under the 'ZK' logger instance.
+
 
 ### v1.4.1 ###
 
@@ -104,24 +125,6 @@ Phusion Passenger and Unicorn users are encouraged to upgrade!
 * __fork()__: ZK should now work reliably after a fork() if you call `reopen()` ASAP in the child process (before continuing any ZK work). Additionally, your event-handler (blocks set up with `zk.register`) will still work in the child. You will have to make calls like `zk.stat(path, :watch => true)` to tell ZooKeeper to notify you of events (as the child will have a new session), but everything should work.
 
 * See the fork-handling documentation [on the wiki](http://github.com/slyphon/zk/wiki/Forking).
-
-### v1.2.0 ###
-
-You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/tPbNBw) from the zookeeper 1.0.0 release
-
-* NOTICE: This release uses the 1.0 release of the zookeeper gem, which has had a MAJOR REFACTORING of its namespaces. Included in that zookeeper release is a compatibility layer that should ease the transition, but any references to Zookeeper\* heirarchy should be changed. 
-
-* Refactoring related to the zokeeper gem, use all the new names internally now.
-
-* Create a new Subscription class that will be used as the basis for all subscription-type things.
-
-* Add new Locker features!
-  * `LockerBase#assert!` - will raise an exception if the lock is not held. This check is not only for local in-memory "are we locked?" state, but will check the connection state and re-run the algorithmic tests that determine if a given Locker implementation actually has the lock.
-  * `LockerBase#acquirable?` - an advisory method that checks if any condition would prevent the receiver from acquiring the lock. 
-
-* Deprecation of the `lock!` and `unlock!` methods. These may change to be exception-raising in a future relase, so document and refactor that `lock` and `unlock` are the way to go.
-
-* Fixed a race condition in `event_catcher_spec.rb` that would cause 100% cpu usage and hang.
 
 
 ## Caveats
