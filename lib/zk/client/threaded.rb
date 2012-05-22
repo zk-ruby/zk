@@ -157,15 +157,6 @@ module ZK
         end
       end
 
-      def self.finalize(opts={})
-        proc do
-          opts.fetch(:fork_hooks, []).each(&:unsubscribe)
-          if cnx = opts[:cnx]
-            cnx.close! if cnx
-          end
-        end
-      end
-
       # @option opts [Fixnum] :timeout how long we will wait for the connection
       #   to be established. If timeout is nil, we will wait forever: *use
       #   carefully*.
