@@ -48,3 +48,9 @@ end
   end
 end
 
+[:NotConnected, :SessionExpired, :ConnectionLoss].each do |class_name|
+  Zookeeper::Exceptions.const_get(class_name).tap do |klass|
+    klass.__send__(:include, ZK::Exceptions::Retryable)
+  end
+end
+

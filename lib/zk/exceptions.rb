@@ -43,12 +43,15 @@ module ZK
     module InterruptedSession
     end
 
+    # mixed into exceptions that may be retried
+    module Retryable
+    end
+
     class SystemError             < KeeperException; end
     class RunTimeInconsistency    < KeeperException; end
     class DataInconsistency       < KeeperException; end
     class MarshallingError        < KeeperException; end
     class Unimplemented           < KeeperException; end
-    class OperationTimeOut        < KeeperException; end
     class BadArguments            < KeeperException; end
     class ApiError                < KeeperException; end
     class NoNode                  < KeeperException; end
@@ -61,12 +64,18 @@ module ZK
     class InvalidACL              < KeeperException; end
     class AuthFailed              < KeeperException; end
 
+    class OperationTimeOut < KeeperException
+      include Retryable
+    end
+
     class ConnectionLoss < KeeperException
       include InterruptedSession
+      include Retryable
     end
 
     class SessionExpired < KeeperException
       include InterruptedSession
+      include Retryable
     end
 
     # mixes in InterruptedSession, and can be raised on its own

@@ -43,6 +43,12 @@ module ZK
 
       DEFAULT_THREADPOOL_SIZE = 1
 
+      # we will never back off further than this amount when retrying an operation
+      MAX_RETRY_DELAY = 2.0
+
+      # used in calculating the backoff
+      DELAY_FACTOR = 0.02
+
       # Construct a new threaded client.
       #
       # Pay close attention to the `:threaded` option, and have a look at the
@@ -143,6 +149,8 @@ module ZK
         @cond  = @mutex.new_cond
 
         @cli_state = :running # this is to distinguish between *our* state and the underlying connection state
+
+        @retry_duration = opts.fetch(:retry_duration, nil).to_i
 
         @fork_subs = [
           ForkHook.prepare_for_fork(method(:pause_before_fork_in_parent)),
@@ -344,6 +352,36 @@ module ZK
         # of reopening it
         def cnx
           @mutex.synchronize { @cnx }
+        end
+
+        def call_and_check_rc(meth, opts)
+          if retry_duration = opts.delete(:retry_duration)
+            time_to_stop = Time.now + retry_duration
+            retry_count = 0
+
+            begin
+              super(meth, opts)
+            rescue Exceptions::Retryable => e
+              if (Time.now > time_to_stop) or not running?
+                raise $!
+              else
+                retry_count += 1
+
+                pause_for = DELAY_FACTOR * retry_count
+                if pause_for > MAX_RETRY_DELAY
+                  pause_for = MAX_RETRY_DELAY
+                end
+
+                logger.warn { "caught error #{e.class} #{e.message}, going to retry, current retry_count: #{retry_count}, delaying for #{pause_for} sec" }
+
+                sleep(pause_for)
+
+                retry
+              end
+            end
+          else
+            super
+          end
         end
 
         # @private
