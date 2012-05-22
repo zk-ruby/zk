@@ -45,6 +45,9 @@ module ZK
       end
     end
 
+    # do :call on each of callbacks. if a WeakRef::RefError
+    # is caught, modify `callbacks` by removing the dud reference
+    #
     # @private
     def safe_call(callbacks)
       cbs = callbacks.dup
