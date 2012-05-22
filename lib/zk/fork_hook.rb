@@ -21,16 +21,14 @@ module ZK
 
     # @private
     def fire_after_child_hooks!
-      safe_call(@hooks[:after_child])
-    ensure
       @mutex.unlock rescue nil
+      safe_call(@hooks[:after_child])
     end
 
     # @private
     def fire_after_parent_hooks!
-      safe_call(@hooks[:after_parent])
-    ensure
       @mutex.unlock rescue nil
+      safe_call(@hooks[:after_parent])
     end
     
     # @private
