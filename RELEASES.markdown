@@ -4,9 +4,9 @@ This file notes feature differences and bugfixes contained between releases.
 
 Ok, now seriously this time. I think all of the forking issues are done. 
 
-* Implemented a 'stop the world' feature to ensure safety when forking. All threads are stopped, but state is preserved. `fork()` can then be called safely, and after all threads will be restarted in the parent, and the connection will be torn down and reopened in the child. 
+* Implemented a 'stop the world' feature to ensure safety when forking. All threads are stopped, but state is preserved. `fork()` can then be called safely, and after fork returns, all threads will be restarted in the parent, and the connection will be torn down and reopened in the child. 
 
-* The easiest and supported way of doing this is now to call `ZK.install_fork_hook` after requiring zk. This will install an `alias_method_chain` style hook around the `Kernel.fork` method, which handles pausing all clients in the parent, calling fork, then resuming in the parent and reconnecting in the child. If you're using ZK in resque, I *highly* recommend using this approach, as it will give the most consistent results.
+* The easiest, and supported, way of doing this is now to call `ZK.install_fork_hook` after requiring zk. This will install an `alias_method_chain` style hook around the `Kernel.fork` method, which handles pausing all clients in the parent, calling fork, then resuming in the parent and reconnecting in the child. If you're using ZK in resque, I *highly* recommend using this approach, as it will give the most consistent results.
 
 * Logging is now off by default, and uses the excellent, can't-recommend-it-enough, [logging](https://github.com/TwP/logging) gem. If you want to tap into the ZK logs, you can assign a stdlib compliant logger to `ZK.logger` and that will be used. Otherwise, you can use the Logging framework's controls. All ZK logs are consolidated under the 'ZK' logger instance.
 
