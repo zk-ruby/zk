@@ -600,16 +600,7 @@ module ZK
         h = { :path => path }.merge(opts)
 
         setup_watcher!(:data, h) do
-          rv = cnx.stat(h)
-
-          return rv if opts[:callback] 
-
-          case rv[:rc] 
-          when Zookeeper::ZOK, Zookeeper::ZNONODE
-            rv[:stat]
-          else
-            check_rc(rv, h) # throws the appropriate error
-          end
+          call_and_check_rc(:stat, h.merge(:ignore => :no_node)).fetch(:stat)
         end
       end
 
