@@ -50,12 +50,10 @@ module ZK
     def safe_call(callbacks)
       cbs = callbacks.dup
 
+      # exceptions in these hooks will be raised normally
+
       while cb = cbs.shift
-        begin
-          cb.call
-        rescue Exception => e
-          logger.error { e.to_std_format }
-        end
+        cb.call
       end
     end
 
