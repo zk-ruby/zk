@@ -469,6 +469,8 @@ shared_examples_for 'shared-exclusive interaction' do
 
       logger.debug { "@sh_lock2 is waiting" }
 
+      # ok, now unlock the first in the chain
+      @sh_lock.assert!
       @sh_lock.unlock.should be_true
 
       ex_th.join(5).should == ex_th
