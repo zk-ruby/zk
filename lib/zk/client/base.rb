@@ -72,6 +72,8 @@ module ZK
 
       # returns true if the connection has been closed
       def closed?
+        return true if cnx.nil?
+
         # XXX: should this be *our* idea of closed or ZOO_CLOSED_STATE ?
         defined?(::JRUBY_VERSION) ? jruby_closed? : mri_closed?
       end
@@ -1025,6 +1027,9 @@ module ZK
         end
 
         def call_and_check_rc(meth, opts)
+          # TODO: we should not be raising Zookeeper errors, that's not cool.
+          raise Zookeeper::Exceptions::NotConnected if cnx.nil?
+
           scrubbed_opts = opts.dup
           scrubbed_opts.delete(:ignore)
 
@@ -1036,7 +1041,7 @@ module ZK
         # @private
         # XXX: make this actually call the method on cnx
         def check_rc(rv_hash, inputs)
-          code   = rv_hash[:rc]
+          code  = rv_hash[:rc]
 
           if code && (code != Zookeeper::ZOK)
             return rv_hash if ignore_set(inputs[:ignore]).include?(code)

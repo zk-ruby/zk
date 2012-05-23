@@ -124,9 +124,9 @@ module ZK
       begin
         raise InvalidStateError, "invalid state, expected to be :running, was #{@state.inspect}" if @state != :running
         return false if @state == :paused
+        threads = @threadpool.slice!(0, @threadpool.length)
         @state = :paused
         @cond.broadcast   # wake threads, let them die
-        threads = @threadpool.slice!(0, @threadpool.length)
       ensure
         @mutex.unlock rescue nil
       end

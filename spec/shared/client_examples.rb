@@ -302,7 +302,9 @@ shared_examples_for 'client' do
         m.should_receive(:reopen).with(0).once
       end
 
-      bogus_event = flexmock(:expired_session_event, :session_event? => true, :client_invalid? => true, :state_name => 'ZOO_EXPIRED_SESSION_STATE')
+      props = { :session_event? => true, :client_invalid? => true, :state_name => 'ZOO_EXPIRED_SESSION_STATE', :state => Zookeeper::ZOO_EXPIRED_SESSION_STATE }
+
+      bogus_event = flexmock(:expired_session_event, props)
 
       @zk.raw_event_handler(bogus_event)
     end

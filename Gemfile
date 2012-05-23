@@ -28,10 +28,11 @@ platform :mri_19 do
 end
 
 group :development do
-  gem 'guard',        :require => false
-  gem 'guard-rspec',  :require => false
-  gem 'guard-shell',  :require => false
+  gem 'guard',          :require => false
+  gem 'guard-rspec',    :require => false
+  gem 'guard-shell',    :require => false
   gem 'guard-bundler',  :require => false
+  gem 'growl',          :require => false
 end
 
 group :test do

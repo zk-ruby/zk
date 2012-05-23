@@ -21,7 +21,7 @@ end
 Logging.logger['ZK::EventHandler'].level = :info
 
 Zookeeper.logger = Logging.logger['Zookeeper']
-Zookeeper.logger.level = :info
+Zookeeper.logger.level = :warn
 
 # Zookeeper.logger = ZK.logger.clone_new_log(:progname => 'zoo')
 
