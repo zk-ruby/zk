@@ -25,12 +25,8 @@ module ZK
       end
     end
 
-    # cache the logger at the instance level, as that's where most of the
-    # logging is done, this means that the user should set up the override
-    # of the ZK.logger early, before creating instances.
-    #
     def logger
-      @logger ||= (::ZK.logger || ::Logging.logger[self.class.logger_name]) # logger_name defined in ::Logging::Utils
+      self.class.logger
     end
   end
 end
