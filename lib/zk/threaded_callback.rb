@@ -124,6 +124,7 @@ module ZK
 
       def dispatch_thread_body
         Thread.current.abort_on_exception = true
+        Thread.current[:callback] = @callback
         while true
           args = nil
 
@@ -132,7 +133,7 @@ module ZK
             @cond.wait(@mutex) while @array.empty? and @state == :running
 
             if @state != :running
-#               logger.warn { "ThreadedCallback, state is #{@state.inspect}, returning" } 
+              logger.warn { "ThreadedCallback, state is #{@state.inspect}, returning" } 
               return 
             end
 
@@ -147,8 +148,9 @@ module ZK
             logger.error { e.to_std_format }
           end
         end
-#       ensure
-#         logger.debug { "#{self.class}##{__method__} returning" }
+      ensure
+        Thread.current[:callback] = nil
+        logger.debug { "##{__method__} returning" }
       end
   end
 end
