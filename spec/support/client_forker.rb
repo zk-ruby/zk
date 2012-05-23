@@ -12,6 +12,7 @@ class ClientForker
     @cnx_args  = cnx_args
     @base_path = base_path
     @pids_root = "#{@base_path}/pid"
+    @child_latch = Latch.new
   end
 
   LBORDER = ('-' * 35) << '< '
@@ -63,6 +64,13 @@ class ClientForker
     end
   end
 
+  def start_child_exit_thread(pid)
+    @child_exit_thread ||= Thread.new do
+      _, @stat = Process.wait2(pid)
+      @child_latch.release
+    end
+  end
+
   def run
     before
     mark 'BEGIN TEST'
@@ -102,7 +110,6 @@ class ClientForker
 
     @pid = fork do
       Thread.abort_on_exception = true
-      ::Logging.reopen
 
       @zk.wait_until_connected
 
@@ -169,6 +176,8 @@ class ClientForker
       end
     end # forked child
 
+    start_child_exit_thread(@pid)
+
     # replicates deletion watcher inside child
     child_pid_path = "#{@pids_root}/#{@pid}"
 
@@ -188,9 +197,10 @@ class ClientForker
 
     delete_latch.await if @zk.exists?(child_pid_path, :watch => true)
 
-    _, @stat = Process.wait2(@pid)
+    @child_latch.await(30) # if we don't get a response in 30 seconds, then we're *definately* hosed
+    
+    raise "Child did not exit after 30 seconds of waiting, something is very wrong" unless @stat 
 
-#     $stderr.puts "#{@pid} exited with status: #{stat.inspect}"
   ensure
     mark "END TEST"
     kill_child!

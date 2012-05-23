@@ -16,18 +16,21 @@ module ZK
     # @private
     def fire_prepare_hooks!
       @mutex.lock
+      logger.debug { "#{__method__}" }      
       safe_call(@hooks[:prepare])
     end
 
     # @private
     def fire_after_child_hooks!
       @mutex.unlock rescue nil
+      logger.debug { "#{__method__}" }      
       safe_call(@hooks[:after_child])
     end
 
     # @private
     def fire_after_parent_hooks!
       @mutex.unlock rescue nil
+      logger.debug { "#{__method__}" }      
       safe_call(@hooks[:after_parent])
     end
     

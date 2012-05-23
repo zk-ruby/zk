@@ -9,6 +9,9 @@ layout = Logging.layouts.pattern(
 
 appender = ENV['ZK_DEBUG'] ? Logging.appenders.stderr : Logging.appenders.file(ZK::TEST_LOG_PATH)
 appender.layout = layout
+#appender.immediate_at = "debug,info,warn,error,fatal"
+appender.auto_flushing = 25
+appender.flush_period = 5
 
 %w[ZK ClientForker spec Zookeeper].each do |name|
   ::Logging.logger[name].tap do |log|
@@ -21,7 +24,9 @@ end
 Logging.logger['ZK::EventHandler'].level = :info
 
 Zookeeper.logger = Logging.logger['Zookeeper']
-Zookeeper.logger.level = :warn
+Zookeeper.logger.level = ENV['ZOOKEEPER_DEBUG'] ? :debug : :warn
+
+ZK::ForkHook.after_fork_in_child { ::Logging.reopen }
 
 # Zookeeper.logger = ZK.logger.clone_new_log(:progname => 'zoo')
 

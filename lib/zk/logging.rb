@@ -14,9 +14,12 @@ module ZK
       ::Logging.logger['ZK'].tap do |ch_root|
         ::Logging.appenders.stderr.tap do |serr|
           serr.layout = ::Logging.layouts.pattern(
-            :pattern => '%.1l, [%d] %c30.30{2}:  %m\n',
+            :pattern => '%.1l, [%d #p] %c30.30{2}:  %m\n',
             :date_pattern => '%Y-%m-%d %H:%M:%S.%6N' 
           )
+
+          serr.auto_flushing = 25
+          serr.flush_period = 5
 
           ch_root.add_appenders(serr)
         end
