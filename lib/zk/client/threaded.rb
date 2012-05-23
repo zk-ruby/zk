@@ -43,11 +43,14 @@ module ZK
 
       DEFAULT_THREADPOOL_SIZE = 1
 
-      # we will never back off further than this amount when retrying an operation
-      MAX_RETRY_DELAY = 1.0
-
-      # used in calculating the backoff
-      DELAY_FACTOR = 0.02
+      # @private
+      module Constants
+        CLI_RUNNING   = :running
+        CLI_PAUSED    = :paused
+        CLI_CLOSE_REQ = :close_requested
+        CLI_CLOSED    = :closed
+      end
+      include Constants
 
       # Construct a new threaded client.
       #
@@ -146,9 +149,9 @@ module ZK
         @reconnect = opts.fetch(:reconnect, true)
 
         @mutex = Monitor.new
-        @cond  = @mutex.new_cond
+        @cond = @mutex.new_cond
 
-        @cli_state = :running # this is to distinguish between *our* state and the underlying connection state
+        @cli_state = CLI_RUNNING # this is to distinguish between *our* state and the underlying connection state
 
         # this is the last status update we've received from the underlying connection
         @last_cnx_state = Zookeeper::ZOO_CLOSED_STATE 
@@ -165,9 +168,7 @@ module ZK
 
         yield self if block_given?
 
-        @mutex.synchronize do
-          connect if opts.fetch(:connect, true)
-        end
+        connect if opts.fetch(:connect, true)
       end
 
       def self.finalizer(hooks)
@@ -178,11 +179,7 @@ module ZK
       #   to be established. If timeout is nil, we will wait forever: *use
       #   carefully*.
        def connect(opts={})
-        @mutex.synchronize do
-          return if @cnx
-          timeout = opts.fetch(:timeout, @connection_timeout)
-          @cnx = create_connection(@host, timeout, @event_handler.get_default_watcher_block)
-        end
+        @mutex.synchronize { unlocked_connect(opts) }
       end
 
       # (see Base#reopen)
@@ -195,9 +192,10 @@ module ZK
 
           logger.debug { "reopening everything, fork detected!" }
 
-          @mutex = Monitor.new
-          @pid = Process.pid
-          @cli_state = :running                     # reset state to running if we were paused
+          @mutex      = Mutex.new
+          @cond       = ConditionVariable.new
+          @pid        = Process.pid
+          @cli_state  = CLI_RUNNING                     # reset state to running if we were paused
 
           old_cnx, @cnx = @cnx, nil
           old_cnx.close! if old_cnx # && !old_cnx.closed?
@@ -212,11 +210,11 @@ module ZK
             @event_handler.reopen_after_fork!
             @threadpool.reopen_after_fork!          # prune dead threadpool threads after a fork()
 
-            connect
+            unlocked_connect
           end
         else
           @mutex.synchronize do
-            if @cli_state == :paused
+            if @cli_state == CLI_PAUSED
               # XXX: what to do in this case? does it matter?
             end
 
@@ -239,25 +237,26 @@ module ZK
       # @raise [InvalidStateError] when called and not in running? state
       def pause_before_fork_in_parent
         @mutex.synchronize do
-          raise InvalidStateError, "client must be running? when you call #{__method__}" unless running?
+          raise InvalidStateError, "client must be running? when you call #{__method__}" unless (@cli_state == CLI_RUNNING)
+          @cli_state = CLI_PAUSED
       
           logger.debug { "#{self.class}##{__method__}" }
           [@event_handler, @threadpool, @cnx].each(&:pause_before_fork_in_parent)
 
-          @cli_state = :paused
           @cond.broadcast
         end
       end
 
       def resume_after_fork_in_parent
         @mutex.synchronize do
-          raise InvalidStateError, "client must be paused? when you call #{__method__}" unless paused?
-          @cli_state = :running
+          raise InvalidStateError, "client must be paused? when you call #{__method__}" unless (@cli_state == CLI_PAUSED)
+          @cli_state = CLI_RUNNING
+
+          logger.debug { "#{self.class}##{__method__}" }
+          [@cnx, @event_handler, @threadpool].each(&:resume_after_fork_in_parent)
+
           @cond.broadcast
         end
-
-        logger.debug { "#{self.class}##{__method__}" }
-        [@cnx, @event_handler, @threadpool].each(&:resume_after_fork_in_parent)
       end
 
       # (see Base#close!)
@@ -272,7 +271,7 @@ module ZK
         @mutex.synchronize do 
           return if [:closed, :close_requested].include?(@cli_state)
           logger.debug { "moving to :close_requested state" }
-          @cli_state = :close_requested
+          @cli_state = CLI_CLOSE_REQ
           @cond.broadcast
         end
 
@@ -292,7 +291,7 @@ module ZK
 
           @mutex.synchronize do
             logger.debug { "moving to :closed state" }
-            @cli_state = :closed
+            @cli_state = CLI_CLOSED
             @cond.broadcast
           end
         end
@@ -341,23 +340,23 @@ module ZK
       end
 
       def closed?
-        return true if @mutex.synchronize { @cli_state == :closed }
+        return true if @mutex.synchronize { @cli_state == CLI_CLOSED }
         super
       end
 
       # are we in running (not-paused) state?
       def running?
-        @mutex.synchronize { @cli_state == :running }
+        @mutex.synchronize { @cli_state == CLI_RUNNING }
       end
 
       # are we in paused state?
       def paused?
-        @mutex.synchronize { @cli_state == :paused }
+        @mutex.synchronize { @cli_state == CLI_PAUSED }
       end
 
       # has shutdown time arrived?
       def close_requested?
-        @mutex.synchronize { @cli_state == :close_requested }
+        @mutex.synchronize { @cli_state == CLI_CLOSE_REQ }
       end
 
       protected
@@ -377,7 +376,7 @@ module ZK
 
               wait_until_connected_or_dying(retry_duration)
 
-              if (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) || (Time.now > time_to_stop) || (@cli_state != :running)
+              if (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) || (Time.now > time_to_stop) || (@cli_state != CLI_RUNNING)
                 raise e
               else
                 retry
@@ -392,7 +391,7 @@ module ZK
           time_to_stop = Time.now + timeout
 
           @mutex.synchronize do
-            while (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) && (Time.now < time_to_stop) && (@cli_state == :running)
+            while (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) && (Time.now < time_to_stop) && (@cli_state == CLI_RUNNING)
               @cond.wait(timeout)
             end
 
@@ -405,7 +404,14 @@ module ZK
         end
 
         def dead_or_dying?
-          (@cli_state == :close_requested) || (@cli_state == :closed)
+          (@cli_state == CLI_CLOSE_REQ) || (@cli_state == CLI_CLOSED)
+        end
+
+      private
+        def unlocked_connect(opts={})
+          return if @cnx
+          timeout = opts.fetch(:timeout, @connection_timeout)
+          @cnx = create_connection(@host, timeout, @event_handler.get_default_watcher_block)
         end
     end
   end
