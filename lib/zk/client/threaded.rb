@@ -93,6 +93,19 @@ module ZK
       #   that does something application specific, and you want to avoid a 
       #   conflict.
       #
+      # @option opts [Fixnum] :retry_duration (nil) for how long (in seconds)
+      #   should we wait to re-attempt a synchronous operation after we receive a
+      #   ZK::Exceptions::Retryable error. This exception (or really, group of
+      #   exceptions) is raised when there has been an unintentional network
+      #   connection or session loss, so retrying an operation in this situation
+      #   is like saying "If we are disconnected, How long should we wait for the
+      #   connection to become available before attempthing this operation?"
+      #
+      #   The default `nil` means automatic retry is not attempted.
+      #
+      #   This is a global option, and will be used for all operations on this
+      #   connection, however it can be overridden for any individual operation.
+      #
       # @option opts [:single,:per_callback] :thread (:single) choose your event
       #   delivery model:
       #
@@ -235,6 +248,7 @@ module ZK
       # before that deadline, or you will have to re-establish your session.
       #
       # @raise [InvalidStateError] when called and not in running? state
+      # @private
       def pause_before_fork_in_parent
         @mutex.synchronize do
           raise InvalidStateError, "client must be running? when you call #{__method__}" unless (@cli_state == CLI_RUNNING)
@@ -248,6 +262,7 @@ module ZK
         [@event_handler, @threadpool, @cnx].each(&:pause_before_fork_in_parent)
       end
 
+      # @private
       def resume_after_fork_in_parent
         @mutex.synchronize do
           raise InvalidStateError, "client must be paused? when you call #{__method__}" unless (@cli_state == CLI_PAUSED)

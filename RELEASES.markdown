@@ -1,5 +1,11 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.5.1 ###
+
+* Added a `:retry_duration` option to client constructor which will allows the user to specify for how long in the case of a connection loss, should an operation wait for the connection to be re-established before retrying the operation. This can be set at a global level and overridden on a per-call basis. The default is to not retry (which may change at a later date). Generally speaking, a timeout of > 30s is probably excessive, and care should be taken because during a connection loss, the server-side state may change without you being aware of it (i.e. events will not be delivered). 
+
+* Small fork-hook implementation fix. Previously we were using WeakRefs so that hooks would not prevent an object from being garbage collected. This has been replaced with a finalizer which is more deterministic.
+
 ### v1.5.0 ###
 
 Ok, now seriously this time. I think all of the forking issues are done. 
