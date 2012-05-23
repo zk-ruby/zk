@@ -432,7 +432,7 @@ shared_examples_for 'shared-exclusive interaction' do
       ex_th = Thread.new do
         begin
           @ex_lock.lock(true)  # blocking lock
-          Thread.current[:got_lock] = true
+          @ex_lock.assert!
           @array << :ex_lock
         ensure
           @ex_lock.unlock
@@ -455,7 +455,7 @@ shared_examples_for 'shared-exclusive interaction' do
       sh2_th = Thread.new do
         begin
           @sh_lock2.lock(true)
-          Thread.current[:got_lock] = true
+          @sh_lock2.assert!
           @array << :sh_lock2
         ensure
           @sh_lock2.unlock
@@ -474,10 +474,7 @@ shared_examples_for 'shared-exclusive interaction' do
       @sh_lock.unlock.should be_true
 
       ex_th.join(5).should == ex_th
-      ex_th[:got_lock].should be_true
-
       sh2_th.join(5).should == sh2_th
-      sh2_th[:got_lock].should be_true
 
       @array.length.should == 2
       @array.should == [:ex_lock, :sh_lock2]
