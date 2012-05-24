@@ -1,5 +1,13 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.5.2 ###
+
+* Fix locker cleanup code to avoid a nasty race when a session is lost, see [issue #34](https://github.com/slyphon/zk/issues/34)
+
+* Fix potential deadlock in ForkHook code so the mutex is unlocked in the case of an exception
+
+* Do not hang forever when shutting down and the shutdown thread does not exit (wait 30 seconds).
+
 ### v1.5.1 ###
 
 * Added a `:retry_duration` option to client constructor which will allows the user to specify for how long in the case of a connection loss, should an operation wait for the connection to be re-established before retrying the operation. This can be set at a global level and overridden on a per-call basis. The default is to not retry (which may change at a later date). Generally speaking, a timeout of > 30s is probably excessive, and care should be taken because during a connection loss, the server-side state may change without you being aware of it (i.e. events will not be delivered). 
