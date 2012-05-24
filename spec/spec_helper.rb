@@ -110,8 +110,10 @@ class ::Thread
 end
 
 if RUBY_VERSION == '1.9.3'
+  Thread.current[:name] = 'main'
+
   trap('USR1') do
-    threads = Thread.list.map { |th| { :inspect => th.inspect, :calback => th[:callback], :backtrace => th.backtrace } }
+    threads = Thread.list.map { |th| { :inspect => th.inspect, :name => th[:name], :calback => th[:callback], :backtrace => th.backtrace } }
     pp threads
   end
 end

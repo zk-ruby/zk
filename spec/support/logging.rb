@@ -3,7 +3,7 @@ module ZK
 
   def self.logging_gem_setup
     layout = ::Logging.layouts.pattern(
-      :pattern => '%.1l, [%d #%p] %30.30c{2}:  %m\n',
+      :pattern => '%.1l, [%d #%p] (%9.9T) %30.30c{2}:  %m\n',
       :date_pattern => '%Y-%m-%d %H:%M:%S.%6N'
     )
 

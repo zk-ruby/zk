@@ -24,16 +24,11 @@ shared_context 'threaded client connection' do
 #     raise @threadpool_exception if @threadpool_exception
 #     logger.debug { "threaded client connection - after hook" }
 
-    if @zk.closed?
-      logger.debug { "zk was closed, calling reopen" }
-      @zk.reopen 
-    end
+    @zk.close! if @zk and not @zk.closed?
 
-    wait_until(5) { @zk.connected? }
-    
-    @zk.rm_rf(@base_path)
-    @zk.close!
-    wait_until(5) { @zk.closed? }
+    ZK.open(*connection_args) do |z|
+      z.rm_rf(@base_path)
+    end
 
 #     logger.debug { "threaded client connection - end after hook" }
   end

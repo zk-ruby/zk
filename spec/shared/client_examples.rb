@@ -298,15 +298,20 @@ shared_examples_for 'client' do
 
   describe 'reconnection' do
     it %[should if it receives a client_invalid? event] do
-      flexmock(@zk) do |m|
-        m.should_receive(:reopen).with(0).once
-      end
+      logger.debug { "about to cause the reconnection" }
 
       props = { :session_event? => true, :client_invalid? => true, :state_name => 'ZOO_EXPIRED_SESSION_STATE', :state => Zookeeper::ZOO_EXPIRED_SESSION_STATE }
 
       bogus_event = flexmock(:expired_session_event, props)
 
-      @zk.raw_event_handler(bogus_event)
+      th = Thread.new do
+        @zk.raw_event_handler(bogus_event)
+      end
+
+      @zk.wait_until_connected_or_dying(5)
+      @zk.should be_connected
+
+      th.join(2).should == th
     end
   end # reconnection
 

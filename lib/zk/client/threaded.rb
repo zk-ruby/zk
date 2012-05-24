@@ -44,6 +44,9 @@ module ZK
       DEFAULT_THREADPOOL_SIZE = 1
 
       # @private
+      attr_accessor :reconnect
+
+      # @private
       module Constants
         CLI_RUNNING   = :running
         CLI_PAUSED    = :paused
@@ -161,13 +164,12 @@ module ZK
 
         @reconnect = opts.fetch(:reconnect, true)
 
-        @mutex = Monitor.new
-        @cond = @mutex.new_cond
+        setup_locks
 
         @cli_state = CLI_RUNNING # this is to distinguish between *our* state and the underlying connection state
 
         # this is the last status update we've received from the underlying connection
-        @last_cnx_state = Zookeeper::ZOO_CLOSED_STATE 
+        @last_cnx_state = nil
 
         @retry_duration = opts.fetch(:retry_duration, nil).to_i
 
@@ -183,6 +185,17 @@ module ZK
 
         connect if opts.fetch(:connect, true)
       end
+
+      private 
+        # ensure that the initializer and the reopen code set up the mutexes
+        # the same way (i.e. use a Monitor or a Mutex, no, really, I screwed 
+        # this up once) 
+        def setup_locks
+          @mutex = Monitor.new
+          @cond = @mutex.new_cond
+        end
+
+      public
 
       # @private
       def self.finalizer(hooks)
@@ -206,13 +219,17 @@ module ZK
 
           logger.debug { "reopening everything, fork detected!" }
 
-          @mutex      = Mutex.new
-          @cond       = ConditionVariable.new
+          setup_locks
+
           @pid        = Process.pid
           @cli_state  = CLI_RUNNING                     # reset state to running if we were paused
 
           old_cnx, @cnx = @cnx, nil
           old_cnx.close! if old_cnx # && !old_cnx.closed?
+
+          join_and_clear_reconnect_thread
+
+          @last_cnx_state = nil
 
           @mutex.synchronize do
             # it's important that we're holding the lock, as access to 'cnx' is
@@ -224,6 +241,7 @@ module ZK
             @event_handler.reopen_after_fork!
             @threadpool.reopen_after_fork!          # prune dead threadpool threads after a fork()
 
+            spawn_reconnect_thread
             unlocked_connect
           end
         else
@@ -233,6 +251,7 @@ module ZK
             end
 
             logger.debug { "reopening, no fork detected" }
+            @last_cnx_state = nil
             @cnx.reopen(timeout)                # ok, we werent' forked, so just reopen
           end
         end
@@ -260,6 +279,8 @@ module ZK
           @cond.broadcast
         end
 
+        join_and_clear_reconnect_thread
+
         # the compact is here because the @cnx *may* be nil when this callback is fired by the
         # ForkHook (in the case of ZK.open). The race is between the GC calling the finalizer
         [@event_handler, @threadpool, @cnx].compact.each(&:pause_before_fork_in_parent)
@@ -274,6 +295,8 @@ module ZK
           @cli_state = CLI_RUNNING
 
           logger.debug { "#{self.class}##{__method__}" }
+
+          spawn_reconnect_thread
 
           [@cnx, @event_handler, @threadpool].compact.each(&:resume_after_fork_in_parent)
 
@@ -297,6 +320,8 @@ module ZK
           @cond.broadcast
         end
 
+        join_and_clear_reconnect_thread
+
         on_tpool = on_threadpool?
 
         # Ok, so the threadpool will wait up to N seconds while joining each thread.
@@ -308,6 +333,7 @@ module ZK
         # and wait for it to exit
         #
         shutdown_thread = Thread.new do
+          Thread.current[:name] = 'shutdown'
           @threadpool.shutdown(10)
 
           # this will call #close
@@ -316,6 +342,7 @@ module ZK
           @mutex.synchronize do
             logger.debug { "moving to :closed state" }
             @cli_state = CLI_CLOSED
+            @last_cnx_state = nil
             @cond.broadcast
           end
         end
@@ -348,15 +375,6 @@ module ZK
         @mutex.synchronize do
           @last_cnx_state = event.state
 
-          if event.client_invalid? and @reconnect and not dead_or_dying?
-            logger.error { "Got event #{event.state_name}, calling reopen(0)! things may be messed up until this works itself out!" }
-
-            # reopen(0) means that we don't want to wait for the connection
-            # to reach the connected state before returning as we're on the
-            # event thread.
-            reopen(0)
-          end
-
           @cond.broadcast # wake anyone waiting for a connection state update
         end
       rescue Exception => e
@@ -369,18 +387,34 @@ module ZK
       end
 
       # are we in running (not-paused) state?
+      # @private
       def running?
         @mutex.synchronize { @cli_state == CLI_RUNNING }
       end
 
       # are we in paused state?
+      # @private
       def paused?
         @mutex.synchronize { @cli_state == CLI_PAUSED }
       end
 
       # has shutdown time arrived?
+      # @private
       def close_requested?
         @mutex.synchronize { @cli_state == CLI_CLOSE_REQ }
+      end
+
+      # @private
+      def wait_until_connected_or_dying(timeout)
+        time_to_stop = Time.now + timeout
+
+        @mutex.synchronize do
+          while (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) && (Time.now < time_to_stop) && (@cli_state == CLI_RUNNING)
+            @cond.wait(timeout)
+          end
+
+          logger.debug { "@last_cnx_state: #{@last_cnx_state.inspect}, time_left? #{Time.now.to_f < time_to_stop.to_f}, @cli_state: #{@cli_state.inspect}" }
+        end
       end
 
       protected
@@ -389,6 +423,62 @@ module ZK
         # of reopening it
         def cnx
           @mutex.synchronize { @cnx }
+        end
+
+        def reconnect_thread_body
+          Thread.current[:name] = 'reconnect'
+          while @reconnect  # too clever?
+            @mutex.synchronize do
+              # either we havne't seen a valid session update from this
+              # connection yet, or we're doing fine, so just wait
+              @cond.wait_while { !seen_session_state_event? or (valid_session_state? and (@cli_state == CLI_RUNNING)) }
+
+              # we've entered into a non-running state, so we exit
+              # note: need to restart this thread after a fork in parent
+              if @cli_state != CLI_RUNNING
+                logger.debug { "session failure watcher thread exiting, @cli_state: #{@cli_state}" }
+                return
+              end
+
+              unless seen_session_state_event?
+                logger.debug "Wat!?" 
+              end
+
+              # if we know that this session was valid once and it has now
+              # become invalid we call reopen
+              #
+              if seen_session_state_event? and not valid_session_state?
+                logger.debug { "session state was invalid, calling reopen" }
+
+                # reopen will reset @last_cnx_state so that
+                # seen_session_state_event? will return false until the first
+                # event has been delivered on the new connection
+                rv = reopen()
+
+                logger.debug { "reopen returned: #{rv.inspect}" }
+              end
+            end
+          end
+        ensure
+          logger.debug { "reconnect thread exiting" }
+        end
+
+        def join_and_clear_reconnect_thread
+          return unless @reconnect_thread
+          begin
+             # this should never time out but, just to make sure we don't hang forever
+            unless @reconnect_thread.join(30)
+              logger.error { "timed out waiting for reconnect thread to join! something is hosed!" }
+            end
+          rescue Exception => e
+            logger.error { "caught exception joining reconnect thread" }
+            logger.error { e.to_std_format }
+          end
+          @reconnect_thread = nil
+        end
+
+        def spawn_reconnect_thread
+          @reconnect_thread ||= Thread.new(&method(:reconnect_thread_body))
         end
 
         def call_and_check_rc(meth, opts)
@@ -411,16 +501,20 @@ module ZK
           end
         end
 
-        def wait_until_connected_or_dying(timeout)
-          time_to_stop = Time.now + timeout
+        # have we gotten a status event for the current connection?
+        # this method is not synchronized
+        def seen_session_state_event?
+          !!@last_cnx_state
+        end
 
-          @mutex.synchronize do
-            while (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) && (Time.now < time_to_stop) && (@cli_state == CLI_RUNNING)
-              @cond.wait(timeout)
-            end
-
-            logger.debug { "@last_cnx_state: #{@last_cnx_state}, time_left? #{Time.now.to_f < time_to_stop.to_f}, @cli_state: #{@cli_state.inspect}" }
-          end
+        # we've seen a session state from the cnx, and it was not "omg we're screwed"
+        # will return false if we havne't gotten a session event yet
+        #
+        # this method is not synchronized
+        def valid_session_state?
+          # this is kind of icky, but the SESSION_INVALID and AUTH_FAILED states
+          # are both negative numbers
+          @last_cnx_state and (@last_cnx_state >= 0)
         end
 
         def create_connection(*args)
@@ -436,6 +530,7 @@ module ZK
           return if @cnx
           timeout = opts.fetch(:timeout, @connection_timeout)
           @cnx = create_connection(@host, timeout, @event_handler.get_default_watcher_block)
+          spawn_reconnect_thread
         end
     end
   end
