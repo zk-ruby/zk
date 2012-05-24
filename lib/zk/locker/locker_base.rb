@@ -230,7 +230,7 @@ module ZK
         end
       end
 
-      protected 
+      private
         def synchronize
           @mutex.synchronize { yield }
         end

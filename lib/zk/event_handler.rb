@@ -196,7 +196,6 @@ module ZK
       end
 
     public
-
     # used during shutdown to clear registered listeners
     # @private
     def clear! #:nodoc:
@@ -303,13 +302,11 @@ module ZK
       end
     end
 
-    protected
-      # @private
+    private
       def watcher_callback
         Zookeeper::Callbacks::WatcherCallback.create { |event| process(event) }
       end
 
-      # @private
       def state_key(arg)
         int = 
           case arg
@@ -326,7 +323,6 @@ module ZK
         raise ArgumentError, "#{arg} is not a valid zookeeper state", caller
       end
 
-      # @private
       def safe_call(callbacks, *args)
         callbacks.each do |cb|
           next unless cb.respond_to?(:call)

@@ -185,17 +185,15 @@ module ZK
 
         connect if opts.fetch(:connect, true)
       end
-
-      private 
-        # ensure that the initializer and the reopen code set up the mutexes
-        # the same way (i.e. use a Monitor or a Mutex, no, really, I screwed 
-        # this up once) 
-        def setup_locks
-          @mutex = Monitor.new
-          @cond = @mutex.new_cond
-        end
-
-      public
+      
+      # ensure that the initializer and the reopen code set up the mutexes
+      # the same way (i.e. use a Monitor or a Mutex, no, really, I screwed 
+      # this up once) 
+      def setup_locks
+        @mutex = Monitor.new
+        @cond = @mutex.new_cond
+      end
+      private :setup_locks
 
       # @private
       def self.finalizer(hooks)
@@ -417,7 +415,7 @@ module ZK
         end
       end
 
-      protected
+      private
         # in the threaded version of the client, synchronize access around cnx
         # so that callers don't wind up with a nil object when we're in the middle
         # of reopening it
@@ -525,7 +523,6 @@ module ZK
           (@client_state == CLOSE_REQ) || (@client_state == CLOSED)
         end
 
-      private
         def unlocked_connect(opts={})
           return if @cnx
           timeout = opts.fetch(:timeout, @connection_timeout)

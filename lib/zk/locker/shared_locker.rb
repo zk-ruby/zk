@@ -92,7 +92,7 @@ module ZK
       end
       alias got_lock? got_read_lock?
 
-      protected
+      private
         # TODO: make this generic, can either block or non-block
         def block_until_read_lock!
           begin

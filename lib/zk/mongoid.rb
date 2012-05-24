@@ -118,6 +118,7 @@ module ZK
           Thread.current.zk_mongoid_lock_registry ||= { :shared => Set.new, :exclusive => Set.new }
         end
 
+      private
         def zk_add_path_lock(opts={})
           mode, name = opts.values_at(:mode, :name)
 

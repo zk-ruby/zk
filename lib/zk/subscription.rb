@@ -54,7 +54,7 @@ module ZK
         @mutex = Monitor.new
       end
 
-      protected
+      private
         def synchronize
           @mutex.synchronize { yield }
         end

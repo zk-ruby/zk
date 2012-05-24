@@ -116,7 +116,7 @@ module ZK
       end
     end
 
-    protected
+    private
       # intentionally *not* synchronized
       def spawn_dispatch_thread
         @thread = Thread.new(&method(:dispatch_thread_body))

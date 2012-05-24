@@ -52,7 +52,7 @@ module ZK
       def resume_after_fork_in_parent
       end
 
-      protected
+      private
         def prep_interests(a)
 #           logger.debug { "prep_interests: #{a.inspect}" }
           return ALL_EVENT_SET if a.nil?

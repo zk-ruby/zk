@@ -140,7 +140,7 @@ module ZK
         @state
       end
 
-      protected
+      private
         def synchronize
           @mutex.synchronize { yield }
         end
@@ -255,7 +255,7 @@ module ZK
         @mutex.synchronize { @connections.size < @max_clients }
       end
 
-      protected
+      private
         def populate_pool!(num_cnx)
           num_cnx.times { add_connection! }
         end

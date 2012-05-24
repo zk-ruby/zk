@@ -53,7 +53,7 @@ module ZK
         true
       end
 
-      protected
+      private
         # the node that is next-lowest in sequence number to ours, the one we
         # watch for updates to
         def next_lowest_node

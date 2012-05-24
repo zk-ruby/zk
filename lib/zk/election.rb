@@ -150,7 +150,7 @@ module ZK
         end
       end
 
-      protected
+      private
         def create_root_path!
           @zk.mkdir_p(root_vote_path)
         end
@@ -244,7 +244,7 @@ module ZK
         end
       end
 
-      protected
+      private
         # the inauguration, as it were
         def acknowledge_win!
           @zk.create(leader_ack_path, @data, :ephemeral => true) 
@@ -411,7 +411,7 @@ module ZK
         end
       end
 
-      protected
+      private
         def the_king_is_dead
           synchronize do
             safe_call(*@leader_death_cbs)

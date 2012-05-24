@@ -78,7 +78,7 @@ module ZK
         watcher.register_state_handler(:expired_session, &block)
       end
 
-      protected
+      private
         def wrap_state_closed_error
           yield
         rescue RuntimeError => e
