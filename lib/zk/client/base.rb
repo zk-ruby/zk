@@ -51,7 +51,7 @@ module ZK
       # the wrapped connection object
       # @private 
       attr_reader :cnx
-      protected :cnx
+      private :cnx
 
       # maps from a symbol given as an option, to the numeric error constant that should
       # not raise an exception
@@ -1020,7 +1020,7 @@ module ZK
       def raw_event_handler(event)
       end
 
-      protected
+      private
         # does the current pid match the one that created us?
         def forked?
           Process.pid != @pid
@@ -1038,7 +1038,6 @@ module ZK
           check_rc(rv, opts)
         end
 
-        # @private
         # XXX: make this actually call the method on cnx
         def check_rc(rv_hash, inputs)
           code  = rv_hash[:rc]
@@ -1078,7 +1077,6 @@ module ZK
           Set.new(ERROR_IGNORE_MAP.values_at(*sym_array))
         end
 
-        # @private
         def setup_watcher!(watch_type, opts, &b)
           event_handler.setup_watcher!(watch_type, opts, &b)
         end
