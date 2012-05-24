@@ -17,13 +17,13 @@ guard 'rspec', :version => 2 do
 
   watch(%r{^lib/(.+)\.rb$}) do |m| 
     case m[1]
-    when %r{^zk/event_handler$}
+    when 'zk/event_handler'
       "spec/zk/watch_spec.rb"
-    when %r{^zk/client/threaded.rb$}
+    when 'zk/client/threaded'
       ["spec/zk/client_spec.rb", "spec/zk/zookeeper_spec.rb"]
-    when %r{^zk/locker/}
-      "spec/zk/locker_spec.rb"
-    when %r{^zk\.rb$}
+    when 'zk/locker/locker_base'
+      Dir["spec/zk/locker/*.spec"]
+    when 'zk' # .rb
       'spec'  # run all tests
     else
       "spec/#{m[1]}_spec.rb"

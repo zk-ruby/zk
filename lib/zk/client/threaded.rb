@@ -184,6 +184,7 @@ module ZK
         connect if opts.fetch(:connect, true)
       end
 
+      # @private
       def self.finalizer(hooks)
         proc { hooks.each(&:unregister) }
       end

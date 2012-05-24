@@ -33,6 +33,10 @@ group :development do
   gem 'guard-shell',    :require => false
   gem 'guard-bundler',  :require => false
   gem 'growl',          :require => false
+
+  if RUBY_PLATFORM =~ /darwin/i
+    gem 'rb-readline', :platform => :ruby
+  end
 end
 
 group :test do
