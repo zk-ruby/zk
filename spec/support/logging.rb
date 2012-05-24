@@ -1,35 +1,49 @@
 module ZK
   TEST_LOG_PATH = File.join(ZK::ZK_ROOT, 'test.log')
-end
 
-layout = Logging.layouts.pattern(
-  :pattern => '%.1l, [%d #%p] %30.30c{2}:  %m\n',
-  :date_pattern => '%Y-%m-%d %H:%M:%S.%6N' 
-)
+  def self.logging_gem_setup
+    layout = ::Logging.layouts.pattern(
+      :pattern => '%.1l, [%d #%p] %30.30c{2}:  %m\n',
+      :date_pattern => '%Y-%m-%d %H:%M:%S.%6N'
+    )
 
-appender = ENV['ZK_DEBUG'] ? Logging.appenders.stderr : Logging.appenders.file(ZK::TEST_LOG_PATH)
-appender.layout = layout
-#appender.immediate_at = "debug,info,warn,error,fatal"
-appender.auto_flushing = 25
-appender.flush_period = 5
 
-%w[ZK ClientForker spec Zookeeper].each do |name|
-  ::Logging.logger[name].tap do |log|
-    log.appenders = [appender]
-    log.level = :debug
+    appender = ENV['ZK_DEBUG'] ? ::Logging.appenders.stderr : ::Logging.appenders.file(ZK::TEST_LOG_PATH)
+    appender.layout = layout
+    appender.immediate_at = "debug,info,warn,error,fatal"
+#     appender.auto_flushing = true
+    appender.auto_flushing = 25
+    appender.flush_period = 5
+
+    %w[ZK ClientForker spec Zookeeper].each do |name|
+      ::Logging.logger[name].tap do |log|
+        log.appenders = [appender]
+        log.level = :debug
+      end
+    end
+
+    # this logger is kinda noisy
+    ::Logging.logger['ZK::EventHandler'].level = :info
+
+    Zookeeper.logger = ::Logging.logger['Zookeeper']
+    Zookeeper.logger.level = ENV['ZOOKEEPER_DEBUG'] ? :debug : :warn
+
+    ZK::ForkHook.after_fork_in_child { ::Logging.reopen }
+  end
+
+
+  def self.stdlib_logger_setup
+    require 'logger'
+    log = ::Logger.new($stderr).tap {|l| l.level = ::Logger::DEBUG }
+    ZK.logger = log
+    Zookeeper.logger = log
   end
 end
 
-# this logger is kinda noisy
-Logging.logger['ZK::EventHandler'].level = :info
-
-Zookeeper.logger = Logging.logger['Zookeeper']
-Zookeeper.logger.level = ENV['ZOOKEEPER_DEBUG'] ? :debug : :warn
-
-ZK::ForkHook.after_fork_in_child { ::Logging.reopen }
+ZK.logging_gem_setup
+# ZK.stdlib_logger_setup
 
 # Zookeeper.logger = ZK.logger.clone_new_log(:progname => 'zoo')
-
 # Zookeeper.logger = ZK.logger
 # Zookeeper.set_debug_level(4)
 

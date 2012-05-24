@@ -171,6 +171,8 @@ module ZK
 
         @retry_duration = opts.fetch(:retry_duration, nil).to_i
 
+        yield self if block_given?
+
         @fork_subs = [
           ForkHook.prepare_for_fork(method(:pause_before_fork_in_parent)),
           ForkHook.after_fork_in_parent(method(:resume_after_fork_in_parent)),
@@ -178,8 +180,6 @@ module ZK
         ]
 
         ObjectSpace.define_finalizer(self, self.class.finalizer(@fork_subs))
-
-        yield self if block_given?
 
         connect if opts.fetch(:connect, true)
       end
@@ -260,7 +260,11 @@ module ZK
           @cond.broadcast
         end
 
-        [@event_handler, @threadpool, @cnx].each(&:pause_before_fork_in_parent)
+        # the compact is here because the @cnx *may* be nil when this callback is fired by the
+        # ForkHook (in the case of ZK.open). The race is between the GC calling the finalizer
+        [@event_handler, @threadpool, @cnx].compact.each(&:pause_before_fork_in_parent)
+      ensure
+        logger.debug { "#{self.class}##{__method__} returning" }
       end
 
       # @private
@@ -271,7 +275,7 @@ module ZK
 
           logger.debug { "#{self.class}##{__method__}" }
 
-          [@cnx, @event_handler, @threadpool].each(&:resume_after_fork_in_parent)
+          [@cnx, @event_handler, @threadpool].compact.each(&:resume_after_fork_in_parent)
 
           @cond.broadcast
         end
@@ -305,6 +309,8 @@ module ZK
         #
         shutdown_thread = Thread.new do
           @threadpool.shutdown(10)
+
+          # this will call #close
           super
 
           @mutex.synchronize do
@@ -314,7 +320,7 @@ module ZK
           end
         end
 
-        on_tpool ? shutdown_thread : shutdown_thread.join 
+        on_tpool ? shutdown_thread : shutdown_thread.join(30)
       end
 
       # {see Base#close}

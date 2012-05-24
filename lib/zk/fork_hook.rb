@@ -18,6 +18,9 @@ module ZK
       @mutex.lock
       logger.debug { "#{__method__}" }      
       safe_call(@hooks[:prepare])
+    rescue Exception => e
+      @mutex.unlock rescue nil    # if something goes wrong in a hook, then release the lock
+      raise e
     end
 
     # @private

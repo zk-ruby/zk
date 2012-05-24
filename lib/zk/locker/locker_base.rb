@@ -302,14 +302,21 @@ module ZK
           end
         end
 
+        # we make a best-effort to clean up, this case is rife with race
+        # conditions if there is a lot of contention for the locks, so if we
+        # can't remove a path or if that path happens to not be empty we figure
+        # either we got pwned or that someone else will run this same method
+        # later and get to it
+        #
         def cleanup_lock_path!
           rval = false
 
           synchronize do
             if root_lock_path_same?
               logger.debug { "removing lock path #{@lock_path}" }
+
               zk.delete(@lock_path, :ignore => :no_node)
-              zk.delete(root_lock_path, :ignore => :not_empty) 
+              zk.delete(root_lock_path, :ignore => [:not_empty, :no_node])
               rval = true
             end
 
