@@ -48,10 +48,10 @@ module ZK
 
       # @private
       module Constants
-        CLI_RUNNING   = :running
-        CLI_PAUSED    = :paused
-        CLI_CLOSE_REQ = :close_requested
-        CLI_CLOSED    = :closed
+        RUNNING   = :running
+        PAUSED    = :paused
+        CLOSE_REQ = :close_requested
+        CLOSED    = :closed
       end
       include Constants
 
@@ -166,7 +166,7 @@ module ZK
 
         setup_locks
 
-        @cli_state = CLI_RUNNING # this is to distinguish between *our* state and the underlying connection state
+        @client_state = RUNNING # this is to distinguish between *our* state and the underlying connection state
 
         # this is the last status update we've received from the underlying connection
         @last_cnx_state = nil
@@ -222,7 +222,7 @@ module ZK
           setup_locks
 
           @pid        = Process.pid
-          @cli_state  = CLI_RUNNING                     # reset state to running if we were paused
+          @client_state  = RUNNING                     # reset state to running if we were paused
 
           old_cnx, @cnx = @cnx, nil
           old_cnx.close! if old_cnx # && !old_cnx.closed?
@@ -246,7 +246,7 @@ module ZK
           end
         else
           @mutex.synchronize do
-            if @cli_state == CLI_PAUSED
+            if @client_state == PAUSED
               # XXX: what to do in this case? does it matter?
             end
 
@@ -271,8 +271,8 @@ module ZK
       # @private
       def pause_before_fork_in_parent
         @mutex.synchronize do
-          raise InvalidStateError, "client must be running? when you call #{__method__}" unless (@cli_state == CLI_RUNNING)
-          @cli_state = CLI_PAUSED
+          raise InvalidStateError, "client must be running? when you call #{__method__}" unless (@client_state == RUNNING)
+          @client_state = PAUSED
       
           logger.debug { "#{self.class}##{__method__}" }
 
@@ -291,8 +291,8 @@ module ZK
       # @private
       def resume_after_fork_in_parent
         @mutex.synchronize do
-          raise InvalidStateError, "client must be paused? when you call #{__method__}" unless (@cli_state == CLI_PAUSED)
-          @cli_state = CLI_RUNNING
+          raise InvalidStateError, "client must be paused? when you call #{__method__}" unless (@client_state == PAUSED)
+          @client_state = RUNNING
 
           logger.debug { "#{self.class}##{__method__}" }
 
@@ -314,9 +314,9 @@ module ZK
       #
       def close!
         @mutex.synchronize do 
-          return if [:closed, :close_requested].include?(@cli_state)
+          return if [:closed, :close_requested].include?(@client_state)
           logger.debug { "moving to :close_requested state" }
-          @cli_state = CLI_CLOSE_REQ
+          @client_state = CLOSE_REQ
           @cond.broadcast
         end
 
@@ -341,7 +341,7 @@ module ZK
 
           @mutex.synchronize do
             logger.debug { "moving to :closed state" }
-            @cli_state = CLI_CLOSED
+            @client_state = CLOSED
             @last_cnx_state = nil
             @cond.broadcast
           end
@@ -382,26 +382,26 @@ module ZK
       end
 
       def closed?
-        return true if @mutex.synchronize { @cli_state == CLI_CLOSED }
+        return true if @mutex.synchronize { @client_state == CLOSED }
         super
       end
 
       # are we in running (not-paused) state?
       # @private
       def running?
-        @mutex.synchronize { @cli_state == CLI_RUNNING }
+        @mutex.synchronize { @client_state == RUNNING }
       end
 
       # are we in paused state?
       # @private
       def paused?
-        @mutex.synchronize { @cli_state == CLI_PAUSED }
+        @mutex.synchronize { @client_state == PAUSED }
       end
 
       # has shutdown time arrived?
       # @private
       def close_requested?
-        @mutex.synchronize { @cli_state == CLI_CLOSE_REQ }
+        @mutex.synchronize { @client_state == CLOSE_REQ }
       end
 
       # @private
@@ -409,11 +409,11 @@ module ZK
         time_to_stop = Time.now + timeout
 
         @mutex.synchronize do
-          while (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) && (Time.now < time_to_stop) && (@cli_state == CLI_RUNNING)
+          while (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) && (Time.now < time_to_stop) && (@client_state == RUNNING)
             @cond.wait(timeout)
           end
 
-          logger.debug { "@last_cnx_state: #{@last_cnx_state.inspect}, time_left? #{Time.now.to_f < time_to_stop.to_f}, @cli_state: #{@cli_state.inspect}" }
+          logger.debug { "@last_cnx_state: #{@last_cnx_state.inspect}, time_left? #{Time.now.to_f < time_to_stop.to_f}, @client_state: #{@client_state.inspect}" }
         end
       end
 
@@ -431,12 +431,12 @@ module ZK
             @mutex.synchronize do
               # either we havne't seen a valid session update from this
               # connection yet, or we're doing fine, so just wait
-              @cond.wait_while { !seen_session_state_event? or (valid_session_state? and (@cli_state == CLI_RUNNING)) }
+              @cond.wait_while { !seen_session_state_event? or (valid_session_state? and (@client_state == RUNNING)) }
 
               # we've entered into a non-running state, so we exit
               # note: need to restart this thread after a fork in parent
-              if @cli_state != CLI_RUNNING
-                logger.debug { "session failure watcher thread exiting, @cli_state: #{@cli_state}" }
+              if @client_state != RUNNING
+                logger.debug { "session failure watcher thread exiting, @client_state: #{@client_state}" }
                 return
               end
 
@@ -490,7 +490,7 @@ module ZK
 
               wait_until_connected_or_dying(retry_duration)
 
-              if (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) || (Time.now > time_to_stop) || (@cli_state != CLI_RUNNING)
+              if (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) || (Time.now > time_to_stop) || (@client_state != RUNNING)
                 raise e
               else
                 retry
@@ -522,7 +522,7 @@ module ZK
         end
 
         def dead_or_dying?
-          (@cli_state == CLI_CLOSE_REQ) || (@cli_state == CLI_CLOSED)
+          (@client_state == CLOSE_REQ) || (@client_state == CLOSED)
         end
 
       private

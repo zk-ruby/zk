@@ -3,14 +3,13 @@ module ZK
 
   def self.logging_gem_setup
     layout = ::Logging.layouts.pattern(
-      :pattern => '%.1l, [%d #%p] (%9.9T) %30.30c{2}:  %m\n',
-      :date_pattern => '%Y-%m-%d %H:%M:%S.%6N'
+      :pattern => '%.1l, [%d #%p] (%9.9T) %25.25c{2}:  %m\n',
+      :date_pattern => '%H:%M:%S.%6N'
     )
-
 
     appender = ENV['ZK_DEBUG'] ? ::Logging.appenders.stderr : ::Logging.appenders.file(ZK::TEST_LOG_PATH)
     appender.layout = layout
-    appender.immediate_at = "debug,info,warn,error,fatal"
+#     appender.immediate_at = "debug,info,warn,error,fatal"
 #     appender.auto_flushing = true
     appender.auto_flushing = 25
     appender.flush_period = 5
