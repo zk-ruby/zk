@@ -44,9 +44,6 @@ module ZK
       DEFAULT_THREADPOOL_SIZE = 1
 
       # @private
-      attr_accessor :reconnect
-
-      # @private
       module Constants
         RUNNING   = :running
         PAUSED    = :paused
@@ -282,7 +279,7 @@ module ZK
         # ForkHook (in the case of ZK.open). The race is between the GC calling the finalizer
         [@event_handler, @threadpool, @cnx].compact.each(&:pause_before_fork_in_parent)
       ensure
-        logger.debug { "#{self.class}##{__method__} returning" }
+        logger.debug { "##{__method__} returning" }
       end
 
       # @private
@@ -291,7 +288,7 @@ module ZK
           raise InvalidStateError, "client must be paused? when you call #{__method__}" unless (@client_state == PAUSED)
           @client_state = RUNNING
 
-          logger.debug { "#{self.class}##{__method__}" }
+          logger.debug { "##{__method__}" }
 
           if @cnx
             @cnx.resume_after_fork_in_parent
