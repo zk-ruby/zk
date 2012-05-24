@@ -48,11 +48,14 @@ module ZK
       def initialize(client, name, root_lock_node=nil) 
         @zk = client
         @root_lock_node = root_lock_node || Locker.default_root_lock_node
-        @path = name
-        @locked = false
-        @waiting = false
-        @lock_path = nil
+
+        @path           = name
+        @locked         = false
+        @waiting        = false
+        @lock_path      = nil
+        @parent_stat    = nil
         @root_lock_path = "#{@root_lock_node}/#{@path.gsub("/", "__")}"
+
         @mutex  = Monitor.new
         @cond   = @mutex.new_cond
         @node_deletion_watcher = nil
@@ -119,19 +122,21 @@ module ZK
       # @return [true] if we held the lock and this method has
       #   unlocked it successfully
       #
-      # @return [false] we did not own the lock
+      # @return [false] if we did not own the lock.
+      #
+      # @note There is more than one way you might not "own the lock" 
+      #   see [issue #34](https://github.com/slyphon/zk/issues/34)
       #
       def unlock
+        rval = false
         synchronize do
           if @locked
-            cleanup_lock_path!
+            rval = cleanup_lock_path!
             @locked = false
             @node_deletion_watcher = nil
-            true
-          else
-            false # i know, i know, but be explicit
           end
         end
+        rval
       end
 
       # (see #unlock)
@@ -220,6 +225,7 @@ module ZK
           raise LockAssertionFailedError, "not connected"                             unless zk.connected?
           raise LockAssertionFailedError, "lock_path was #{lock_path.inspect}"        unless lock_path
           raise LockAssertionFailedError, "the lock path #{lock_path} did not exist!" unless zk.exists?(lock_path)
+          raise LockAssertionFailedError, "the parent node was replaced!"             unless root_lock_path_same?
           raise LockAssertionFailedError, "we do not actually hold the lock"          unless got_lock?
         end
       end
@@ -248,6 +254,8 @@ module ZK
           end
         end
 
+        # root_lock_path is /_zklocking/foobar
+        #
         def create_root_path!
           zk.mkdir_p(@root_lock_path)
         end
@@ -262,9 +270,14 @@ module ZK
         # prefix is the string that will appear in front of the sequence num,
         # defaults to 'lock'
         #
+        # this method also saves the stat of root_lock_path at the time of creation
+        # to ensure we don't accidentally remove a lock we don't own. see 
+        # [rule #34](https://github.com/slyphon/zk/issues/34)...er, *issue* #34.
+        #
         def create_lock_path!(prefix='lock')
           synchronize do
-            @lock_path = @zk.create("#{root_lock_path}/#{prefix}", "", :mode => :ephemeral_sequential)
+            @lock_path = @zk.create("#{root_lock_path}/#{prefix}", :mode => :ephemeral_sequential)
+            @parent_stat = @zk.stat(root_lock_path)
           end
 
           logger.debug { "got lock path #{@lock_path}" }
@@ -274,12 +287,36 @@ module ZK
           retry
         end
 
-        def cleanup_lock_path!
-          logger.debug { "removing lock path #{@lock_path}" }
-          zk.delete(@lock_path)
+        # if the root_lock_path has the same stat .ctime as the one
+        # we cached when we created our lock path, then we can be sure
+        # that we actually own the lock_path 
+        #
+        # see [issue #34](https://github.com/slyphon/zk/issues/34)
+        #
+        def root_lock_path_same?
+          synchronize do
+            return false unless @parent_stat
 
-          zk.delete(root_lock_path, :ignore => :not_empty) 
-          @lock_path = nil
+            cur_stat = zk.stat(root_lock_path)  
+            cur_stat.exists? and (cur_stat.ctime == @parent_stat.ctime)
+          end
+        end
+
+        def cleanup_lock_path!
+          rval = false
+
+          synchronize do
+            if root_lock_path_same?
+              logger.debug { "removing lock path #{@lock_path}" }
+              zk.delete(@lock_path, :ignore => :no_node)
+              zk.delete(root_lock_path, :ignore => :not_empty) 
+              rval = true
+            end
+
+            @lock_path = @parent_stat = nil
+          end
+
+          rval
         end
     end # LockerBase
   end # Locker
