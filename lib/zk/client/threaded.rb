@@ -239,7 +239,6 @@ module ZK
             @event_handler.reopen_after_fork!
             @threadpool.reopen_after_fork!          # prune dead threadpool threads after a fork()
 
-            spawn_reconnect_thread
             unlocked_connect
           end
         else
@@ -294,9 +293,12 @@ module ZK
 
           logger.debug { "#{self.class}##{__method__}" }
 
-          spawn_reconnect_thread
+          if @cnx
+            @cnx.resume_after_fork_in_parent
+            spawn_reconnect_thread
+          end
 
-          [@cnx, @event_handler, @threadpool].compact.each(&:resume_after_fork_in_parent)
+          [@event_handler, @threadpool].compact.each(&:resume_after_fork_in_parent)
 
           @cond.broadcast
         end
@@ -436,10 +438,6 @@ module ZK
               if @client_state != RUNNING
                 logger.debug { "session failure watcher thread exiting, @client_state: #{@client_state}" }
                 return
-              end
-
-              unless seen_session_state_event?
-                logger.debug "Wat!?" 
               end
 
               # if we know that this session was valid once and it has now
