@@ -133,7 +133,7 @@ module ZK
             @cond.wait(@mutex) while @array.empty? and @state == :running
 
             if @state != :running
-              logger.warn { "ThreadedCallback, state is #{@state.inspect}, returning" } 
+              logger.debug { "ThreadedCallback, state is #{@state.inspect}, returning" } 
               return 
             end
 
