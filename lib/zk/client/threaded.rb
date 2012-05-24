@@ -418,6 +418,11 @@ module ZK
       end
 
       private
+        # this is just here so we can see it in stack traces
+        def reopen_after_session_expired
+          reopen
+        end
+        
         # in the threaded version of the client, synchronize access around cnx
         # so that callers don't wind up with a nil object when we're in the middle
         # of reopening it
@@ -449,7 +454,7 @@ module ZK
                 # reopen will reset @last_cnx_state so that
                 # seen_session_state_event? will return false until the first
                 # event has been delivered on the new connection
-                rv = reopen()
+                rv = reopen_after_session_expired
 
                 logger.debug { "reopen returned: #{rv.inspect}" }
               end
