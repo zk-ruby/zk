@@ -7,9 +7,9 @@ describe 'ZK::Client#locker' do
   include_context 'connection opts'
 
   before(:each) do
-    @zk = ZK.new("localhost:#{ZK.test_port}", connection_opts)
-    @zk2 = ZK.new("localhost:#{ZK.test_port}", connection_opts)
-    @zk3 = ZK.new("localhost:#{ZK.test_port}", connection_opts)
+    @zk = ZK.new(*connection_args)
+    @zk2 = ZK.new(*connection_args)
+    @zk3 = ZK.new(*connection_args)
     @connections = [@zk, @zk2, @zk3]
     wait_until { @connections.all? { |c| c.connected? } }
     logger.debug { "all connections connected" }

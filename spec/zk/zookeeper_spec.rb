@@ -2,6 +2,7 @@ require 'spec_helper'
 
 shared_examples_for 'ZK basic' do
   before do
+    logger.debug { "connection_args: #{connection_args.inspect}" } 
     begin
       @zk.create(@base_path)
     rescue ZK::Exceptions::NodeExists
@@ -120,7 +121,7 @@ shared_examples_for 'ZK basic' do
   end
 end
 
-describe 'basic threaded', :threaded => true do
+describe :threaded => true do
   include_context 'threaded client connection'
   it_should_behave_like 'ZK basic'
 end

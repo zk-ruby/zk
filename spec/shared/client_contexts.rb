@@ -10,7 +10,7 @@ shared_context 'threaded client connection' do
   before do
 #     logger.debug { "threaded client connection - begin before hook" }
 
-    @connection_string = "localhost:#{ZK.test_port}"
+    @connection_string = connection_host
     @base_path = '/zktests'
     @zk = ZK::Client::Threaded.new(*connection_args).tap { |z| wait_until { z.connected? } }
     @threadpool_exception = nil

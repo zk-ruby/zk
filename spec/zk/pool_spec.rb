@@ -2,11 +2,12 @@ require 'spec_helper'
 
 describe ZK::Pool do
   describe :Simple do
+    include_context 'connection opts'
 
     before do
       report_realtime('opening pool') do
         @pool_size = 2
-        @connection_pool = ZK::Pool::Simple.new("localhost:#{ZK.test_port}", @pool_size, :watcher => :default)
+        @connection_pool = ZK::Pool::Simple.new(connection_host, @pool_size, :watcher => :default)
         @connection_pool.should be_open
       end
     end
@@ -27,7 +28,7 @@ describe ZK::Pool do
       end
 
       report_realtime("closing") do
-        ZK.open("localhost:#{ZK.test_port}") do |zk|
+        ZK.open(connection_host) do |zk|
           begin
             zk.delete('/test_pool')
           rescue ZK::Exceptions::NoNode
@@ -213,10 +214,12 @@ describe ZK::Pool do
   end # Simple
 
   describe :Bounded do
+    include_context 'connection opts'
+
     before do
       @min_clients = 1
       @max_clients = 2
-      @connection_pool = ZK::Pool::Bounded.new("localhost:#{ZK.test_port}", :min_clients => @min_clients, :max_clients => @max_clients, :timeout => @timeout)
+      @connection_pool = ZK::Pool::Bounded.new(connection_host, :min_clients => @min_clients, :max_clients => @max_clients, :timeout => @timeout)
       @connection_pool.should be_open
       wait_until(2) { @connection_pool.available_size > 0 }
     end

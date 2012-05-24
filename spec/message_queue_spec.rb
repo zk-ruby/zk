@@ -1,10 +1,11 @@
 require File.join(File.dirname(__FILE__), %w[spec_helper])
 
 describe ZK::MessageQueue do
+  include_context 'connection opts'
 
   before(:each) do
-    @zk = ZK.new("localhost:#{ZK.test_port}")
-    @zk2 = ZK.new("localhost:#{ZK.test_port}")
+    @zk = ZK.new(connection_host)
+    @zk2 = ZK.new(connection_host)
     wait_until{ @zk.connected? && @zk2.connected? }
     @queue_name = "_specQueue"
     @consume_queue = @zk.queue(@queue_name)
