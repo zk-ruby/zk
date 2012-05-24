@@ -26,11 +26,20 @@ guard 'rspec', :version => 2 do
     when %r{^(?:zk/locker/locker_base|spec/shared/locker)}
       Dir["spec/zk/locker/*_spec.rb"]
 
+    when %r{^zk/client/(?:base|state_mixin)}
+      Dir['spec/zk/{client,client/*,zookeeper}_spec.rb']
+
     when 'zk' # .rb
       'spec'  # run all tests
 
     else
-      "spec/#{m[1]}_spec.rb"
+      generic = "spec/#{m[1]}_spec.rb"
+      if test(?f, generic)
+        generic
+      else
+        $stderr.puts "RUNNING ALL TESTS"
+        'spec'
+      end
     end
   end
 
