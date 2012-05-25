@@ -20,8 +20,11 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
         locker2.lock(true)
       end
 
+      th.run
+
       logger.debug { "calling wait_until_blocked" }
-      locker2.wait_until_blocked(2)
+      proc { locker2.wait_until_blocked(2) }.should_not raise_error
+      logger.debug { "wait_until_blocked returned" }
       locker2.should be_waiting
 
       wait_until { zk.exists?(locker2.lock_path) }

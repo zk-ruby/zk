@@ -24,7 +24,7 @@ module ZK
       @mutex  = Monitor.new # ffs, 1.8.7 compatibility w/ timeouts
       @cond   = @mutex.new_cond
 
-      @blocked  = :not_yet
+      @blocked  = NOT_YET
       @result   = nil
     end
 
@@ -55,6 +55,7 @@ module ZK
         start = Time.now
         time_to_stop = timeout ? (start + timeout) : nil
 
+        logger.debug { "#{__method__} @blocked: #{@blocked.inspect} about to wait" } 
         @cond.wait(timeout)
 
         if (time_to_stop and (Time.now > time_to_stop)) and (@blocked == NOT_YET)
@@ -100,27 +101,25 @@ module ZK
 
         logger.debug { "ok, going to block: #{path}" }
 
-        while true # this is probably unnecessary
-          @blocked = BLOCKED
-          @cond.broadcast                 # wake threads waiting for @blocked to change
-          @cond.wait_until { @result }    # wait until we get a result
-          @blocked = NOT_ANYMORE
+        @blocked = BLOCKED
+        @cond.broadcast                 # wake threads waiting for @blocked to change
+        @cond.wait_until { @result }    # wait until we get a result
+        @blocked = NOT_ANYMORE
 
-          case @result
-          when :deleted
-            logger.debug { "path #{path} was deleted" }
-            return true
-          when INTERRUPTED
-            raise ZK::Exceptions::WakeUpException
-          when ZOO_EXPIRED_SESSION_STATE
-            raise Zookeeper::Exceptions::SessionExpired
-          when ZOO_CONNECTING_STATE
-            raise Zookeeper::Exceptions::NotConnected
-          when ZOO_CLOSED_STATE
-            raise Zookeeper::Exceptions::ConnectionClosed
-          else
-            raise "Hit unexpected case in block_until_node_deleted, result was: #{@result.inspect}"
-          end
+        case @result
+        when :deleted
+          logger.debug { "path #{path} was deleted" }
+          return true
+        when INTERRUPTED
+          raise ZK::Exceptions::WakeUpException
+        when ZOO_EXPIRED_SESSION_STATE
+          raise Zookeeper::Exceptions::SessionExpired
+        when ZOO_CONNECTING_STATE
+          raise Zookeeper::Exceptions::NotConnected
+        when ZOO_CLOSED_STATE
+          raise Zookeeper::Exceptions::ConnectionClosed
+        else
+          raise "Hit unexpected case in block_until_node_deleted, result was: #{@result.inspect}"
         end
       end
     ensure

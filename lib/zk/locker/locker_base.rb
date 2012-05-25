@@ -129,11 +129,13 @@ module ZK
       #
       def unlock
         rval = false
-        synchronize do
+        @mutex.synchronize do
           if @locked
+            logger.debug { "unlocking" }
             rval = cleanup_lock_path!
             @locked = false
             @node_deletion_watcher = nil
+            @cond.broadcast
           end
         end
         rval
@@ -176,7 +178,7 @@ module ZK
       #
       # @private
       def waiting? 
-        synchronize do
+        @mutex.synchronize do
           !!(@node_deletion_watcher and @node_deletion_watcher.blocked?)
         end
       end
@@ -184,9 +186,19 @@ module ZK
       # blocks the caller until this lock is blocked
       # @private
       def wait_until_blocked(timeout=nil)
-        synchronize do
-          @cond.wait_until { @node_deletion_watcher }
+        time_to_stop = timeout ? (Time.now + timeout) : nil
+
+        @mutex.synchronize do
+          if @node_deletion_watcher
+            logger.debug { "@node_deletion_watcher already assigned, not waiting" }
+          else
+            logger.debug { "going to wait up to #{timeout} sec for a @node_deletion_watcher to be assigned" }
+
+            @cond.wait(timeout) 
+            raise "Timeout waiting for @node_deletion_watcher" unless @node_deletion_watcher
+          end
         end
+        logger.debug { "ok, @node_deletion_watcher: #{@node_deletion_watcher}, going to call wait_until_blocked" }
 
         @node_deletion_watcher.wait_until_blocked(timeout)
       end
@@ -220,7 +232,7 @@ module ZK
       #   end
       #
       def assert!
-        synchronize do
+        @mutex.synchronize do
           raise LockAssertionFailedError, "have not obtained the lock yet"            unless locked?
           raise LockAssertionFailedError, "not connected"                             unless zk.connected?
           raise LockAssertionFailedError, "lock_path was #{lock_path.inspect}"        unless lock_path
@@ -270,7 +282,7 @@ module ZK
         # [rule #34](https://github.com/slyphon/zk/issues/34)...er, *issue* #34.
         #
         def create_lock_path!(prefix='lock')
-          synchronize do
+          @mutex.synchronize do
             @lock_path = @zk.create("#{root_lock_path}/#{prefix}", :mode => :ephemeral_sequential)
             @parent_stat = @zk.stat(root_lock_path)
           end
@@ -289,7 +301,7 @@ module ZK
         # see [issue #34](https://github.com/slyphon/zk/issues/34)
         #
         def root_lock_path_same?
-          synchronize do
+          @mutex.synchronize do
             return false unless @parent_stat
 
             cur_stat = zk.stat(root_lock_path)  
@@ -306,7 +318,7 @@ module ZK
         def cleanup_lock_path!
           rval = false
 
-          synchronize do
+          @mutex.synchronize do
             if root_lock_path_same?
               logger.debug { "removing lock path #{@lock_path}" }
 

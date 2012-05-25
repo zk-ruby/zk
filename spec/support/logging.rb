@@ -2,10 +2,13 @@ module ZK
   TEST_LOG_PATH = File.join(ZK::ZK_ROOT, 'test.log')
 
   def self.logging_gem_setup
-    layout = ::Logging.layouts.pattern(
+    layout_opts = { 
       :pattern => '%.1l, [%d #%p] (%9.9T) %25.25c{2}:  %m\n',
-      :date_pattern => '%H:%M:%S.%6N'
-    )
+    }
+
+    layout_opts[:date_pattern] = ZK.jruby? ? '%H:%M:%S.%3N' : '%H:%M:%S.%6N'
+
+    layout = ::Logging.layouts.pattern(layout_opts)
 
     appender = ENV['ZK_DEBUG'] ? ::Logging.appenders.stderr : ::Logging.appenders.file(ZK::TEST_LOG_PATH)
     appender.layout = layout

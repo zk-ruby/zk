@@ -75,16 +75,23 @@ module ZK
             path = "#{root_lock_path}/#{next_lowest_node}"
             logger.debug { "#{self.class}##{__method__} path=#{path.inspect}" }
 
-            synchronize do
+            @mutex.synchronize do
+              logger.debug { "assigning the @node_deletion_watcher" }
               @node_deletion_watcher = NodeDeletionWatcher.new(zk, path)
+              logger.debug { "broadcasting" }
               @cond.broadcast
             end
 
+            logger.debug { "calling block_until_deleted" }
+            Thread.pass
+
             @node_deletion_watcher.block_until_deleted
           rescue WeAreTheLowestLockNumberException
+          ensure
+            logger.debug { "block_until_deleted returned" } 
           end
 
-          synchronize { @locked = true }
+          @mutex.synchronize { @locked = true }
         end
     end # ExclusiveLocker
   end # Locker
