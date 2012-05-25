@@ -8,6 +8,8 @@ module ZK
       # zero data.
       # 
       # @param [String] path An absolute znode path to create
+      #
+      # @option opts [String] :data ('') The data to place at path
       # 
       # @example
       #
@@ -17,12 +19,20 @@ module ZK
       #   zk.mkdir_p('/path/to/blah')
       #   # => "/path/to/blah"  
       #
-      def mkdir_p(path)
-        # TODO: write a non-recursive version of this. ruby doesn't have TCO, so
-        # this could get expensive w/ psychotically long paths
+      def mkdir_p(path, opts={})
+        data = ''
 
-        create(path, '', :mode => :persistent)
+        # if we haven't recursed, or we recursed and now we're back at the top
+        if !opts.has_key?(:orig_path) or (path == opts[:orig_path])
+          data = opts.fetch(:data, '')  # only put the data at the leaf node
+        end
+
+        create(path, data, :mode => :persistent)
       rescue NodeExists
+        if !opts.has_key?(:orig_path) or (path == opts[:orig_path])  # we're at the leaf node
+          set(path, data)
+        end
+
         return
       rescue NoNode
         if File.dirname(path) == '/'
@@ -30,7 +40,9 @@ module ZK
           raise NonExistentRootError, "could not create '/', are you chrooted into a non-existent path?", caller
         end
 
-        mkdir_p(File.dirname(path))
+        opts[:orig_path] ||= path
+
+        mkdir_p(File.dirname(path), opts)
         retry
       end
 

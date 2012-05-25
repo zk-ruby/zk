@@ -365,6 +365,30 @@ module ZK
         @threadpool.on_exception(&blk)
       end
 
+      def create(path, *args)
+        opts = args.extract_options!
+
+        logger.debug { "create, extracted opts: #{opts.inspect}" } 
+
+        or_opt = opts.delete(:or)
+        args << opts
+
+        if or_opt
+          hash = parse_create_args(path, *args)
+ 
+          raise ArgumentError, "valid options for :or are nil or :set, not #{or_opt.inspect}" unless or_opt == :set 
+          raise ArgumentError, "you cannot create an ephemeral node when using the :or option" if hash[:ephemeral]
+          raise ArgumentError, "you cannot create an sequence node when using the :or option"  if hash[:sequence]
+         
+          mkdir_p(path, :data => hash[:data])
+          path
+        else
+          # ok, none of our business, hand it up to mangement
+          super(path, *args)
+        end
+      end
+
+
       # @private
       def raw_event_handler(event)
         return unless event.session_event?

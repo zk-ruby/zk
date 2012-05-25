@@ -337,6 +337,15 @@ module ZK
       #   zk.create("/path", "foo", :callback => callback, :context => context)
       #
       def create(path, *args)
+        h = parse_create_args(path, *args)
+        rv = call_and_check_rc(:create, h)
+
+        h[:callback] ? rv : rv[:path]
+      end
+
+      # parses the arguments and returns a hash for passing to
+      # call_and_check_rc. this is so subclasses can override easily
+      def parse_create_args(path, *args)
         opts = args.extract_options!
 
         # be somewhat strict about how many arguments we accept.
@@ -355,30 +364,29 @@ module ZK
 
         data = args.first || ''
 
-        h = { :path => path, :data => data, :ephemeral => false, :sequence => false }.merge(opts)
+        rval = { :path => path, :data => data, :ephemeral => false, :sequence => false }.merge(opts)
 
-        if mode = h.delete(:mode)
+        if mode = rval.delete(:mode)
           mode = mode.to_sym
 
           case mode
           when :ephemeral_sequential
-            h[:ephemeral] = h[:sequence] = true
+            rval[:ephemeral] = rval[:sequence] = true
           when :persistent_sequential
-            h[:ephemeral] = false
-            h[:sequence] = true
+            rval[:ephemeral] = false
+            rval[:sequence] = true
           when :persistent
-            h[:ephemeral] = false
+            rval[:ephemeral] = false
           when :ephemeral
-            h[:ephemeral] = true
+            rval[:ephemeral] = true
           else
             raise ArgumentError, "Unknown mode: #{mode.inspect}"
           end
         end
 
-        rv = call_and_check_rc(:create, h)
-
-        h[:callback] ? rv : rv[:path]
+        rval
       end
+      private :parse_create_args
 
       # Return the data and stat of the node of the given path.  
       # 
