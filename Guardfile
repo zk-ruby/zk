@@ -13,6 +13,9 @@ end
 guard 'rspec', :version => 2 do
   watch(%r{^spec/.+_spec\.rb$})
 
+  # run all specs when the support files change
+  watch(%r{^spec/support}) { 'spec' }
+
   watch(%r%^spec/support/client_forker.rb$%) { 'spec/zk/00_forked_client_integration_spec.rb' }
 
   watch(%r{^lib/(.+)\.rb$}) do |m| 
@@ -22,6 +25,9 @@ guard 'rspec', :version => 2 do
 
     when 'zk/client/threaded'
       ["spec/zk/client_spec.rb", "spec/zk/zookeeper_spec.rb"]
+
+    when 'zk/locker'
+      'spec/zk/locker_spec.rb'
 
     when %r{^(?:zk/locker/locker_base|spec/shared/locker)}
       Dir["spec/zk/locker/*_spec.rb"]

@@ -239,11 +239,6 @@ module ZK
           self.class.digit_from_lock_path(path)
         end
 
-        # possibly lighter weight check to see if the lock path has any children
-        # (using stat, rather than getting the list of children).
-        def any_lock_children?
-        end
-
         def lock_children(watch=false)
           zk.children(root_lock_path, :watch => watch)
         end

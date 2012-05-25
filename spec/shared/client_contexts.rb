@@ -9,13 +9,15 @@ shared_context 'threaded client connection' do
 
   before do
 #     logger.debug { "threaded client connection - begin before hook" }
-
     @connection_string = connection_host
     @base_path = '/zktests'
     @zk = ZK::Client::Threaded.new(*connection_args).tap { |z| wait_until { z.connected? } }
     @threadpool_exception = nil
     @zk.on_exception { |e| @threadpool_exception = e }
     @zk.rm_rf(@base_path)
+
+    @orig_default_root_lock_node = ZK::Locker.default_root_lock_node
+    ZK::Locker.default_root_lock_node = "#{@base_path}/_zklocking"
 
 #     logger.debug { "threaded client connection - end before hook" }
   end
@@ -29,6 +31,8 @@ shared_context 'threaded client connection' do
     ZK.open(*connection_args) do |z|
       z.rm_rf(@base_path)
     end
+
+    ZK::Locker.default_root_lock_node = @orig_default_root_lock_node
 
 #     logger.debug { "threaded client connection - end after hook" }
   end

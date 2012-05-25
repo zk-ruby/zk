@@ -99,24 +99,55 @@ module ZK
       # the default root path we will use when a value is not given to a
       # constructor
       attr_accessor :default_root_lock_node
-    end
 
-    # Create a {SharedLocker} instance
-    #
-    # @param client (see LockerBase#initialize)
-    # @param name (see LockerBase#initialize)
-    # @return [SharedLocker]
-    def self.shared_locker(client, name, *args)
-      SharedLocker.new(client, name, *args)
-    end
+      # Create a {SharedLocker} instance
+      #
+      # @param client (see LockerBase#initialize)
+      # @param name (see LockerBase#initialize)
+      # @return [SharedLocker]
+      def shared_locker(client, name, *args)
+        SharedLocker.new(client, name, *args)
+      end
 
-    # Create an {ExclusiveLocker} instance
-    #
-    # @param client (see LockerBase#initialize)
-    # @param name (see LockerBase#initialize)
-    # @return [ExclusiveLocker]
-    def self.exclusive_locker(client, name, *args)
-      ExclusiveLocker.new(client, name, *args)
+      # Create an {ExclusiveLocker} instance
+      #
+      # @param client (see LockerBase#initialize)
+      # @param name (see LockerBase#initialize)
+      # @return [ExclusiveLocker]
+      def exclusive_locker(client, name, *args)
+        ExclusiveLocker.new(client, name, *args)
+      end
+
+      # Clean up dead locker directories. There are situations (particularly
+      # session expiration) where a lock's directory will never be cleaned up.
+      #
+      # It is intened to be run periodically (perhaps from cron).
+      #
+      #
+      # This implementation goes through each lock directory and attempts to
+      # acquire an exclusive lock. If the lock is acquired then when it unlocks
+      # it will remove the locker directory. This is safe because the unlock 
+      # code is designed to deal with the inherent race conditions.
+      #
+      # @example
+      #   
+      #   ZK.open do |zk|
+      #     ZK::Locker.cleanup!(zk)
+      #   end
+      #
+      # @param client [ZK::Client::Threaded] the client connection to use
+      #
+      # @param root_lock_node [String] if given, use an alternate root lock node to base
+      #   each Locker's path on. You probably don't need to touch this. Uses
+      #   {Locker.default_root_lock_node} by default (if value is nil)
+      #
+      def cleanup(client, root_lock_node=default_root_lock_node)
+        client.children(root_lock_node).each do |name|
+          exclusive_locker(client, name, root_lock_node).tap do |locker|
+            locker.unlock if locker.lock
+          end
+        end
+      end
     end
     
     # @private

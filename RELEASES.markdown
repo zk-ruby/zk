@@ -1,5 +1,26 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.6.0 ###
+
+* Locker cleanup code!
+
+When a session is lost, it's likely that the locker's node name was left behind. so for `zk.locker('foo')` if the session is interrupted, it's very likely that the `/_zklocking/foo` znode has been left behind. A method has been added to allow you to safely clean up these stale znodes:
+
+```ruby
+ZK.open('localhost:2181') do |zk|
+  ZK::Locker.cleanup(zk)
+end
+```
+
+Will go through your locker nodes one by one and try to lock and unlock them. If it succeeds, the lock is naturally cleaned up (as part of the normal teardown code), if it doesn't acquire the lock, then no harm, it knows that lock is still in use.
+
+### v1.5.3 ###
+
+* Fixed reconnect code. There was an occasional race/deadlock condition caused because the reopen call was done on the underlying connection's dispatch thread. Closing the dispatch thread is part of reopen, so this would cause a deadlock in real-world use. Moved the reconnect logic to a separate, single-purpose thread on ZK::Client::Threaded that watches for connection state changes. 
+
+* 'private' is not 'protected'. I've been writing ruby for several years now, and apparently I'd forgotten that 'protected' does not work like how it does in java. The visibility of these methods has been corrected, and all specs pass, so I don't expect issues...but please report if this change causes any bugs in user code.
+
+
 ### v1.5.2 ###
 
 * Fix locker cleanup code to avoid a nasty race when a session is lost, see [issue #34](https://github.com/slyphon/zk/issues/34)
