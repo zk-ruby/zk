@@ -1,17 +1,34 @@
 shared_examples_for 'client' do
   describe :mkdir_p do
-    before(:each) do
-      @path_ary = %w[test mkdir_p path creation]
-      @bogus_path = File.join('/', *@path_ary)
-      @zk.rm_rf('/test')
+    before do
+      base = @base_path.sub(%r_^/_, '')
+
+      @path_ary = %W[#{base} test mkdir_p path creation]
+      @bogus_path = File.join('', *@path_ary)
     end
-    
+   
     it %[should create all intermediate paths for the path givem] do
-      @zk.rm_rf('/test')
       @zk.should_not be_exists(@bogus_path)
       @zk.should_not be_exists(File.dirname(@bogus_path))
       @zk.mkdir_p(@bogus_path)
       @zk.should be_exists(@bogus_path)
+    end
+
+    it %[should place the data only at the leaf node] do
+      @zk.mkdir_p(@bogus_path, :data => 'foobar')
+      @zk.get(@bogus_path).first.should == 'foobar'
+
+      path = ''
+      @path_ary[0..-2].each do |el|
+        path = File.join(path, el)
+        @zk.get(path).first.should == ''
+      end
+    end
+
+    it %[should replace the data at the leaf node if it already exists] do
+      @zk.mkdir_p(@bogus_path, :data => 'blahfoo')
+      @zk.mkdir_p(@bogus_path, :data => 'foodink')
+      @zk.get(@bogus_path).first.should == 'foodink'
     end
   end
 
@@ -112,6 +129,46 @@ shared_examples_for 'client' do
 
       it %[should squelch no_node] do
         proc { @zk.create("#{@base_path}/foo/bar/baz", :ignore => :no_node).should be_nil }.should_not raise_error(ZK::Exceptions::NoNode)
+      end
+    end
+
+    describe %[:or option] do
+      let(:path) { "#{@base_path}/foo/bar" }
+
+      it %[should barf if anything but the the :set value is given] do
+        proc { @zk.create(path, :or => :GFY) }.should raise_error(ArgumentError)
+      end
+
+      def create_args(opts={})
+        proc do 
+          begin
+            @zk.create(path, opts.merge(:or => :set))
+          ensure
+            @zk.rm_rf(path)
+          end
+        end
+      end
+
+      it %[should barf if any node option besides 'persistent' is given] do
+        create_args(:persistent => true).should_not         raise_error
+        create_args(:sequential => true).should             raise_error(ArgumentError)
+        create_args(:mode => :ephemeral).should             raise_error(ArgumentError)
+        create_args(:mode => :ephemeral_sequential).should  raise_error(ArgumentError)
+        create_args(:mode => :sequential).should            raise_error(ArgumentError)
+      end
+
+      it %[should replace the data at the leaf node if it already exists] do
+        @zk.mkdir_p(path, :data => 'foodink')
+        @zk.create(path, 'blahfoo', :or => :set)
+
+        @zk.get(path).first.should == 'blahfoo'
+      end
+
+      it %[should create the intermediate paths] do
+        proc { @zk.create(path, 'foobar', :or => :set) }.should_not raise_error
+
+        @zk.stat(@base_path).should exist
+        @zk.stat("#{@base_path}/foo").should exist
       end
     end
   end
