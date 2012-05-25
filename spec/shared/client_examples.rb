@@ -160,7 +160,6 @@ shared_examples_for 'client' do
       it %[should replace the data at the leaf node if it already exists] do
         @zk.mkdir_p(path, :data => 'foodink')
         @zk.create(path, 'blahfoo', :or => :set)
-
         @zk.get(path).first.should == 'blahfoo'
       end
 

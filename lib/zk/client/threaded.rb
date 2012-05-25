@@ -371,6 +371,7 @@ module ZK
         super
       end
 
+      # this is where the :on option is implemented for {Base#create}
       def create(path, *args)
         opts = args.extract_options!
 
@@ -393,7 +394,6 @@ module ZK
           super(path, *args)
         end
       end
-
 
       # @private
       def raw_event_handler(event)

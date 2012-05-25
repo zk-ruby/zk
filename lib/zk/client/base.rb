@@ -198,6 +198,14 @@ module ZK
       #   @option opts [Object] :context (nil) an object passed to the `:callback`
       #     given as the `context` param
       #
+      #   @option opts [:create,nil] :or (nil) syntactic sugar to say 'if this
+      #     path already exists, then set its contents.' Note that this will
+      #     also create all intermediate paths as it delegates to
+      #     {ZK::Client::Unixisms#mkdir_p}.  Note that this option can only be
+      #     used to create or set persistent, non-sequential paths. If an
+      #     option is used to specify either, an ArgumentError will be raised.
+      #     (note: not available for zk-eventmachine)
+      #
       #   @option opts [:ephemeral_sequential, :persistent_sequential, :persistent, :ephemeral] :mode (nil)
       #     may be specified instead of :ephemeral and :sequence options. If `:mode` *and* either of
       #     the `:ephermeral` or `:sequential` options are given, the `:mode` option will win
@@ -224,6 +232,14 @@ module ZK
       #   
       #   @option opts [Object] :context (nil) an object passed to the `:callback`
       #     given as the `context` param
+      #
+      #   @option opts [:create,nil] :or (nil) syntactic sugar to say 'if this
+      #     path already exists, then set its contents.' Note that this will
+      #     also create all intermediate paths as it delegates to
+      #     {ZK::Client::Unixisms#mkdir_p}.  Note that this option can only be
+      #     used to create or set persistent, non-sequential paths. If an
+      #     option is used to specify either, an ArgumentError will be raised.
+      #     (note: not available for zk-eventmachine)
       #
       #   @option opts [:ephemeral_sequential, :persistent_sequential, :persistent, :ephemeral] :mode (nil)
       #     may be specified instead of :ephemeral and :sequence options. If `:mode` *and* either of
@@ -334,7 +350,6 @@ module ZK
       def create(path, *args)
         h = parse_create_args(path, *args)
         rv = call_and_check_rc(:create, h)
-
         h[:callback] ? rv : rv[:path]
       end
 
