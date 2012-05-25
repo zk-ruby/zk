@@ -128,10 +128,6 @@ module ZK
       #
       # @return [Symbol] state of connection after operation
       def reopen(timeout=nil)
-#         timeout ||= @session_timeout # XXX: @session_timeout ?
-#         cnx.reopen(timeout)
-#         @threadpool.start!    
-#         state
       end
 
       # close the underlying connection and clear all pending events.
@@ -286,7 +282,6 @@ module ZK
       #
       #   zk.create("/path", '', :mode => :persistent_sequential)
       #   # => "/path0"
-      #
       #
       # @example create ephemeral and sequential node
       #

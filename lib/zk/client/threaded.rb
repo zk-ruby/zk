@@ -347,13 +347,14 @@ module ZK
         on_tpool ? shutdown_thread : shutdown_thread.join(30)
       end
 
-      # {see Base#close}
+      # {see ZK::Client::Base#close}
       def close
         super
         subs, @fork_subs = @fork_subs, []
         subs.each(&:unsubscribe)
         nil
       end
+
 
       # (see Threadpool#on_threadpool?)
       def on_threadpool?
@@ -363,6 +364,11 @@ module ZK
       # (see Threadpool#on_exception)
       def on_exception(&blk)
         @threadpool.on_exception(&blk)
+      end
+
+      def closed?
+        return true if @mutex.synchronize { @client_state == CLOSED }
+        super
       end
 
       def create(path, *args)
@@ -402,35 +408,12 @@ module ZK
         logger.error { "BUG: Exception caught in raw_event_handler: #{e.to_std_format}" } 
       end
 
-      def closed?
-        return true if @mutex.synchronize { @client_state == CLOSED }
-        super
-      end
-
-      # are we in running (not-paused) state?
-      # @private
-      def running?
-        @mutex.synchronize { @client_state == RUNNING }
-      end
-
-      # are we in paused state?
-      # @private
-      def paused?
-        @mutex.synchronize { @client_state == PAUSED }
-      end
-
-      # has shutdown time arrived?
-      # @private
-      def close_requested?
-        @mutex.synchronize { @client_state == CLOSE_REQ }
-      end
-
       # @private
       def wait_until_connected_or_dying(timeout)
         time_to_stop = Time.now + timeout
 
         @mutex.synchronize do
-          while (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) && (Time.now < time_to_stop) && (@client_state == RUNNING)
+          while (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) && (Time.now < time_to_stop) && running?
             @cond.wait(timeout)
           end
 
@@ -439,6 +422,25 @@ module ZK
       end
 
       private
+        # are we in running (not-paused) state?
+        def running?
+          @client_state == RUNNING
+        end
+
+        # are we in paused state?
+        def paused?
+          @client_state == PAUSED
+        end
+
+        # has shutdown time arrived?
+        def close_requested?
+          @client_state == CLOSE_REQ
+        end
+
+        def dead_or_dying?
+          (@client_state == CLOSE_REQ) || (@client_state == CLOSED)
+        end
+
         # this is just here so we can see it in stack traces
         def reopen_after_session_expired
           reopen
@@ -457,11 +459,11 @@ module ZK
             @mutex.synchronize do
               # either we havne't seen a valid session update from this
               # connection yet, or we're doing fine, so just wait
-              @cond.wait_while { !seen_session_state_event? or (valid_session_state? and (@client_state == RUNNING)) }
+              @cond.wait_while { !seen_session_state_event? or (valid_session_state? and running?) }
 
               # we've entered into a non-running state, so we exit
               # note: need to restart this thread after a fork in parent
-              if @client_state != RUNNING
+              unless running?
                 logger.debug { "session failure watcher thread exiting, @client_state: #{@client_state}" }
                 return
               end
@@ -512,7 +514,7 @@ module ZK
 
               wait_until_connected_or_dying(retry_duration)
 
-              if (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) || (Time.now > time_to_stop) || (@client_state != RUNNING)
+              if (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) || (Time.now > time_to_stop) || !running?
                 raise e
               else
                 retry
@@ -541,10 +543,6 @@ module ZK
 
         def create_connection(*args)
           ::Zookeeper.new(*args)
-        end
-
-        def dead_or_dying?
-          (@client_state == CLOSE_REQ) || (@client_state == CLOSED)
         end
 
         def unlocked_connect(opts={})
