@@ -355,6 +355,7 @@ shared_examples_for 'client' do
   describe 'reconnection' do
     it %[should if it receives a client_invalid? event] do
       @zk.should be_connected
+
       props = { 
         :session_event?   => true,
         :node_event?      => false,
@@ -366,30 +367,32 @@ shared_examples_for 'client' do
       bogus_event = flexmock(:expired_session_event, props)
       bogus_event.should_receive(:zk=).with(@zk).once
 
+      mutex = Monitor.new
+      cond  = mutex.new_cond
       events = []
-      latch = Latch.new
 
       @sub = @zk.on_state_change do |event|
-        events << event.state
-        latch.release
+        mutex.synchronize do
+          logger.debug { "event: #{event.inspect}" }
+          events << event.state
+          cond.broadcast
+        end
       end
 
-      th = Thread.new { @zk.event_handler.process(bogus_event) }
-
-      time_to_stop = Time.now + 5
-
-      while true 
-        now = Time.now
-        break if now > time_to_stop
-
-        latch.await(time_to_stop.to_f - now.to_f)
-
-        break if events.length >= 2
+      mutex.synchronize do
+        events.should be_empty
+        @zk.event_handler.process(bogus_event)
       end
 
-      th.join(2).should == th
+      logger.debug { "events: #{events.inspect}" } 
 
-      events.should == [Zookeeper::ZOO_EXPIRED_SESSION_STATE, Zookeeper::ZOO_CONNECTED_STATE]
+      mutex.synchronize do
+        time_to_stop = Time.now + 2
+        cond.wait_while { (events.length < 2 ) && (Time.now < time_to_stop) }
+      end
+
+      events.should include(Zookeeper::ZOO_EXPIRED_SESSION_STATE) 
+      events.should include(Zookeeper::ZOO_CONNECTED_STATE)
     end
   end # reconnection
 
