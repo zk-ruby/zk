@@ -48,6 +48,14 @@ module ZK
         end
       end
 
+      # Register a block to be called when *any* connection event occurs
+      #
+      # @yield [event] yields the connection event to the block
+      # @yieldparam event [ZK::Event] the event that occurred
+      def on_state_change(&block)
+        watcher.register_state_handler(:all, &block)
+      end
+
       # Register a block to be called on connection, when the client has
       # connected. 
       # 

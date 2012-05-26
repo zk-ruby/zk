@@ -15,6 +15,9 @@ module ZK
     ALL_NODE_EVENTS_KEY = :all_node_events
 
     # @private
+    ALL_STATE_EVENTS_KEY = :all_state_events
+
+    # @private
     ZOOKEEPER_WATCH_TYPE_MAP = {
       Zookeeper::ZOO_CREATED_EVENT => :data,
       Zookeeper::ZOO_DELETED_EVENT => :data,
@@ -100,7 +103,13 @@ module ZK
     # or when there's a temporary loss in connection and Zookeeper recommends
     # you go into 'safe mode'.
     #
-    # @param [String] state The state you want to register for.
+    # Note that these callbacks are *not* one-shot like the path callbacks,
+    # these will be called back with every relative state event, there is 
+    # no need to re-register
+    #
+    # @param [String,:all] state The state you want to register for or :all
+    #   to be called back with every state change
+    #
     # @param [Block] block the block to execute on state changes
     # @yield [event] yields your block with
     #
@@ -156,8 +165,8 @@ module ZK
       cb_keys = 
         if event.node_event?
           [event.path, ALL_NODE_EVENTS_KEY]
-        elsif event.state_event?
-          [state_key(event.state)]
+        elsif event.session_event?
+          [state_key(event.state), ALL_STATE_EVENTS_KEY]
         else
           raise ZKError, "don't know how to process event: #{event.inspect}"
         end
@@ -180,22 +189,21 @@ module ZK
       safe_call(cb_ary, event)
     end
 
-    private
-      # happens inside the lock, clears the restriction on setting new watches
-      # for a given path/event type combination
-      #
-      def clear_watch_restrictions(event)
-        return unless event.node_event?
+    # happens inside the lock, clears the restriction on setting new watches
+    # for a given path/event type combination
+    #
+    def clear_watch_restrictions(event)
+      return unless event.node_event?
 
-        if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
-          #logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
-          
-          # we recieved a watch event for this path, now we allow code to set new watchers
-          @outstanding_watches[watch_type].delete(event.path)
-        end
+      if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
+        #logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
+        
+        # we recieved a watch event for this path, now we allow code to set new watchers
+        @outstanding_watches[watch_type].delete(event.path)
       end
+    end
+    private :clear_watch_restrictions
 
-    public
     # used during shutdown to clear registered listeners
     # @private
     def clear! #:nodoc:
@@ -235,11 +243,6 @@ module ZK
       logger.debug { "#{self.class}##{__method__}" }
 
       @callbacks.values.flatten.each(&:resume_after_fork_in_parent)
-    end
-
-    # @private
-    def synchronize
-      @mutex.synchronize { yield }
     end
 
     # @private
@@ -303,6 +306,10 @@ module ZK
     end
 
     private
+      def synchronize
+        @mutex.synchronize { yield }
+      end
+
       def watcher_callback
         Zookeeper::Callbacks::WatcherCallback.create { |event| process(event) }
       end
@@ -310,12 +317,15 @@ module ZK
       def state_key(arg)
         int = 
           case arg
+          when :all
+            # XXX: this is a nasty side-exit
+            return ALL_STATE_EVENTS_KEY
           when String, Symbol
             Zookeeper::Constants.const_get(:"ZOO_#{arg.to_s.upcase}_STATE")
           when Integer
             arg
           else
-            raise NameError # ugh lame
+            raise NameError, "unrecognized state: #{arg.inspect}" # ugh lame
           end
 
         "state_#{int}"

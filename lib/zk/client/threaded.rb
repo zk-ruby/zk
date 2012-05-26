@@ -413,12 +413,20 @@ module ZK
         time_to_stop = Time.now + timeout
 
         @mutex.synchronize do
-          while (@last_cnx_state != Zookeeper::ZOO_CONNECTED_STATE) && (Time.now < time_to_stop) && (@client_state == RUNNING)
-            @cond.wait(timeout)
+          while true
+            now = Time.now
+            break if (@last_cnx_state == Zookeeper::ZOO_CONNECTED_STATE) || (now > time_to_stop) || (@client_state != RUNNING)
+            deadline = time_to_stop.to_f - now.to_f
+            @cond.wait(deadline)
           end
 
-          logger.debug { "@last_cnx_state: #{@last_cnx_state.inspect}, time_left? #{Time.now.to_f < time_to_stop.to_f}, @client_state: #{@client_state.inspect}" }
+          logger.debug { "#{__method__} @last_cnx_state: #{@last_cnx_state.inspect}, time_left? #{Time.now.to_f < time_to_stop.to_f}, @client_state: #{@client_state.inspect}" }
         end
+      end
+
+      # @private
+      def client_state
+        @mutex.synchronize { @client_state }
       end
 
       private
