@@ -354,6 +354,14 @@ shared_examples_for 'client' do
 
   describe 'reconnection' do
     it %[should if it receives a client_invalid? event] do
+      # note: we can't trust the events to be delivered in any particular order
+      # since they're happening on two different threads. if we see we're connected
+      # in the beginning, that there was a disconnection, then a reopen, that's
+      # probably fine. 
+      #
+      # we also check that the session_id was changed, which is the desired effect
+
+      orig_session_id = @zk.session_id
       @zk.should be_connected
 
       props = { 
@@ -393,6 +401,7 @@ shared_examples_for 'client' do
 
       events.should include(Zookeeper::ZOO_EXPIRED_SESSION_STATE) 
       events.should include(Zookeeper::ZOO_CONNECTED_STATE)
+      @zk.session_id.should_not == orig_session_id
     end
   end # reconnection
 
