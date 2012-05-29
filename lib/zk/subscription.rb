@@ -18,6 +18,7 @@ module ZK
 
       def initialize(parent, block)
         raise ArgumentError, "block must repsond_to?(:call)" unless block.respond_to?(:call)
+        raise ArgumentError, "parent must respond_to?(:unregister)" unless parent.respond_to?(:unregister)
         @parent   = parent
         @callable = block
         @mutex    = Monitor.new
