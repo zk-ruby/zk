@@ -102,21 +102,25 @@ module ZK
     def node_created?
       @type == ZOO_CREATED_EVENT
     end
+    alias created? node_created?
 
     # Has a node been deleted? 
     def node_deleted?
       @type == ZOO_DELETED_EVENT
     end
+    alias deleted? node_deleted?
 
     # Has a node changed?
     def node_changed?
       @type == ZOO_CHANGED_EVENT
     end
+    alias changed? node_changed?
 
     # Has a node's list of children changed?
     def node_child?
       @type == ZOO_CHILD_EVENT
     end
+    alias child? node_child?
 
     # Is this a session-related event?
     #
@@ -148,12 +152,14 @@ module ZK
       @type == ZOO_SESSION_EVENT
     end
     alias state_event? session_event?
+    alias session? session_event?
     
     # has this watcher been called because of a change to a zookeeper node?
     # `node_event?` and `session_event?` are mutually exclusive.
     def node_event?
       path and not path.empty?
     end
+    alias node? node_event?
 
     # according to [the programmer's guide](http://zookeeper.apache.org/doc/r3.3.4/zookeeperProgrammers.html#Java+Binding)
     #
