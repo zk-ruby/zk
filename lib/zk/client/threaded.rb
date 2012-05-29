@@ -355,7 +355,6 @@ module ZK
         nil
       end
 
-
       # (see Threadpool#on_threadpool?)
       def on_threadpool?
         @threadpool and @threadpool.on_threadpool?
@@ -374,8 +373,6 @@ module ZK
       # this is where the :on option is implemented for {Base#create}
       def create(path, *args)
         opts = args.extract_options!
-
-        logger.debug { "create, extracted opts: #{opts.inspect}" } 
 
         or_opt = opts.delete(:or)
         args << opts
@@ -491,8 +488,6 @@ module ZK
               end
             end
           end
-        ensure
-          logger.debug { "reconnect thread exiting" }
         end
 
         def join_and_clear_reconnect_thread
