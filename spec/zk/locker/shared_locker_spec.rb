@@ -1,8 +1,26 @@
 require 'spec_helper'
 
 shared_examples_for 'ZK::Locker::SharedLocker' do
-  let(:locker)  { ZK::Locker::SharedLocker.new(zk, path) }
-  let(:locker2) { ZK::Locker::SharedLocker.new(zk2, path) }
+  let(:lock_data)    { 'lock data' }
+  let(:locker)  { ZK::Locker::SharedLocker.new(zk,  path, :data => lock_data) }
+  let(:locker2) { ZK::Locker::SharedLocker.new(zk2, path, :data => lock_data) }
+
+  describe 'data' do
+    it %[should return the data set in the constructor] do
+      locker.data.should == lock_data
+    end
+
+    it %[should be written to the lock node when created] do
+      locker.lock.should be_true
+      zk.get(locker.lock_path).first.should == lock_data
+    end
+  end
+
+  describe :owner_data do
+    it %[should raise NotImplementedError] do
+      lambda { locker.owner_data }.should raise_error(NotImplementedError)
+    end
+  end
 
   describe :assert! do
     it_should_behave_like 'LockerBase#assert!'

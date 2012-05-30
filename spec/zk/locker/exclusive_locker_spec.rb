@@ -1,8 +1,27 @@
 require 'spec_helper'
 
 shared_examples_for 'ZK::Locker::ExclusiveLocker' do
-  let(:locker) { ZK::Locker.exclusive_locker(zk, path) }
-  let(:locker2) { ZK::Locker.exclusive_locker(zk2, path) }
+  let(:locker) { ZK::Locker.exclusive_locker(zk, path, :data => 'flo') }
+  let(:locker2) { ZK::Locker.exclusive_locker(zk2, path, :data => 'eddie') }
+
+  describe :owner_data do
+    it %[should return the data of the owner] do
+      locker.lock.should be_true
+      locker.owner_data.should == 'flo'
+      locker2.owner_data.should == 'flo'
+      locker.unlock.should be_true
+
+      locker2.lock.should be_true
+      locker.owner_data.should == 'eddie'
+      locker2.owner_data.should == 'eddie'
+      locker2.unlock.should be_true
+    end
+
+    it %[should return nil if there is no owner] do
+      locker.should be_acquirable
+      locker.owner_data.should be_nil
+    end
+  end
 
   describe :assert! do
     it_should_behave_like 'LockerBase#assert!'

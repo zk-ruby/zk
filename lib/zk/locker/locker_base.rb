@@ -26,6 +26,9 @@ module ZK
       # @private
       attr_reader :root_lock_path
 
+      # the data set for this lock at instantiation time
+      attr_reader :data
+
       # Extracts the integer from the zero-padded sequential lock path
       #
       # @return [Integer] our digit
@@ -36,20 +39,48 @@ module ZK
 
       # Create a new lock instance.
       #
-      # @param [Client::Threaded] client a client instance
+      # @override new(client, name, root_lock_node=nil)
+      #   Create a new lock instance with an optional alternate root 
       #
-      # @param [String] name Unique name that will be used to generate a key.
-      #   All instances created with the same `root_lock_node` and `name` will be
-      #   holding the same lock.
+      #   @param [Client::Threaded] client a client instance
       #
-      # @param [String] root_lock_node the root path on the server under which all
-      #   locks will be generated, the default is Locker.default_root_lock_node
+      #   @param [String] name Unique name that will be used to generate a key.
+      #     All instances created with the same `root_lock_node` and `name` will be
+      #     holding the same lock.
       #
-      def initialize(client, name, root_lock_node=nil) 
-        @zk = client
-        @root_lock_node = root_lock_node || Locker.default_root_lock_node
+      #   @param [String] root_lock_node the root path on the server under which all
+      #     locks will be generated, the default is Locker.default_root_lock_node
+      #
+      # @override new(client, name, opts={})
+      #   @param [Client::Threaded] client a client instance
+      #
+      #   @param [String] name Unique name that will be used to generate a key.
+      #     All instances created with the same `root_lock_node` and `name` will be
+      #     holding the same lock.
+      #
+      #   @option opts [String] :root_lock_node (nil) the root path on the
+      #     server under which all locks will be generated, the default is
+      #     Locker.default_root_lock_node
+      #
+      #   @option opts [String] :data (nil) by default the lock node does not
+      #     contain any data. Using this option, you can store data in the lock
+      #     node that can be retrieved with the {#data} method. For now, data
+      #     can only be set at Locker instantiation time.
+      #
+      def initialize(client, name, *args) 
+        @zk     = client
+        @path   = name
 
-        @path           = name
+        opts = args.extract_options!
+
+        @root_lock_node = args.first || opts[:root_lock_node] || Locker.default_root_lock_node
+
+        if data = opts.fetch(:data, nil)
+          @data = data.dup.freeze
+        else
+          @data = nil
+        end
+
         @locked         = false
         @waiting        = false
         @lock_path      = nil
@@ -60,7 +91,7 @@ module ZK
         @cond   = @mutex.new_cond
         @node_deletion_watcher = nil
       end
-      
+
       # block caller until lock is aquired, then yield
       #
       # there is no non-blocking version of this method
@@ -173,6 +204,15 @@ module ZK
         lock(blocking)
       end
 
+      # The data contained in the owner's lock node.
+      #
+      # @abstract override in subclasses
+      # @raise NotImplementedError by default
+      #
+      def owner_data
+        raise NotImplementedError
+      end
+
       # returns true if this locker is waiting to acquire lock 
       # this should be used in tests only. 
       #
@@ -283,7 +323,8 @@ module ZK
         #
         def create_lock_path!(prefix='lock')
           @mutex.synchronize do
-            @lock_path = @zk.create("#{root_lock_path}/#{prefix}", :mode => :ephemeral_sequential)
+            d = data || ''
+            @lock_path = @zk.create("#{root_lock_path}/#{prefix}", d, :mode => :ephemeral_sequential)
             @parent_stat = @zk.stat(root_lock_path)
           end
 

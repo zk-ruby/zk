@@ -16,6 +16,8 @@ Will go through your locker nodes one by one and try to lock and unlock them. If
 
 * Added `create('/path', 'data', :or => :set)` which will create a node (and all parent paths) with the given data or set its contents if it already exists. It's intended as a convenience when you just want a node to exist with a particular value.
 
+* Added a bunch of shorter aliases on `ZK::Event`, so you can say `event.deleted?`, `event.changed?`, etc.
+
 ### v1.5.3 ###
 
 * Fixed reconnect code. There was an occasional race/deadlock condition caused because the reopen call was done on the underlying connection's dispatch thread. Closing the dispatch thread is part of reopen, so this would cause a deadlock in real-world use. Moved the reconnect logic to a separate, single-purpose thread on ZK::Client::Threaded that watches for connection state changes. 

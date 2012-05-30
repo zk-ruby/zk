@@ -31,6 +31,29 @@ module ZK
         end
       end
 
+      # Returns the data of the owner of the lock (the node with the lowest
+      # lock number). 
+      #
+      # @return [String] If we are currently the owner of the lock, returns
+      #   {#data}. 
+      #
+      # @return [nil] if there is an error reading the data from the lock
+      #   owner's node or if there is no current lock owner
+      #
+      # @note This method is subject to race conditions, especially if there's
+      #   a lot of contention for the lock, or if the lock is only held for a
+      #   very short time. This method will yield the most consistent results
+      #   for situations where the lock is held for a long time by a single
+      #   process
+      #
+      def owner_data
+        return data if locked?
+        lowest_name = lowest_exclusive_lock_node_name
+        return nil unless lowest_name
+
+        return zk.get("#{root_lock_path}/#{lowest_name}", :ignore => :no_node).first
+      end
+
       # (see LockerBase#assert!)
       #
       # checks that we:
@@ -49,8 +72,6 @@ module ZK
         return true if locked? 
         stat = zk.stat(root_lock_path)
         !stat.exists? or stat.num_children == 0
-      rescue Exceptions::NoNode   # XXX: is this ever hit? stat shouldn't raise
-        true
       end
 
       private
@@ -63,6 +84,15 @@ module ZK
           raise WeAreTheLowestLockNumberException if my_idx == 0
 
           ary[(my_idx - 1)] 
+        end
+
+        # the lowest exclusive locker (the guy holding the lock)
+        # nil if nobody holds the lock
+        def lowest_exclusive_lock_node_name
+          ary = ordered_lock_children()
+          ary.first
+        rescue Exceptions::NoNode 
+          nil
         end
 
         def got_write_lock?

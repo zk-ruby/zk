@@ -98,8 +98,9 @@ module ZK
       #   ZK::Exceptions::Retryable error. This exception (or really, group of
       #   exceptions) is raised when there has been an unintentional network
       #   connection or session loss, so retrying an operation in this situation
-      #   is like saying "If we are disconnected, How long should we wait for the
-      #   connection to become available before attempthing this operation?"
+      #   is like saying "If we are disconnected, How long should we wait for
+      #   the connection to become available before we give up and raise an
+      #   error, rather than retrying?"
       #
       #   The default `nil` means automatic retry is not attempted.
       #
