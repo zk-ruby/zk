@@ -32,9 +32,9 @@ group :development do
   gem 'guard-rspec',    :require => false
   gem 'guard-shell',    :require => false
   gem 'guard-bundler',  :require => false
-  gem 'growl',          :require => false
 
   if RUBY_PLATFORM =~ /darwin/i
+    gem 'growl',       :require => false
     gem 'rb-readline', :platform => :ruby
   end
 end

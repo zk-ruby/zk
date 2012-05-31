@@ -58,10 +58,11 @@ module SpecGlobalLogger
   def mute_logger
     zk_log = Logging.logger['ZK']
     orig_level, zk_log.level = zk_log.level, :off
-    orig_zk_level, Zookeeper.debug_level = Zookeeper.debug_level, Zookeeper::Constants::ZOO_LOG_LEVEL_ERROR
+    orig_zoo_level, Zookeeper.debug_level = Zookeeper.debug_level, Zookeeper::Constants::ZOO_LOG_LEVEL_ERROR
     yield
   ensure
-    zk_log.level = orig_zk_level
+    zk_log.level = orig_level
+    Zookeeper.debug_level = orig_zoo_level
   end
 end
 

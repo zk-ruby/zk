@@ -620,7 +620,8 @@ module ZK
         h = { :path => path }.merge(opts)
 
         setup_watcher!(:data, h) do
-          call_and_check_rc(:stat, h.merge(:ignore => :no_node)).fetch(:stat)
+          rv = call_and_check_rc(:stat, h.merge(:ignore => :no_node))
+          opts[:callback] ? rv : rv.fetch(:stat)
         end
       end
 
