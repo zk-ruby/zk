@@ -211,7 +211,7 @@ module ZK
   ensure
     if cnx
       cnx.close! 
-      Thread.pass until cnx.closed?
+      cnx.wait_until_closed(30) # XXX: hardcoded here, do not hang forever
     end
   end
 

@@ -461,9 +461,27 @@ module ZK
         logger.debug { "#{__method__} @last_cnx_state: #{@last_cnx_state.inspect}, time_left? #{timeout ? (Time.now.to_f < time_to_stop.to_f) : 'true'}, @client_state: #{@client_state.inspect}" }
       end
 
-          logger.debug { "#{__method__} @last_cnx_state: #{@last_cnx_state.inspect}, time_left? #{Time.now.to_f < time_to_stop.to_f}, @client_state: #{@client_state.inspect}" }
+      # @private
+      def wait_until_closed(timeout=nil)
+        time_to_stop = timeout ? Time.now + timeout : nil
+
+        @mutex.synchronize do
+          while true
+            if timeout
+              now = Time.now
+              break if (now > time_to_stop) || (@client_state == CLOSED)
+              deadline = time_to_stop.to_f - now.to_f
+              @cond.wait(deadline)
+            else
+              break if @client_state == CLOSED
+              @cond.wait
+            end
+          end
         end
+
+        logger.debug { "#{__method__} @last_cnx_state: #{@last_cnx_state.inspect}, time_left? #{timeout ? (Time.now.to_f < time_to_stop.to_f) : 'true'}, @client_state: #{@client_state.inspect}" }
       end
+
 
       # @private
       def client_state
