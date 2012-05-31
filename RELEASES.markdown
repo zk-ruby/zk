@@ -1,5 +1,9 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.6.1 ###
+
+* Small fixes for zk-eventmachine compatibilty
+
 ### v1.6.0 ###
 
 * Locker cleanup code!
