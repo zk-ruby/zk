@@ -219,6 +219,7 @@ describe ZK::Pool do
     before do
       @min_clients = 1
       @max_clients = 2
+      @timeout = 10
       @connection_pool = ZK::Pool::Bounded.new(connection_host, :min_clients => @min_clients, :max_clients => @max_clients, :timeout => @timeout)
       @connection_pool.should be_open
       wait_until(2) { @connection_pool.available_size > 0 }
