@@ -1,5 +1,11 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.6.2 ###
+
+* Change state call to reduce the chances of deadlocks
+
+One of the problems I've been seeing is that during some kind of shutdown event, some method will call `closed?` or `connected?` which will acquire a mutex and make a call on the underlying connection at the *exact* moment necessary to cause a deadlock. In order to help prevent this, and building on some changes from 1.5.3, we now treat our cached `@last_cnx_state` as the current state of the connection and don't touch the underlying connection object (except in the case of the java driver, which is safe).
+
 ### v1.6.1 ###
 
 * Small fixes for zk-eventmachine compatibilty

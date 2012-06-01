@@ -65,6 +65,12 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 [zk-eventmachine]: https://github.com/slyphon/zk-eventmachine
 
 ## NEWS ##
+### v1.6.2 ###
+
+* Change state call to reduce the chances of deadlocks
+
+One of the problems I've been seeing is that during some kind of shutdown event, some method will call `closed?` or `connected?` which will acquire a mutex and make a call on the underlying connection at the *exact* moment necessary to cause a deadlock. In order to help prevent this, and building on some changes from 1.5.3, we now treat our cached `@last_cnx_state` as the current state of the connection and don't touch the underlying connection object (except in the case of the java driver, which is safe).
+
 ### v1.6.0 ###
 
 * Locker cleanup code!
@@ -88,67 +94,6 @@ Will go through your locker nodes one by one and try to lock and unlock them. If
 * Fixed reconnect code. There was an occasional race/deadlock condition caused because the reopen call was done on the underlying connection's dispatch thread. Closing the dispatch thread is part of reopen, so this would cause a deadlock in real-world use. Moved the reconnect logic to a separate, single-purpose thread on ZK::Client::Threaded that watches for connection state changes. 
 
 * 'private' is not 'protected'. I've been writing ruby for several years now, and apparently I'd forgotten that 'protected' does not work like how it does in java. The visibility of these methods has been corrected, and all specs pass, so I don't expect issues...but please report if this change causes any bugs in user code.
-
-### v1.5.2 ###
-
-* Fix locker cleanup code to avoid a nasty race when a session is lost, see [issue #34](https://github.com/slyphon/zk/issues/34)
-
-* Fix potential deadlock in ForkHook code so the mutex is unlocked in the case of an exception
-
-* Do not hang forever when shutting down and the shutdown thread does not exit (wait 30 seconds).
-
-### v1.5.1 ###
-
-* Added a `:retry_duration` option to the Threaded client constructor which will allows the user to specify for how long in the case of a connection loss, should an operation wait for the connection to be re-established before retrying the operation. This can be set at a global level and overridden on a per-call basis. The default is to not retry (which may change at a later date). Generally speaking, a timeout of > 30s is probably excessive, and care should be taken because during a connection loss, the server-side state may change without you being aware of it (i.e. events will not be delivered). 
-
-* Small fork-hook implementation fix. Previously we were using WeakRefs so that hooks would not prevent an object from being garbage collected. This has been replaced with a finalizer which is more deterministic.
-
-### v1.5.0 ###
-
-Ok, now seriously this time. I think all of the forking issues are done. 
-
-* Implemented a 'stop the world' feature to ensure safety when forking. All threads are stopped, but state is preserved. `fork()` can then be called safely, and after fork returns, all threads will be restarted in the parent, and the connection will be torn down and reopened in the child. 
-
-* The easiest, and supported, way of doing this is now to call `ZK.install_fork_hook` after requiring zk. This will install an `alias_method_chain` style hook around the `Kernel.fork` method, which handles pausing all clients in the parent, calling fork, then resuming in the parent and reconnecting in the child. If you're using ZK in resque, I *highly* recommend using this approach, as it will give the most consistent results.
-
-In your app that requires an open ZK instance and `fork()`:
-
-```ruby
-
-require 'zk'
-ZK.install_fork_hook
-
-```
-
-Then use fork as you normally would.
-
-* Logging is now off by default, but we now use the excellent, can't-recommend-it-enough, [logging](https://github.com/TwP/logging) gem. If you want to tap into the ZK logs, you can assign a stdlib compliant logger to `ZK.logger` and that will be used. Otherwise, you can use the Logging framework's controls. All ZK logs are consolidated under the 'ZK' logger instance.
-
-
-### v1.4.1 ###
-
-* All users of resque or other libraries that depend on `fork()` are encouraged to upgrade immediately. This version of ZK features the `zookeeper-1.1.0` gem with a completely rewritten backend that provides true fork safety. The rules still apply (you must call `#reopen` on your client as soon as possible in the child process) but you can be assured a much more stable experience.
-
-### v1.4.0 ###
-
-* Added a new `:ignore` option for convenience when you don't care if an operation fails. In the case of a failure, the method will return nil instead of raising an exception. This option works for `children`, `create`, `delete`, `get`, `get_acl`, `set`, and `set_acl`. `stat` will ignore the option (because it doesn't care about the state of a node).
-
-```
-# so instead of having to do:
-
-begin
-  zk.delete('/some/path')
-rescue ZK::Exceptions;:NoNode
-end
-
-# you can do
-
-zk.delete('/some/path', :ignore => :no_node)
-
-```
-
-* MASSIVE fork/parent/child test around event delivery and much greater stability expected for linux (with the zookeeper-1.0.3 gem). Again, please see the documentation on the wiki about [proper fork procedure](http://github.com/slyphon/zk/wiki/Forking).
-
 
 
 ## Caveats
