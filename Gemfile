@@ -8,9 +8,9 @@ source :rubygems
 # keep closer track of this stuff to make bisecting easier and travis more
 # accurate
 
-git 'git://github.com/slyphon/zookeeper.git', :tag => 'dev/zk/00009' do
-  gem 'zookeeper', '~> 1.2.0'
-end
+# git 'git://github.com/slyphon/zookeeper.git', :tag => 'dev/zk/00008' do
+#   gem 'zookeeper', '~> 1.2.0'
+# end
 
 gem 'rake', :group => [:development, :test]
 gem 'pry',  :group => [:development]
