@@ -156,7 +156,7 @@ module ZK
         tp_size = opts.fetch(:threadpool_size, DEFAULT_THREADPOOL_SIZE)
         @threadpool = Threadpool.new(tp_size)
 
-        @connection_timeout = opts.fetch(:timeout, DEFAULT_TIMEOUT) # maybe move this into superclass?
+        @connection_timeout = opts[:timeout] || DEFAULT_TIMEOUT # maybe move this into superclass?
         @event_handler   = EventHandler.new(self, opts)
 
         @reconnect = opts.fetch(:reconnect, true)
@@ -244,6 +244,9 @@ module ZK
 
             logger.debug { "reopening, no fork detected" }
             @last_cnx_state = Zookeeper::ZOO_CONNECTING_STATE
+            
+            timeout ||= @connection_timeout     # or @connection_timeout here is the docuemnted behavior on Base#reopen
+
             @cnx.reopen(timeout)                # ok, we werent' forked, so just reopen
 
             # this is a bit of a hack, because we need to wait until the event thread
