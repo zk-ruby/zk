@@ -11,7 +11,7 @@ guard 'bundler' do
 end
 
 guard 'rspec', :version => 2 do
-  watch(%r{^spec/.+_spec\.rb$})
+  watch(%r{^(spec/.+_spec\.rb)$}) { |m| m[1] }  # is this necessary?
 
   # run all specs when the support files change
   watch(%r{^spec/support/.+\.rb$}) { 'spec' }
