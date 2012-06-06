@@ -265,6 +265,8 @@ module ZK
         #
         def create_root_path!
           zk.mkdir_p(@root_lock_path)
+        rescue NoNode
+          retry
         end
 
         # performs the checks that (according to the recipe) mean that we hold
