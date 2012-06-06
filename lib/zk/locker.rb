@@ -11,7 +11,7 @@ module ZK
   #
   # The implementation is fairly true to the description in the [recipes][], and
   # the key is generated using a combination of the name provided, and a
-  # `root_lock_node` path whose default value is `/_zklocking`. If you look
+  # `root_lock_node` path whose default value is `/_zk/lock`. If you look
   # below at the 'Key path creation' example, you'll see that we do a very
   # simple escaping of the name given. There was a distinct tradeoff to be made
   # between making the locks easy to debug in zookeeper and making them more
@@ -93,12 +93,18 @@ module ZK
     SHARED_LOCK_PREFIX  = 'sh'.freeze
     EXCLUSIVE_LOCK_PREFIX = 'ex'.freeze
 
-    @default_root_lock_node = '/_zklocking'.freeze unless @default_root_lock_node
+    @@default_root_lock_node = '/_zk/locks'.freeze unless defined?(@@default_root_lock_node)
 
     class << self
       # the default root path we will use when a value is not given to a
       # constructor
-      attr_accessor :default_root_lock_node
+      def default_root_lock_node
+        @@default_root_lock_node
+      end
+
+      def default_root_lock_node=(path)
+        @@default_root_lock_node = path.dup.freeze
+      end
 
       # Create a {SharedLocker} instance
       #

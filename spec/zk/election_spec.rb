@@ -1,15 +1,9 @@
 require 'spec_helper'
 
 describe ZK::Election, :jruby => :broken do
-  include_context 'connection opts'
+  include_context 'threaded client connection'
 
   before do
-    ZK.open(connection_host) do |cnx| 
-      logger.debug { "REMOVING /_zkelection" }
-      cnx.rm_rf('/_zkelection')
-    end
-
-    @zk = ZK.new(*connection_args)
     @zk2 = ZK.new(*connection_args)
     @election_name = '2012'
     @data1 = 'obama'
@@ -17,10 +11,7 @@ describe ZK::Election, :jruby => :broken do
   end
 
   after do
-    @zk.close!
     @zk2.close!
-
-    ZK.open(connection_host) { |cnx| cnx.rm_rf('/_zkelection') }
   end
 
   describe 'Candidate', 'following next_node' do
@@ -207,12 +198,12 @@ describe ZK::Election, :jruby => :broken do
     before do
       @zk3 = ZK.new(*connection_args)
 
-      @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
+      @zk3.exists?("#{ZK::Election.default_root_election_node}/2012/leader_ack").should be_false
 
       @obama = ZK::Election::Candidate.new(@zk, @election_name, :data => @data1)
       @palin = ZK::Election::Candidate.new(@zk2, @election_name, :data => @data2)
 
-      @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
+      @zk3.exists?("#{ZK::Election.default_root_election_node}/2012/leader_ack").should be_false
 
       @observer = ZK::Election::Observer.new(@zk3, @election_name)
     end
@@ -232,6 +223,7 @@ describe ZK::Election, :jruby => :broken do
           @observer.observe!
           wait_until { !@observer.leader_alive.nil? }
           @observer.leader_alive.should_not be_nil
+
           @zk3.exists?(@observer.root_election_node).should be_false
         end
 

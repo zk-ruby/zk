@@ -290,7 +290,8 @@ shared_examples_for 'client' do
   describe 'reopen' do
     describe 'watchers' do
       before do
-        @path = '/testwatchers'
+        @zk.mkdir_p(@base_path)
+        @path = File.join(@base_path, 'testwatchers')
         @queue = Queue.new
         @zk.delete(@path) rescue ZK::Exceptions::NoNode
       end

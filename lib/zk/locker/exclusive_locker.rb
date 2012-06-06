@@ -5,9 +5,9 @@ module ZK
     # If the name 'dingus' is given, then in the case of an exclusive lock, the
     # algorithm works like:
     #
-    # * lock_path = `zk.create("/_zklocking/dingus/ex", :sequential => true, :ephemeral => true)`
+    # * lock_path = `zk.create("/_zk/locks/dingus/ex", :sequential => true, :ephemeral => true)`
     # * extract the digit from the lock path
-    # * of all the children under '/_zklocking/dingus', do we have the lowest digit?
+    # * of all the children under '/_zk/locks/dingus', do we have the lowest digit?
     #   * __yes__: then we hold the lock, if we're non-blocking, return true
     #   * __no__: is the lock blocking?
     #       * __yes__: then set a watch on the next-to-lowest node and sleep the current thread until that node has been deleted

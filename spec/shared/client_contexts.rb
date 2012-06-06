@@ -8,33 +8,34 @@ shared_context 'threaded client connection' do
   include_context 'connection opts'
 
   before do
-#     logger.debug { "threaded client connection - begin before hook" }
+    logger.debug { "threaded client connection - begin before hook" }
     @connection_string = connection_host
     @base_path = '/zktests'
-    @zk = ZK::Client::Threaded.new(*connection_args).tap { |z| wait_until { z.connected? } }
+    @zk = ZK::Client::Threaded.new(*connection_args).tap { |z| z.wait_until_connected }
     @threadpool_exception = nil
     @zk.on_exception { |e| @threadpool_exception = e }
     @zk.rm_rf(@base_path)
 
     @orig_default_root_lock_node = ZK::Locker.default_root_lock_node
-    ZK::Locker.default_root_lock_node = "#{@base_path}/_zklocking"
+    ZK::Locker.default_root_lock_node = "#{@base_path}/_zk/locks"
 
-#     logger.debug { "threaded client connection - end before hook" }
+    @orig_default_election_root = ZK::Election.default_root_election_node
+    ZK::Election.default_root_election_node = "#{@base_path}/_zk/elections"
+
+    @orig_default_queue_root = ZK::MessageQueue.default_root_queue_node
+    ZK::MessageQueue.default_root_queue_node = "#{@base_path}/_zk/queues"
   end
 
   after do
-#     raise @threadpool_exception if @threadpool_exception
-#     logger.debug { "threaded client connection - after hook" }
-
     @zk.close! if @zk and not @zk.closed?
 
     ZK.open(*connection_args) do |z|
       z.rm_rf(@base_path)
     end
 
-    ZK::Locker.default_root_lock_node = @orig_default_root_lock_node
-
-#     logger.debug { "threaded client connection - end after hook" }
+    ZK::Election.default_root_election_node   = @orig_default_election_root
+    ZK::Locker.default_root_lock_node         = @orig_default_root_lock_node
+    ZK::MessageQueue.default_root_queue_node  = @orig_default_queue_root
   end
 end
 

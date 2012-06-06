@@ -18,7 +18,7 @@ module ZK
       #
       # @example 
       #
-      #   '/_zklocking/foobar/__blah/lock000000007'
+      #   '/_zk/locks/foobar/__blah/lock000000007'
       #
       # @return [String]
       attr_reader :lock_path
@@ -77,7 +77,7 @@ module ZK
       # @example
       #
       #   > locker.lock_path
-      #   # => '/_zklocking/foobar/__blah/lock000000007'
+      #   # => '/_zk/locks/foobar/__blah/lock000000007'
       #   > locker.lock_basename
       #   # => 'lock000000007'
       #
@@ -261,7 +261,7 @@ module ZK
           end
         end
 
-        # root_lock_path is /_zklocking/foobar
+        # root_lock_path is /_zk/locks/foobar
         #
         def create_root_path!
           zk.mkdir_p(@root_lock_path)

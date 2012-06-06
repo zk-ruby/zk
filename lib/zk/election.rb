@@ -1,7 +1,5 @@
 module ZK
-  # NOTE: this module should be considered experimental.
-  #
-  # ==== Overview
+  # @note this module should be considered experimental.
   #
   # This module implements the "leader election" protocols described
   # {here}[http://hadoop.apache.org/zookeeper/docs/current/recipes.html#sc_leaderElection].
@@ -34,6 +32,7 @@ module ZK
   # connection info to the "leader ack" node, and the clients can reconnect to
   # the currently active leader.
   #
+  # @example 
   #
   #   def server
   #     candidate = @zk.election_candidate("database_election", "dbhost2.fqdn.tld:4567", :follow => :leader)
@@ -45,20 +44,28 @@ module ZK
   #     end
   #   end
   #
-  # Note that as soon as vote! is called, either the on_winning_election or
-  # on_losing_election callbacks will be called. 
+  #   # Note that as soon as vote! is called, either the on_winning_election or
+  #   # on_losing_election callbacks will be called. 
   #
   #
   module Election
     VOTE_PREFIX = 'ballot'.freeze
-    ROOT_NODE = '/_zkelection'.freeze
+
+    @@default_root_election_node = '/_zk/elections'.freeze unless defined?(@@default_root_election_node)
+
+    class << self
+      def default_root_election_node
+        @@default_root_election_node 
+      end
+
+      def default_root_election_node=(path)
+        @@default_root_election_node = path.dup.freeze
+      end
+    end
 
     VALID_FOLLOW_OPTIONS = [:next_node, :leader].freeze
 
-    DEFAULT_OPTS = {
-      :root_election_node => ROOT_NODE,
-    }.freeze
- 
+
     class Base
      include Logging
 
@@ -67,8 +74,7 @@ module ZK
       def initialize(client, name, opts={})
         @zk = client
         @name = name
-        opts = DEFAULT_OPTS.merge(opts)
-        @root_election_node = opts[:root_election_node]
+        @root_election_node = opts[:root_election_node] || Election.default_root_election_node
         @mutex = Monitor.new
         @closed = false
       end
@@ -190,7 +196,6 @@ module ZK
     class Candidate < Base
       def initialize(client, name, opts={})
         super(client, name, opts)
-        opts = DEFAULT_OPTS.merge(opts)
 
         @leader     = nil 
         @data       = opts[:data] || ''

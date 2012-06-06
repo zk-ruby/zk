@@ -88,7 +88,7 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
 
       it %[should block waiting for the lock] do
         ary = []
-        read_lock_path = zk.create("/_zklocking/#{path}/read", '', :mode => :ephemeral_sequential)
+        read_lock_path = zk.create("#{ZK::Locker.default_root_lock_node}/#{path}/read", '', :mode => :ephemeral_sequential)
 
         locker.lock.should be_false
 

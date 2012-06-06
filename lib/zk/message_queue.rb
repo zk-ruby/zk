@@ -21,14 +21,29 @@ module ZK
     # :nodoc:
     attr_accessor :zk
 
+    @@default_root_queue_node = '/_zk/queues'.freeze unless defined?(@@default_root_queue_node)
+
+    def self.default_root_queue_node
+      @@default_root_queue_node
+    end
+
+    def self.default_root_queue_node=(path)
+      @@default_root_queue_node = path.dup.freeze
+    end
+
     # @private
     # :nodoc:
-    def initialize(zookeeper_client, queue_name, queue_root = "/_zkqueues")
+    def initialize(zookeeper_client, queue_name, queue_root=nil)
       @zk = zookeeper_client
       @queue = queue_name
-      @queue_root = queue_root
-      @zk.create(@queue_root, "", :mode => :persistent) unless @zk.exists?(@queue_root)
-      @zk.create(full_queue_path, "", :mode => :persistent) unless @zk.exists?(full_queue_path)
+      @queue_root = queue_root || self.class.default_root_queue_node
+      create_full_queue_path
+    end
+
+    def create_full_queue_path
+      @zk.mkdir_p(full_queue_path)
+    rescue NoNode
+      retry
     end
 
     # publish a message to the queue, you can (optionally) use message titles
