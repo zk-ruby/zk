@@ -1,5 +1,9 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.6.3 ###
+
+* Retry when lock creation fails due to a NoNode exception
+
 ### v1.6.2 ###
 
 * Change state call to reduce the chances of deadlocks
