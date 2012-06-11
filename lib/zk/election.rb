@@ -1,4 +1,6 @@
 module ZK
+  # @deprecated This module will be removed in version 2.0
+  #
   # @note this module should be considered experimental.
   #
   # This module implements the "leader election" protocols described

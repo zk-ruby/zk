@@ -1,4 +1,6 @@
 module ZK
+  # @deprecated This class will be removed in 2.0
+  #
   # implements a simple message queue based on Zookeeper recipes
   #
   # @see http://hadoop.apache.org/zookeeper/docs/r3.0.0/recipes.html#sc_recipes_Queues
