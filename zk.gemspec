@@ -7,13 +7,12 @@ Gem::Specification.new do |s|
   s.version     = ZK::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Jonathan D. Simms", "Topper Bowers"]
-  s.email       = ["simms@hp.com", "tobowers@hp.com"]
+  s.email       = ["slyphon@gmail.com"]
   s.homepage    = "https://github.com/slyphon/zk"
   s.summary     = %q{A high-level wrapper around the zookeeper driver}
   s.description = s.summary + "\n"
 
-  s.add_runtime_dependency 'zookeeper', '~> 1.2.4'
-  s.add_runtime_dependency 'backports', '~> 2.5.1'
+  s.add_runtime_dependency 'zookeeper', '~> 1.2.11'
   s.add_runtime_dependency 'logging',   '~> 1.7.2'
 
   s.files         = `git ls-files`.split("\n")
