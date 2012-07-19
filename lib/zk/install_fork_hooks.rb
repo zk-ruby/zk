@@ -23,7 +23,6 @@ module ::Kernel
       end
     end
   end
-  module_function :fork_with_zk_hooks
 
   if defined?(fork_without_zk_hooks)
     remove_method :fork
@@ -33,5 +32,6 @@ module ::Kernel
 
   alias fork_without_zk_hooks fork
   alias fork fork_with_zk_hooks
+  module_function :fork
 end
 
