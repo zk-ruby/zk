@@ -18,6 +18,9 @@ module ZK
     ALL_STATE_EVENTS_KEY = :all_state_events
 
     # @private
+    WILDCARD_PATHS_KEY = :globbed_paths
+
+    # @private
     ZOOKEEPER_WATCH_TYPE_MAP = {
       Zookeeper::ZOO_CREATED_EVENT => :data,
       Zookeeper::ZOO_DELETED_EVENT => :data,
@@ -89,7 +92,13 @@ module ZK
       end
 
       EventHandlerSubscription.new(self, path, block, hash).tap do |subscription|
-        synchronize { @callbacks[path] << subscription }
+        synchronize do 
+          if subscription.wildcard?
+            @callbacks[WILDCARD_PATHS_KEY] << subscription
+          else
+            @callbacks[path] << subscription
+          end
+        end
       end
     end
     alias :subscribe :register
@@ -174,7 +183,9 @@ module ZK
       cb_ary = synchronize do 
         clear_watch_restrictions(event)
 
-        @callbacks.values_at(*cb_keys)
+        @callbacks.values_at(*cb_keys) + wildcard_callbacks_for(event)
+        
+        # TODO: add glob matching here, add to above callback array
       end
 
       cb_ary.flatten! # takes care of not modifying original arrays
@@ -188,6 +199,12 @@ module ZK
 
       safe_call(cb_ary, event)
     end
+
+    def wildcard_callbacks_for(event)
+      rval = []
+      # TODO: >>> CONTINUE HERE <<<<
+    end
+    private :wildcard_callbacks_for
 
     # happens inside the lock, clears the restriction on setting new watches
     # for a given path/event type combination

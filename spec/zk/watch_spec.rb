@@ -43,6 +43,30 @@ describe ZK do
       callback_called.should be_true
     end
 
+    describe 'wildcard' do
+      before do
+        @zk.mkdir_p(@path)
+        @child = "#{@path}/blah"
+      end
+
+      it %[should deliver events that match a globbed pathspec] do
+        events = []
+
+        sub = @zk.register("#{@path}/*") do |ev|
+          logger.debug { "got event #{ev}" }
+          events << ev
+        end
+
+        @zk.stat(@child, :watch => true)
+        @zk.create(@child, 'blah') 
+
+        wait_while { events.empty? }
+
+        events.should_not be_empty
+      end
+    end
+
+
     describe :regression do
       before do
         pending_in_travis("these tests take too long or time out")
@@ -121,7 +145,7 @@ describe ZK do
 
         events.length.should == 1
       end
-    end
+    end # regression
 
     it %[should restrict_new_watches_for? if a successul watch has been set] do
       @zk.stat(@path, :watch => true)

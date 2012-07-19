@@ -52,6 +52,24 @@ module ZK
       def resume_after_fork_in_parent
       end
 
+      # @private
+      def wildcard?
+        @path.include?('*')
+      end
+
+      # if wildcard? is true, this returns a Regexp that can be used to match paths
+      # which this callback applies to. Otherwise, returns a regexp that just
+      # matches the path as given.
+      #
+      # @private
+      def wildcard_regexp
+        @wildcard_regexp ||= (
+          s = @path.gsub(/[*]/, '[^/]+')
+          s = "\\A#{s}"
+          Regexp.new(s)
+        )
+      end
+
       private
         def prep_interests(a)
 #           logger.debug { "prep_interests: #{a.inspect}" }
