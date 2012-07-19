@@ -65,6 +65,11 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 [zk-eventmachine]: https://github.com/slyphon/zk-eventmachine
 
 ## NEWS ##
+### v1.6.4 ###
+
+* Remove unnecessary dependency on backports gem
+* *Fix for use in resque!* A small bug was preventing resque from activating the fork hook.
+
 ### v1.6.2 ###
 
 * Change state call to reduce the chances of deadlocks

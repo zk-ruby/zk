@@ -1,5 +1,10 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.6.4 ###
+
+* Remove unnecessary dependency on backports gem
+* Fix for use in resque! A small bug was preventing resque from activating the fork hook.
+
 ### v1.6.3 ###
 
 * Retry when lock creation fails due to a NoNode exception
