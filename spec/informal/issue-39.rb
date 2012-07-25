@@ -16,6 +16,8 @@ Kernel.srand(1)
 class Issue39
   attr_reader :logger, :zk
 
+  PATH = '/issue-39'
+
   def initialize
     @mutex = Monitor.new
     @logger = Logging::Logger.root
@@ -43,10 +45,21 @@ class Issue39
     Process.kill('CONT', zookeeper_pid)
   end
 
-  def main
+  def handle_event(event)
+    zk.stat(PATH, :watch => true)
+    logger.info { "got event #{event.class.inspect}" } 
+  end
+
+  def iterate
     sigcont_zookeeper
 
-    p zk.stat('/')
+    zk.rm_rf(PATH)
+    zk.mkdir_p(PATH)
+
+    zk.on_connected(&method(:handle_event))
+    zk.register(PATH, &method(:handle_event))
+
+    p zk.stat(PATH, :watch => true)
 
     sigstop_zookeeper
 
@@ -55,7 +68,7 @@ class Issue39
     20.times do 
       threads << Thread.new do 
         sleep rand
-        zk.get('/', :watch => true)
+        zk.get(PATH, :watch => true)
       end
     end  
 
@@ -63,6 +76,8 @@ class Issue39
       logger.debug { "joining thread: #{th}" }
       begin
         th.join
+      rescue Zookeeper::Exceptions::NotConnected => e
+        logger.error { "boring! #{e.class}" }
       rescue Exception => e
         @mutex.synchronize do
           logger.error(e)
@@ -71,6 +86,10 @@ class Issue39
     end
   ensure
     sigcont_zookeeper
+  end
+
+  def main
+    10.times { iterate }
   end
 end
 
