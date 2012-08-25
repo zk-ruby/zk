@@ -65,9 +65,10 @@ module ZK
       #
       # there is no non-blocking version of this method
       #
+      # @yield [lock] calls the block with the lock instance when acquired
       def with_lock
         lock(true)
-        yield
+        yield self
       ensure
         unlock
       end

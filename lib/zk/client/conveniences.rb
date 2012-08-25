@@ -73,7 +73,8 @@ module ZK
       #
       # @return the return value of the given block
       #
-      # @yield calls the block once the lock has been acquired
+      # @yield [lock] calls the block once the lock has been acquired with the
+      #   lock instance
       #
       # @example
       #
