@@ -74,6 +74,24 @@ describe 'ZK::Client#locker' do
     thread.join(10)
     array.length.should == 2
   end
+
+  describe :with_lock do
+    it %[should yield the lock instance to the block] do
+      @zk.with_lock(@path_to_lock) do |lock|
+        lock.should_not be_nil
+        lock.should be_kind_of(ZK::Locker::LockerBase)
+        lambda { lock.assert! }.should_not raise_error
+      end
+    end
+
+    it %[should yield a shared lock when :mode => shared given] do
+      @zk.with_lock(@path_to_lock, :mode => :shared) do |lock|
+        lock.should_not be_nil
+        lock.should be_kind_of(ZK::Locker::SharedLocker)
+        lambda { lock.assert! }.should_not raise_error
+      end
+    end
+  end
 end
 
 
