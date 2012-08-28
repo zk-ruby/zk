@@ -7,6 +7,7 @@ describe ZK::NodeDeletionWatcher do
     @path = "#{@base_path}/node_deleteion_watcher_victim"
 
     @n = ZK::NodeDeletionWatcher.new(@zk, @path)
+    @exc = nil
   end
 
   describe %[when the node already exists] do
@@ -31,8 +32,7 @@ describe ZK::NodeDeletionWatcher do
     it %[should wake up if interrupt! is called] do
       @zk.mkdir_p(@path)
 
-      @exc = nil
-
+      # see _eric!! i had to do this because of 1.8.7!
       th = Thread.new do
         begin
           @n.block_until_deleted
@@ -49,6 +49,28 @@ describe ZK::NodeDeletionWatcher do
       th.join(5).should == th
 
       @exc.should be_kind_of(ZK::Exceptions::WakeUpException)
+    end
+
+    it %[should raise LockWaitTimeoutError if we time out waiting for a node to be deleted] do
+      @zk.mkdir_p(@path)
+
+      th = Thread.new do
+        begin
+          @n.block_until_deleted(:timeout => 0.02)
+        rescue Exception => e
+          @exc = e
+        end
+      end
+
+      @n.wait_until_blocked(5).should be_true
+
+      logger.debug { "wait_until_blocked returned" }
+
+      th.join(5).should == th
+      
+      @exc.should be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
+      @n.should be_done
+      @n.should be_timed_out
     end
   end
 

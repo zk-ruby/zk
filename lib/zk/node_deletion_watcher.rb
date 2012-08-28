@@ -10,6 +10,7 @@ module ZK
       BLOCKED     = :yes
       NOT_ANYMORE = :not_anymore
       INTERRUPTED = :interrupted
+      TIMED_OUT   = :timed_out
     end
     include Constants
 
@@ -34,6 +35,10 @@ module ZK
 
     def blocked?
       @mutex.synchronize { @blocked == BLOCKED }
+    end
+
+    def timed_out?
+      @mutex.synchronize { @result == TIMED_OUT }
     end
 
     # this is for testing, allows us to wait until this object has gone into
@@ -66,7 +71,7 @@ module ZK
       end
     end
 
-    # cause a thread blocked us to be awakened and have a WakeUpException
+    # cause a thread blocked by us to be awakened and have a WakeUpException
     # raised. 
     #
     # if a result has already been delivered, then this does nothing
@@ -86,7 +91,13 @@ module ZK
       end
     end
 
-    def block_until_deleted
+    # @option opts [Numeric] :timeout (nil) if a positive integer, represents a duration in
+    #   seconds after which, if we have not acquired the lock, a LockWaitTimeoutError will
+    #   be raised in all waiting threads
+    #
+    def block_until_deleted(opts={})
+      timeout = opts[:timeout]
+
       @mutex.synchronize do
         raise InvalidStateError, "Already fired for #{path}" if @result
         register_callbacks
@@ -103,13 +114,19 @@ module ZK
 
         @blocked = BLOCKED
         @cond.broadcast                 # wake threads waiting for @blocked to change
-        @cond.wait_until { @result }    # wait until we get a result
+
+        wait_for_result(timeout)
+
         @blocked = NOT_ANYMORE
+
+        logger.debug { "got result for path: #{path}, result: #{@result.inspect}" } 
 
         case @result
         when :deleted
           logger.debug { "path #{path} was deleted" }
           return true
+        when TIMED_OUT
+          raise ZK::Exceptions::LockWaitTimeoutError
         when INTERRUPTED
           raise ZK::Exceptions::WakeUpException
         when ZOO_EXPIRED_SESSION_STATE
@@ -127,6 +144,29 @@ module ZK
     end
 
     private
+      # this method must be synchronized on @mutex, obviously
+      def wait_for_result(timeout)
+        # do the deadline maths
+        time_to_stop = timeout ? (Time.now + timeout) : nil # slight time slippage between here
+
+        until @result
+          if timeout                                        # and here
+            now = Time.now
+
+            if (now > time_to_stop)
+              @result ||= TIMED_OUT # don't overwrite the @result
+              return
+            elsif @result
+              return
+            end
+
+            @cond.wait(time_to_stop.to_f - now.to_f)
+          else
+            @cond.wait_until { @result }
+          end
+        end
+      end
+
       def unregister_callbacks
         @subs.each(&:unregister)
       end
@@ -142,11 +182,11 @@ module ZK
       def node_deletion_cb(event)
         @mutex.synchronize do
           if event.node_deleted?
-            @result = :deleted
+            @result ||= :deleted
             @cond.broadcast
           else
             unless zk.exists?(path, :watch => true)
-              @result = :deleted
+              @result ||= :deleted
               @cond.broadcast
             end
           end
