@@ -160,6 +160,7 @@ module ZK
   end # Locker
 end # ZK
 
+require 'zk/locker/lock_options'
 require 'zk/locker/locker_base'
 require 'zk/locker/shared_locker'
 require 'zk/locker/exclusive_locker'

@@ -66,8 +66,22 @@ module ZK
       # there is no non-blocking version of this method
       #
       # @yield [lock] calls the block with the lock instance when acquired
-      def with_lock
-        lock(true)
+      #
+      # @option opts [Numeric,true] :wait (nil) if non-nil, the amount of time to
+      #   wait for the lock to be acquired. since with_lock is only blocking,
+      #   `false` isn't a valid option. `true` is ignored (as it is the default).
+      #   If a Numeric (float or integer) option is given, maximum amount of time
+      #   to wait for lock acquisition.
+      #
+      # @raise [LockWaitTimeoutError] if the :wait timeout is exceeded
+      # @raise [ArgumentError] if :wait is false (since you can't do non-blocking)
+      def with_lock(opts={})
+        if opts[:wait].kind_of?(FalseClass)
+          raise ArgumentError, ":wait cannot be false, with_lock is only used in blocking mode"
+        end
+
+        opts = { :wait => true }.merge(opts)
+        lock(opts)
         yield self
       ensure
         unlock
@@ -149,8 +163,20 @@ module ZK
         unlock
       end
 
-      # @param blocking [true,false] if true we block the caller until we can obtain
-      #   a lock on the resource
+      # @overload lock(blocking=false)
+      #   @param blocking [true,false] if true we block the caller until we can
+      #     obtain a lock on the resource
+      #   
+      #   @deprecated in favor of the options hash style
+      #
+      # @overload lock(opts={})
+      #   @option opts [true,false,Numeric] :wait (false) If true we block the
+      #     caller until we obtain a lock on the resource. If false, we do not
+      #     block. If a Numeric, the number of seconds we should wait for the
+      #     lock to be acquired. Will raise LockWaitTimeoutError if we exceed
+      #     the timeout.
+      #
+      #   @since 1.7
       # 
       # @return [true] if we're already obtained a shared lock, or if we were able to
       #   obtain the lock in non-blocking mode.
@@ -162,16 +188,27 @@ module ZK
       # @raise [InterruptedSession] raised when blocked waiting for a lock and
       #   the underlying client's session is interrupted. 
       #
-      # @see ZK::Client::Unixisms#block_until_node_deleted more about possible execptions
-      def lock(blocking=false)
-        raise NotImplementedError
+      # @raise [LockWaitTimeoutError] if the given timeout is exceeded waiting
+      #   for the lock to be acquired
+      #
+      # @see ZK::Client::Unixisms#block_until_node_deleted for more about possible execptions
+      def lock(opts={})
+        return true if @mutex.synchronize { @locked }
+
+        case opts
+        when TrueClass, FalseClass      # old style boolean argument
+          opts = { :wait => opts }
+        end
+
+        lock_with_opts_hash(opts)
       end
 
-      # (see #lock)
+      # delegates to {#lock}
+      #
       # @deprecated the use of lock! is deprecated and may be removed or have
       #   its semantics changed in a future release
-      def lock!(blocking=false)
-        lock(blocking)
+      def lock!(opts={})
+        lock(opts)
       end
 
       # returns true if this locker is waiting to acquire lock 
@@ -244,6 +281,10 @@ module ZK
       end
 
       private
+        def lock_with_opts_hash(opts={})
+          raise NotImplementedError
+        end
+
         def synchronize
           @mutex.synchronize { yield }
         end

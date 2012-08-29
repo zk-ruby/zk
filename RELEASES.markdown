@@ -1,5 +1,42 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.7.0 ###
+
+* Added Locker timeout feature for blocking calls. (issue #40)
+
+Previously, when dealing with locks, there were only two options: blocking or non-blocking. In order to come up with a time-limited lock, you had to poll every so often until you acquired the lock. This is, needless to say, both inefficient and doesn't allow for fair acquisition. 
+
+A timeout option has been added so that when blocking waiting for a lock, you can specify a deadline by which the lock should have been acquired. 
+
+```ruby
+zk = ZK.new
+
+locker = zk.locker('lock name')
+
+begin
+  locker.lock(:wait => 5.0)   # wait up to 5.0 seconds to acquire the lock
+rescue ZK::Exceptions::LockWaitTimeoutError
+  $stderr.puts "could not acquire the lock in time"
+end
+```
+
+Also available when using the convenience `#with_lock` methods
+
+```ruby
+
+zk = ZK.new
+
+begin
+  zk.with_lock('lock name', :wait => 5.0) do |lock|
+    # do stuff while holding lock
+  end
+rescue ZK::Exceptions::LockWaitTimeoutError
+  $stderr.puts "could not acquire the lock in time"
+end
+
+```
+
+
 ### v1.6.4 ###
 
 * Remove unnecessary dependency on backports gem

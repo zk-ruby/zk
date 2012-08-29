@@ -17,18 +17,8 @@ module ZK
       # (see LockerBase#lock)
       # obtain an exclusive lock.
       #
-      def lock(blocking=false)
-        return true if synchronize { @locked }
-        create_lock_path!(EXCLUSIVE_LOCK_PREFIX)
-
-        if got_write_lock?
-          synchronize { @locked = true }
-        elsif blocking
-          block_until_write_lock!
-        else
-          cleanup_lock_path!
-          false
-        end
+      def lock(opts={})
+        super
       end
 
       # (see LockerBase#assert!)
@@ -54,6 +44,21 @@ module ZK
       end
 
       private
+        def lock_with_opts_hash(opts)
+          create_lock_path!(EXCLUSIVE_LOCK_PREFIX)
+
+          lock_opts = LockOptions.new(opts)
+
+          if got_write_lock?
+            @mutex.synchronize { @locked = true }
+          elsif lock_opts.blocking?
+            block_until_write_lock!(:timeout => lock_opts.timeout)
+          else
+            cleanup_lock_path!
+            false
+          end
+        end
+
         # the node that is next-lowest in sequence number to ours, the one we
         # watch for updates to
         def next_lowest_node
@@ -70,7 +75,7 @@ module ZK
         end
         alias got_lock? got_write_lock?
 
-        def block_until_write_lock!
+        def block_until_write_lock!(opts={})
           begin
             path = "#{root_lock_path}/#{next_lowest_node}"
             logger.debug { "#{self.class}##{__method__} path=#{path.inspect}" }
@@ -85,7 +90,7 @@ module ZK
             logger.debug { "calling block_until_deleted" }
             Thread.pass
 
-            @node_deletion_watcher.block_until_deleted
+            @node_deletion_watcher.block_until_deleted(opts)
           rescue WeAreTheLowestLockNumberException
           ensure
             logger.debug { "block_until_deleted returned" } 

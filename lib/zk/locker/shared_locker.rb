@@ -6,20 +6,8 @@ module ZK
       # (see LockerBase#lock)
       # obtain a shared lock.
       #
-      def lock(blocking=false)
-        return true if @locked
-        create_lock_path!(SHARED_LOCK_PREFIX)
-
-        if got_read_lock?      
-          @locked = true
-        elsif blocking
-          block_until_read_lock!
-        else
-          # we didn't get the lock, and we're not gonna wait around for it, so
-          # clean up after ourselves
-          cleanup_lock_path!
-          false
-        end
+      def lock(opts={})
+        super
       end
 
       # (see LockerBase#assert!)
@@ -93,24 +81,40 @@ module ZK
       alias got_lock? got_read_lock?
 
       private
-        # TODO: make this generic, can either block or non-block
-        def block_until_read_lock!
+        def lock_with_opts_hash(opts)
+          create_lock_path!(SHARED_LOCK_PREFIX)
+
+          lock_opts = LockOptions.new(opts)
+
+          if got_read_lock?
+            @mutex.synchronize { @locked = true }
+          elsif lock_opts.blocking?
+            block_until_read_lock!(:timeout => lock_opts.timeout)
+          else
+            # we didn't get the lock, and we're not gonna wait around for it, so
+            # clean up after ourselves
+            cleanup_lock_path!
+            false
+          end
+        end
+
+        def block_until_read_lock!(opts={})
           begin
             path = "#{root_lock_path}/#{next_lowest_write_lock_name}"
             logger.debug { "SharedLocker#block_until_read_lock! path=#{path.inspect}" }
 
-            synchronize do
+            @mutex.synchronize do
               @node_deletion_watcher = NodeDeletionWatcher.new(zk, path)
               @cond.broadcast
             end
 
-            @node_deletion_watcher.block_until_deleted
+            @node_deletion_watcher.block_until_deleted(opts)
           rescue NoWriteLockFoundException
             # next_lowest_write_lock_name may raise NoWriteLockFoundException,
             # which means we should not block as we have the lock (there is nothing to wait for)
           end
 
-          synchronize { @locked = true }
+          @mutex.synchronize { @locked = true }
         end
     end # SharedLocker
   end # Locker

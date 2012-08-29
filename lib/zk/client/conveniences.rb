@@ -66,6 +66,9 @@ module ZK
       # will block the caller until the lock is acquired, and release the lock
       # when the block is exited.
       #
+      # Options are the same as for {Locker::LockerBase#lock #lock} with the addition of
+      # `:mode`, documented below.
+      #
       # @param name (see #locker)
       #
       # @option opts [:shared,:exclusive] :mode (:exclusive) the type of lock
@@ -78,21 +81,35 @@ module ZK
       #
       # @example
       #
-      #   zk.with_lock('foo') do
+      #   zk.with_lock('foo') do |lock|
       #     # this code is executed while holding the lock
+      #   end
+      #
+      # @example with timeout
+      #
+      #   begin
+      #     zk.with_lock('foo', :wait => 5.0) do |lock|
+      #       # this code is executed while holding the lock
+      #     end
+      #   rescue ZK::Exceptions::LockWaitTimeoutError
+      #     $stderr.puts "we didn't acquire the lock in time"
       #   end
       #
       # @raise [ArgumentError] if `opts[:mode]` is not one of the expected values
       #
+      # @raise [ZK::Exceptions::LockWaitTimeoutError] if :wait timeout is
+      #   exceeded without acquiring the lock
+      #
       def with_lock(name, opts={}, &b)
-        mode = opts[:mode] || :exclusive
+        opts = opts.dup
+        mode = opts.delete(:mode) { |_| :exclusive }
 
         raise ArgumentError, ":mode option must be either :shared or :exclusive, not #{mode.inspect}" unless [:shared, :exclusive].include?(mode)
 
         if mode == :shared
-          shared_locker(name).with_lock(&b)
+          shared_locker(name).with_lock(opts, &b)
         else
-          locker(name).with_lock(&b)
+          locker(name).with_lock(opts, &b)
         end
       end
 

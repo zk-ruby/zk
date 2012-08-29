@@ -141,6 +141,7 @@ module ZK
     # called when the client is reopened, resumed, or paused when in an invalid state
     class InvalidStateError < ZKError; end
 
+    # Raised when a NodeDeletionWatcher is interrupted by another thread
     class WakeUpException < ZKError; end
 
     # raised when a chrooted conection is requested but the root doesn't exist
@@ -155,6 +156,9 @@ module ZK
         super("Chroot strings must start with a '/' you provided: #{erroneous_string.inspect}")
       end
     end
+
+    # raised when we are blocked waiting on a lock and the timeout expires
+    class LockWaitTimeoutError < ZKError; end
   end
 end
 

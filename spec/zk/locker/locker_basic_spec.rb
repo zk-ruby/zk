@@ -56,42 +56,90 @@ describe 'ZK::Client#locker' do
     @zk.locker("my/multi/part/path").lock.should be_true
   end
 
-  it "should blocking lock" do
-    array = []
-    first_lock = @zk.locker("mylock")
-    first_lock.lock.should be_true
-    array << :first_lock
-
-    thread = Thread.new do
-      @zk.locker("mylock").with_lock do
-        array << :second_lock
-      end
-      array.length.should == 2
-    end
-
-    array.length.should == 1
-    first_lock.unlock
-    thread.join(10)
-    array.length.should == 2
-  end
-
   describe :with_lock do
-    it %[should yield the lock instance to the block] do
-      @zk.with_lock(@path_to_lock) do |lock|
-        lock.should_not be_nil
-        lock.should be_kind_of(ZK::Locker::LockerBase)
-        lambda { lock.assert! }.should_not raise_error
+    # TODO: reorganize these tests so Convenience testing is done somewhere saner
+    #
+    # this tests ZK::Client::Conveniences, maybe shouldn't be *here*
+    describe 'Client::Conveniences' do
+      it %[should yield the lock instance to the block] do
+        @zk.with_lock(@path_to_lock) do |lock|
+          lock.should_not be_nil
+          lock.should be_kind_of(ZK::Locker::LockerBase)
+          lambda { lock.assert! }.should_not raise_error
+        end
+      end
+
+      it %[should yield a shared lock when :mode => shared given] do
+        @zk.with_lock(@path_to_lock, :mode => :shared) do |lock|
+          lock.should_not be_nil
+          lock.should be_kind_of(ZK::Locker::SharedLocker)
+          lambda { lock.assert! }.should_not raise_error
+        end
+      end
+
+      it %[should take a timeout] do
+        first_lock = @zk.locker(@path_to_lock)
+        first_lock.lock.should be_true
+
+        thread = Thread.new do
+          begin
+            @zk.with_lock(@path_to_lock, :wait => 0.01) do |lock|
+              raise "NO NO NO!! should not have called the block!!"
+            end
+          rescue Exception => e
+            @exc = e
+          end
+        end
+
+        thread.join(2).should == thread
+        @exc.should be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
       end
     end
 
-    it %[should yield a shared lock when :mode => shared given] do
-      @zk.with_lock(@path_to_lock, :mode => :shared) do |lock|
-        lock.should_not be_nil
-        lock.should be_kind_of(ZK::Locker::SharedLocker)
-        lambda { lock.assert! }.should_not raise_error
+    describe 'LockerBase' do
+      it "should blocking lock" do
+        array = []
+        first_lock = @zk.locker("mylock")
+        first_lock.lock.should be_true
+        array << :first_lock
+
+        thread = Thread.new do
+          @zk.locker("mylock").with_lock do
+            array << :second_lock
+          end
+          array.length.should == 2
+        end
+
+        array.length.should == 1
+        first_lock.unlock
+        thread.join(10)
+        array.length.should == 2
+      end
+
+      it %[should accept a :wait option] do
+        array = []
+        first_lock = @zk.locker("mylock")
+        first_lock.lock.should be_true
+
+        second_lock = @zk.locker("mylock")
+
+        thread = Thread.new do
+          begin
+            second_lock.with_lock(:wait => 0.01) do
+              array << :second_lock
+            end
+          rescue Exception => e
+            @exc = e
+          end
+        end
+
+        array.should be_empty
+        thread.join(2).should == thread
+        @exc.should_not be_nil
+        @exc.should be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
       end
     end
-  end
+  end # with_lock
 end
 
 
