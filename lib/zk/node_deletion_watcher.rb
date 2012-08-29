@@ -153,10 +153,10 @@ module ZK
           if timeout                                        # and here
             now = Time.now
 
-            if (now > time_to_stop)
-              @result ||= TIMED_OUT # don't overwrite the @result
+            if @result
               return
-            elsif @result
+            elsif (now > time_to_stop)
+              @result = TIMED_OUT
               return
             end
 
@@ -181,12 +181,14 @@ module ZK
 
       def node_deletion_cb(event)
         @mutex.synchronize do
+          return if @result
+
           if event.node_deleted?
-            @result ||= :deleted
+            @result = :deleted
             @cond.broadcast
           else
             unless zk.exists?(path, :watch => true)
-              @result ||= :deleted
+              @result = :deleted
               @cond.broadcast
             end
           end
@@ -195,10 +197,9 @@ module ZK
 
       def session_cb(event)
         @mutex.synchronize do
-          unless @result
-            @result = event.state
-            @cond.broadcast
-          end
+          return if @result
+          @result = event.state
+          @cond.broadcast
         end
       end
   end
