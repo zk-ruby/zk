@@ -67,12 +67,20 @@ module ZK
       #
       # @yield [lock] calls the block with the lock instance when acquired
       #
-      # @option opts [Numeric] :timeout (nil) if non-nil, the amount of time to
-      #   wait for the lock to be acquired.
+      # @option opts [Numeric,true] :wait (nil) if non-nil, the amount of time to
+      #   wait for the lock to be acquired. since with_lock is only blocking,
+      #   `false` isn't a valid option. `true` is ignored (as it is the default).
+      #   If a Numeric (float or integer) option is given, maximum amount of time
+      #   to wait for lock acquisition.
       #
-      # @raise [LockWaitTimeoutError] if the :timeout is exceeded
+      # @raise [LockWaitTimeoutError] if the :wait timeout is exceeded
+      # @raise [ArgumentError] if :wait is false (since you can't do non-blocking)
       def with_lock(opts={})
-        opts = opts.merge(:block => true)
+        if opts[:wait].kind_of?(FalseClass)
+          raise ArgumentError, ":wait cannot be false, with_lock is only used in blocking mode"
+        end
+
+        opts = { :wait => true }.merge(opts)
         lock(opts)
         yield self
       ensure
@@ -162,12 +170,11 @@ module ZK
       #   @deprecated in favor of the options hash style
       #
       # @overload lock(opts={})
-      #   @option opts [true,false] :block (false) if true we block the
-      #     caller until we obtain a lock on the resource
-      #
-      #   @option opts [Numeric] :timeout (nil) if given, the number of seconds
-      #     we should wait for the lock to be acquired. Will raise 
-      #     LockWaitTimeoutError if we exceed the timeout.
+      #   @option opts [true,false,Numeric] :wait (false) If true we block the
+      #     caller until we obtain a lock on the resource. If false, we do not
+      #     block. If a Numeric, the number of seconds we should wait for the
+      #     lock to be acquired. Will raise LockWaitTimeoutError if we exceed
+      #     the timeout.
       #
       #   @since 1.7
       # 
@@ -190,7 +197,7 @@ module ZK
 
         case opts
         when TrueClass, FalseClass      # old style boolean argument
-          opts = { :block => opts }
+          opts = { :wait => opts }
         end
 
         lock_with_opts_hash(opts)

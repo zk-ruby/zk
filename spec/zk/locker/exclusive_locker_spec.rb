@@ -119,7 +119,7 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
         locker.lock.should be_false
 
         th = Thread.new do
-          locker.lock(:block => true)
+          locker.lock(:wait => true)
           ary << :locked
         end
 
@@ -143,7 +143,7 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
 
         th = Thread.new do
           begin
-            locker.lock(:block => true, :timeout => 0.01)
+            locker.lock(:wait => 0.01)
             ary << :locked
           rescue Exception => e
             @exc = e

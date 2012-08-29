@@ -84,12 +84,12 @@ module ZK
         def lock_with_opts_hash(opts)
           create_lock_path!(SHARED_LOCK_PREFIX)
 
-          block, timeout = opts.values_at(:block, :timeout)
+          lock_opts = LockOptions.new(opts)
 
           if got_read_lock?
-            @locked = true
-          elsif block
-            block_until_read_lock!(:timeout => timeout)
+            @mutex.synchronize { @locked = true }
+          elsif lock_opts.blocking?
+            block_until_read_lock!(:timeout => lock_opts.timeout)
           else
             # we didn't get the lock, and we're not gonna wait around for it, so
             # clean up after ourselves

@@ -88,7 +88,7 @@ module ZK
       # @example with timeout
       #
       #   begin
-      #     zk.with_lock('foo', :timeout => 5.0) do |lock|
+      #     zk.with_lock('foo', :wait => 5.0) do |lock|
       #       # this code is executed while holding the lock
       #     end
       #   rescue ZK::Exceptions::LockWaitTimeoutError
@@ -97,8 +97,8 @@ module ZK
       #
       # @raise [ArgumentError] if `opts[:mode]` is not one of the expected values
       #
-      # @raise [ZK::Exceptions::LockWaitTimeoutError] if :timeout is exceeded
-      #   without acquiring the lock
+      # @raise [ZK::Exceptions::LockWaitTimeoutError] if :wait timeout is
+      #   exceeded without acquiring the lock
       #
       def with_lock(name, opts={}, &b)
         opts = opts.dup

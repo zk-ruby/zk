@@ -47,12 +47,12 @@ module ZK
         def lock_with_opts_hash(opts)
           create_lock_path!(EXCLUSIVE_LOCK_PREFIX)
 
-          block, timeout = opts.values_at(:block, :timeout)
+          lock_opts = LockOptions.new(opts)
 
           if got_write_lock?
-            synchronize { @locked = true }
-          elsif block
-            block_until_write_lock!(:timeout => timeout)
+            @mutex.synchronize { @locked = true }
+          elsif lock_opts.blocking?
+            block_until_write_lock!(:timeout => lock_opts.timeout)
           else
             cleanup_lock_path!
             false

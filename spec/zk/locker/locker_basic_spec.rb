@@ -83,7 +83,7 @@ describe 'ZK::Client#locker' do
 
         thread = Thread.new do
           begin
-            @zk.with_lock(@path_to_lock, :timeout => 0.01) do |lock|
+            @zk.with_lock(@path_to_lock, :wait => 0.01) do |lock|
               raise "NO NO NO!! should not have called the block!!"
             end
           rescue Exception => e
@@ -116,7 +116,7 @@ describe 'ZK::Client#locker' do
         array.length.should == 2
       end
 
-      it %[should accept a :timeout option] do
+      it %[should accept a :wait option] do
         array = []
         first_lock = @zk.locker("mylock")
         first_lock.lock.should be_true
@@ -125,7 +125,7 @@ describe 'ZK::Client#locker' do
 
         thread = Thread.new do
           begin
-            second_lock.with_lock(:timeout => 0.01) do
+            second_lock.with_lock(:wait => 0.01) do
               array << :second_lock
             end
           rescue Exception => e
