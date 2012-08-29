@@ -65,41 +65,49 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 [zk-eventmachine]: https://github.com/slyphon/zk-eventmachine
 
 ## NEWS ##
+### v1.7.0 ###
+
+* Added Locker timeout feature for blocking calls. (issue #40)
+
+Previously, when dealing with locks, there were only two options: blocking or non-blocking. In order to come up with a time-limited lock, you had to poll every so often until you acquired the lock. This is, needless to say, both inefficient and doesn't allow for fair acquisition. 
+
+A timeout option has been added so that when blocking waiting for a lock, you can specify a deadline by which the lock should have been acquired. 
+
+```ruby
+zk = ZK.new
+
+locker = zk.locker('lock name')
+
+begin
+  locker.lock(:wait => 5.0)   # wait up to 5.0 seconds to acquire the lock
+rescue ZK::Exceptions::LockWaitTimeoutError
+  $stderr.puts "could not acquire the lock in time"
+end
+```
+
+Also available when using the convenience `#with_lock` methods
+
+```ruby
+
+zk = ZK.new
+
+begin
+  zk.with_lock('lock name', :wait => 5.0) do |lock|
+    # do stuff while holding lock
+  end
+rescue ZK::Exceptions::LockWaitTimeoutError
+  $stderr.puts "could not acquire the lock in time"
+end
+
+```
+
 ### v1.6.4 ###
 
 * Remove unnecessary dependency on backports gem
 * *Fix for use in resque!* A small bug was preventing resque from activating the fork hook.
 
-### v1.6.2 ###
 
-* Change state call to reduce the chances of deadlocks
-
-One of the problems I've been seeing is that during some kind of shutdown event, some method will call `closed?` or `connected?` which will acquire a mutex and make a call on the underlying connection at the *exact* moment necessary to cause a deadlock. In order to help prevent this, and building on some changes from 1.5.3, we now treat our cached `@last_cnx_state` as the current state of the connection and don't touch the underlying connection object (except in the case of the java driver, which is safe).
-
-### v1.6.0 ###
-
-* Locker cleanup code!
-
-When a session is lost, it's likely that the locker's node name was left behind. so for `zk.locker('foo')` if the session is interrupted, it's very likely that the `/_zklocking/foo` znode has been left behind. A method has been added to allow you to safely clean up these stale znodes:
-
-```ruby
-ZK.open('localhost:2181') do |zk|
-  ZK::Locker.cleanup(zk)
-end
-```
-
-Will go through your locker nodes one by one and try to lock and unlock them. If it succeeds, the lock is naturally cleaned up (as part of the normal teardown code), if it doesn't acquire the lock, then no harm, it knows that lock is still in use.
-
-* Added `create('/path', 'data', :or => :set)` which will create a node (and all parent paths) with the given data or set its contents if it already exists. It's intended as a convenience when you just want a node to exist with a particular value.
-
-* Added a bunch of shorter aliases on `ZK::Event`, so you can say `event.deleted?`, `event.changed?`, etc.
-
-### v1.5.3 ###
-
-* Fixed reconnect code. There was an occasional race/deadlock condition caused because the reopen call was done on the underlying connection's dispatch thread. Closing the dispatch thread is part of reopen, so this would cause a deadlock in real-world use. Moved the reconnect logic to a separate, single-purpose thread on ZK::Client::Threaded that watches for connection state changes. 
-
-* 'private' is not 'protected'. I've been writing ruby for several years now, and apparently I'd forgotten that 'protected' does not work like how it does in java. The visibility of these methods has been corrected, and all specs pass, so I don't expect issues...but please report if this change causes any bugs in user code.
-
+See the [RELEASES][] page for more info on features and bugfixes in each release.
 
 ## Caveats
 
