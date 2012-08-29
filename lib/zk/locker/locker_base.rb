@@ -149,8 +149,21 @@ module ZK
         unlock
       end
 
-      # @param blocking [true,false] if true we block the caller until we can obtain
-      #   a lock on the resource
+      # @overload lock(blocking=false)
+      #   @param blocking [true,false] if true we block the caller until we can
+      #     obtain a lock on the resource
+      #   
+      #   @deprecated in favor of the options hash style
+      #
+      # @overload lock(opts={})
+      #   @option opts [true,false] :block (false) if true we block the
+      #     caller until we obtain a lock on the resource
+      #
+      #   @option opts [Numeric] :timeout (nil) if given, the number of seconds
+      #     we should wait for the lock to be acquired. Will raise 
+      #     LockWaitTimeoutError if we exceed the timeout.
+      #
+      #   @since 1.7
       # 
       # @return [true] if we're already obtained a shared lock, or if we were able to
       #   obtain the lock in non-blocking mode.
@@ -162,16 +175,27 @@ module ZK
       # @raise [InterruptedSession] raised when blocked waiting for a lock and
       #   the underlying client's session is interrupted. 
       #
-      # @see ZK::Client::Unixisms#block_until_node_deleted more about possible execptions
-      def lock(blocking=false)
-        raise NotImplementedError
+      # @raise [LockWaitTimeoutError] if the given timeout is exceeded waiting
+      #   for the lock to be acquired
+      #
+      # @see ZK::Client::Unixisms#block_until_node_deleted for more about possible execptions
+      def lock(opts={})
+        return true if @mutex.synchronize { @locked }
+
+        case opts
+        when TrueClass, FalseClass      # old style boolean argument
+          opts = { :block => opts }
+        end
+
+        lock_with_opts_hash(opts)
       end
 
-      # (see #lock)
+      # delegates to {#lock}
+      #
       # @deprecated the use of lock! is deprecated and may be removed or have
       #   its semantics changed in a future release
-      def lock!(blocking=false)
-        lock(blocking)
+      def lock!(opts={})
+        lock(opts)
       end
 
       # returns true if this locker is waiting to acquire lock 
@@ -244,6 +268,10 @@ module ZK
       end
 
       private
+        def lock_with_opts_hash(opts={})
+          raise NotImplementedError
+        end
+
         def synchronize
           @mutex.synchronize { yield }
         end

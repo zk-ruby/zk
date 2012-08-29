@@ -126,7 +126,7 @@ module ZK
           logger.debug { "path #{path} was deleted" }
           return true
         when TIMED_OUT
-          raise ZK::Exceptions::LockWaitTimeoutError
+          raise ZK::Exceptions::LockWaitTimeoutError, "timed out waiting for #{timeout.inspect} seconds for deletion of path: #{path.inspect}" 
         when INTERRUPTED
           raise ZK::Exceptions::WakeUpException
         when ZOO_EXPIRED_SESSION_STATE
@@ -148,14 +148,14 @@ module ZK
       def wait_for_result(timeout)
         # do the deadline maths
         time_to_stop = timeout ? (Time.now + timeout) : nil # slight time slippage between here
-
-        until @result
+                                                            #
+        until @result                                       #
           if timeout                                        # and here
             now = Time.now
 
             if @result
               return
-            elsif (now > time_to_stop)
+            elsif (now >= time_to_stop)
               @result = TIMED_OUT
               return
             end

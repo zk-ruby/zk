@@ -82,13 +82,16 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
     end
 
     describe 'blocking' do
+      let(:read_lock_path_template) { "/_zklocking/#{path}/#{ZK::Locker::SHARED_LOCK_PREFIX}" }
+
       before do
         zk.mkdir_p(root_lock_path)
+        @read_lock_path = zk.create(read_lock_path_template, '', :mode => :ephemeral_sequential)
+        @exc = nil
       end
 
-      it %[should block waiting for the lock] do
+      it %[should block waiting for the lock with old style lock semantics] do
         ary = []
-        read_lock_path = zk.create("/_zklocking/#{path}/read", '', :mode => :ephemeral_sequential)
 
         locker.lock.should be_false
 
@@ -102,12 +105,61 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
         ary.should be_empty
         locker.should_not be_locked
 
-        zk.delete(read_lock_path)
+        zk.delete(@read_lock_path)
 
         th.join(2).should == th
 
         ary.length.should == 1
         locker.should be_locked
+      end
+
+      it %[should block waiting for the lock with new style lock semantics] do
+        ary = []
+
+        locker.lock.should be_false
+
+        th = Thread.new do
+          locker.lock(:block => true)
+          ary << :locked
+        end
+
+        locker.wait_until_blocked(5)
+      
+        ary.should be_empty
+        locker.should_not be_locked
+
+        zk.delete(@read_lock_path)
+
+        th.join(2).should == th
+
+        ary.length.should == 1
+        locker.should be_locked
+      end
+
+      it %[should time out waiting for the lock] do
+        ary = []
+
+        locker.lock.should be_false
+
+        th = Thread.new do
+          begin
+            locker.lock(:block => true, :timeout => 0.01)
+            ary << :locked
+          rescue Exception => e
+            @exc = e
+          end
+        end
+
+        locker.wait_until_blocked(5)
+      
+        ary.should be_empty
+        locker.should_not be_locked
+
+        th.join(2).should == th
+
+        ary.should be_empty
+        @exc.should_not be_nil
+        @exc.should be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
       end
     end # blocking
   end # lock

@@ -85,38 +85,93 @@ shared_examples_for 'ZK::Locker::SharedLocker' do
       end
     end
 
-    describe 'blocking success' do
+    context do
       before do
         zk.mkdir_p(root_lock_path)
         @write_lock_path = zk.create("#{root_lock_path}/#{ZK::Locker::EXCLUSIVE_LOCK_PREFIX}", '', :mode => :ephemeral_sequential)
-        $stderr.sync = true
+        @exc = nil
       end
 
-      it %[should acquire the lock after the write lock is released] do
-        ary = []
+      describe 'blocking success' do
+        it %[should acquire the lock after the write lock is released old-style] do
+          ary = []
 
-        locker.lock.should be_false
+          locker.lock.should be_false
 
-        th = Thread.new do
-          locker.lock(true)
-          ary << :locked
+          th = Thread.new do
+            locker.lock(true)
+            ary << :locked
+          end
+
+          locker.wait_until_blocked(5)
+          locker.should be_waiting
+          locker.should_not be_locked
+          ary.should be_empty
+
+          zk.delete(@write_lock_path)
+
+          th.join(2).should == th
+
+          ary.should_not be_empty
+          ary.length.should == 1
+
+          locker.should be_locked
         end
 
-        locker.wait_until_blocked(5)
-        locker.should be_waiting
-        locker.should_not be_locked
-        ary.should be_empty
+        it %[should acquire the lock after the write lock is released new-style] do
+          ary = []
 
-        zk.delete(@write_lock_path)
+          locker.lock.should be_false
 
-        th.join(2).should == th
+          th = Thread.new do
+            locker.lock(:block => true)
+            ary << :locked
+          end
 
-        ary.should_not be_empty
-        ary.length.should == 1
+          locker.wait_until_blocked(5)
+          locker.should be_waiting
+          locker.should_not be_locked
+          ary.should be_empty
 
-        locker.should be_locked
+          zk.delete(@write_lock_path)
+
+          th.join(2).should == th
+
+          ary.should_not be_empty
+          ary.length.should == 1
+
+          locker.should be_locked
+        end
       end
-    end
+
+      describe 'blocking timeout' do
+        it %[should raise LockWaitTimeoutError] do
+          ary = []
+
+          locker.lock.should be_false
+
+          th = Thread.new do
+            begin
+              locker.lock(:block => true, :timeout => 0.01)
+              ary << :locked
+            rescue Exception => e
+              @exc = e
+            end
+          end
+
+          locker.wait_until_blocked(5)
+          locker.should be_waiting
+          locker.should_not be_locked
+          ary.should be_empty
+
+          th.join(2).should == th
+
+          ary.should be_empty
+          @exc.should be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
+        end
+
+      end
+    end # context
   end # lock
 
   it_should_behave_like 'LockerBase#unlock'
