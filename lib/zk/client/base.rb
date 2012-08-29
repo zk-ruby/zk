@@ -198,7 +198,7 @@ module ZK
       #   @option opts [Object] :context (nil) an object passed to the `:callback`
       #     given as the `context` param
       #
-      #   @option opts [:create,nil] :or (nil) syntactic sugar to say 'if this
+      #   @option opts [:set,nil] :or (nil) syntactic sugar to say 'if this
       #     path already exists, then set its contents.' Note that this will
       #     also create all intermediate paths as it delegates to
       #     {ZK::Client::Unixisms#mkdir_p}.  Note that this option can only be
@@ -233,7 +233,7 @@ module ZK
       #   @option opts [Object] :context (nil) an object passed to the `:callback`
       #     given as the `context` param
       #
-      #   @option opts [:create,nil] :or (nil) syntactic sugar to say 'if this
+      #   @option opts [:set,nil] :or (nil) syntactic sugar to say 'if this
       #     path already exists, then set its contents.' Note that this will
       #     also create all intermediate paths as it delegates to
       #     {ZK::Client::Unixisms#mkdir_p}.  Note that this option can only be
