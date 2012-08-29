@@ -66,8 +66,14 @@ module ZK
       # there is no non-blocking version of this method
       #
       # @yield [lock] calls the block with the lock instance when acquired
-      def with_lock
-        lock(true)
+      #
+      # @option opts [Numeric] :timeout (nil) if non-nil, the amount of time to
+      #   wait for the lock to be acquired.
+      #
+      # @raise [LockWaitTimeoutError] if the :timeout is exceeded
+      def with_lock(opts={})
+        opts = opts.merge(:block => true)
+        lock(opts)
         yield self
       ensure
         unlock
