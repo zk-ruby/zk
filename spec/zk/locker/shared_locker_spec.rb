@@ -148,6 +148,10 @@ shared_examples_for 'ZK::Locker::SharedLocker' do
         it %[should raise LockWaitTimeoutError] do
           ary = []
 
+          write_lock_dir = File.dirname(@write_lock_path)
+
+          zk.children(write_lock_dir).length.should == 1
+
           locker.lock.should be_false
 
           th = Thread.new do
@@ -165,6 +169,8 @@ shared_examples_for 'ZK::Locker::SharedLocker' do
           ary.should be_empty
 
           th.join(2).should == th
+
+          zk.children(write_lock_dir).length.should == 1
 
           ary.should be_empty
           @exc.should be_kind_of(ZK::Exceptions::LockWaitTimeoutError)

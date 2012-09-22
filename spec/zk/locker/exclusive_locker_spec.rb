@@ -82,7 +82,8 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
     end
 
     describe 'blocking' do
-      let(:read_lock_path_template) { "/_zklocking/#{path}/#{ZK::Locker::SHARED_LOCK_PREFIX}" }
+      let(:lock_path_base) { File.join(ZK::Locker.default_root_lock_node, path) }
+      let(:read_lock_path_template) { File.join(lock_path_base, ZK::Locker::SHARED_LOCK_PREFIX) }
 
       before do
         zk.mkdir_p(root_lock_path)
@@ -139,6 +140,8 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
       it %[should time out waiting for the lock] do
         ary = []
 
+        zk.children(lock_path_base).length.should == 1
+
         locker.lock.should be_false
 
         th = Thread.new do
@@ -156,6 +159,8 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
         locker.should_not be_locked
 
         th.join(2).should == th
+
+        zk.children(lock_path_base).length.should == 1
 
         ary.should be_empty
         @exc.should_not be_nil

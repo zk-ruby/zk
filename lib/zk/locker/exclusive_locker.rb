@@ -92,6 +92,13 @@ module ZK
 
             @node_deletion_watcher.block_until_deleted(opts)
           rescue WeAreTheLowestLockNumberException
+          rescue ZK::Exceptions::LockWaitTimeoutError
+            # in the case of a timeout exception, we need to ensure the lock
+            # path is cleaned up, since we're not interested in acquisition
+            # anymore
+            logger.warn { "got ZK::Exceptions::LockWaitTimeoutError, cleaning up lock path" }
+            cleanup_lock_path!
+            raise
           ensure
             logger.debug { "block_until_deleted returned" } 
           end

@@ -109,6 +109,12 @@ module ZK
             end
 
             @node_deletion_watcher.block_until_deleted(opts)
+          rescue ZK::Exceptions::LockWaitTimeoutError
+            # in the case of a timeout exception, we need to ensure the lock
+            # path is cleaned up, since we're not interested in acquisition
+            # anymore
+            cleanup_lock_path!
+            raise
           rescue NoWriteLockFoundException
             # next_lowest_write_lock_name may raise NoWriteLockFoundException,
             # which means we should not block as we have the lock (there is nothing to wait for)
