@@ -1,5 +1,11 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.7.1 ###
+
+* Fixes nasty bug "LockWaitTimeout causes lock to be forever unusable" (#49)
+
+The code path in the case of a LockWaitTimeout would skip the lock node cleanup, so a given lock name would become unusable until the timed-out-locker's session went away. This fixes that case and adds specs.
+
 ### v1.7.0 ###
 
 * Added Locker timeout feature for blocking calls. (issue #40)

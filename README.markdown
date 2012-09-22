@@ -65,6 +65,11 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 [zk-eventmachine]: https://github.com/slyphon/zk-eventmachine
 
 ## NEWS ##
+
+### v1.7.1 ###
+
+* Fixes nasty bug "LockWaitTimeout causes lock to be forever unusable" (#49)
+
 ### v1.7.0 ###
 
 * Added Locker timeout feature for blocking calls. (issue #40)
