@@ -15,31 +15,32 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
       zk.mkdir_p(rlp)
 
       bogus_path = zk.create("#{rlp}/#{ZK::Locker::EXCLUSIVE_LOCK_PREFIX}", :sequential => true, :ephemeral => true)
+      logger.debug { "bogus_path: #{bogus_path.inspect}" } 
 
       th = Thread.new do
-        locker2.lock(true)
+        locker.lock(true)
       end
 
       th.run
 
       logger.debug { "calling wait_until_blocked" }
-      proc { locker2.wait_until_blocked(2) }.should_not raise_error
+      proc { locker.wait_until_blocked(5) }.should_not raise_error
       logger.debug { "wait_until_blocked returned" }
-      locker2.should be_waiting
+      locker.should be_waiting
 
-      wait_until { zk.exists?(locker2.lock_path) }
+      wait_until { zk.exists?(locker.lock_path) }
 
-      zk.exists?(locker2.lock_path).should be_true
+      zk.exists?(locker.lock_path).should be_true
 
       zk.delete(bogus_path)
 
       th.join(5).should == th
 
-      locker2.lock_path.should_not == bogus_path
+      locker.lock_path.should_not == bogus_path
 
       zk.create(bogus_path, :ephemeral => true)
 
-      lambda { locker2.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
+      lambda { locker.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
     end
   end
 
