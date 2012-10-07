@@ -91,11 +91,10 @@ module ZK
           elsif lock_opts.blocking?
             block_until_read_lock!(:timeout => lock_opts.timeout)
           else
-            # we didn't get the lock, and we're not gonna wait around for it, so
-            # clean up after ourselves
-            cleanup_lock_path!
             false
           end
+        ensure
+          cleanup_lock_path! unless @mutex.synchronize { @locked }
         end
 
         def block_until_read_lock!(opts={})
@@ -109,12 +108,6 @@ module ZK
             end
 
             @node_deletion_watcher.block_until_deleted(opts)
-          rescue ZK::Exceptions::LockWaitTimeoutError
-            # in the case of a timeout exception, we need to ensure the lock
-            # path is cleaned up, since we're not interested in acquisition
-            # anymore
-            cleanup_lock_path!
-            raise
           rescue NoWriteLockFoundException
             # next_lowest_write_lock_name may raise NoWriteLockFoundException,
             # which means we should not block as we have the lock (there is nothing to wait for)

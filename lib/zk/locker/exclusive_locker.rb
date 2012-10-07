@@ -54,9 +54,10 @@ module ZK
           elsif lock_opts.blocking?
             block_until_write_lock!(:timeout => lock_opts.timeout)
           else
-            cleanup_lock_path!
             false
           end
+        ensure
+          cleanup_lock_path! unless @mutex.synchronize { @locked }
         end
 
         # the node that is next-lowest in sequence number to ours, the one we
@@ -92,15 +93,6 @@ module ZK
 
             @node_deletion_watcher.block_until_deleted(opts)
           rescue WeAreTheLowestLockNumberException
-          rescue ZK::Exceptions::LockWaitTimeoutError
-            # in the case of a timeout exception, we need to ensure the lock
-            # path is cleaned up, since we're not interested in acquisition
-            # anymore
-            logger.warn { "got ZK::Exceptions::LockWaitTimeoutError, cleaning up lock path" }
-            cleanup_lock_path!
-            raise
-          ensure
-            logger.debug { "block_until_deleted returned" } 
           end
 
           @mutex.synchronize { @locked = true }
