@@ -32,9 +32,12 @@ module ZK
         watcher.register_state_handler(:connecting, &block)
       end
 
-      # register a block to be called when our session has expired. This usually happens
-      # due to a network partitioning event, and means that all callbacks and watches must
-      # be re-registered with the server
+      # register a block to be called when our session has expired. This
+      # usually happens due to a network partitioning event, and means that all
+      # watches must be re-registered with the server (i.e. after the
+      # on_connected event is received). Callbacks set up via #register are
+      # still valid and will respond to events, it's the event delivery you
+      # have to set up again by using :watch.
       #
       # @todo need to come up with a way to test this
       def on_expired_session(&block)
