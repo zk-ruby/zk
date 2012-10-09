@@ -144,6 +144,7 @@ module ZK
         ary = @callbacks[subscription.path]
 
         idx = ary.index(subscription) and ary.delete_at(idx)
+        @callbacks.delete(subscription.path) if ary.empty?
       end
 
       nil
