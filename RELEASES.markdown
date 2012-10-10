@@ -1,5 +1,15 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.7.3 ###
+
+* bug fix for "Callbacks Hash in EventHandlerSubscription::Base gets longer randomly" (#52)
+
+I'd like to point out that the callbacks hash gets longer *deterministically*, depending on what callbacks get registered. This patch will do further cleanup so as not to leave empty arrays littering the EventHandler.
+
+### v1.7.2 ###
+
+* bug fix for "Ephemeral node for exclusive lock not cleaned up when failure happens during lock acquisition" (#51)
+
 ### v1.7.1 ###
 
 * Fixes nasty bug "LockWaitTimeout causes lock to be forever unusable" (#49)
