@@ -1,5 +1,12 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.7.4 ###
+
+* Narsty bug in Locker (#54) 
+
+If a locker is waiting on the lock, and a connection interruption occurs (that doesn't render the session invalid), the waiter will attempt to clean up while the connection is invalid, and not succeed in cleaning up its ephemeral. This patch will recognize that the `@lock_path` was already acquired, and just wait on the current owner (ie. it won't create an erroneous *third* lock node). The reproduction code has been added under `spec/informal/two-locks-enter-three-locks-leave.rb`
+
+
 ### v1.7.3 ###
 
 * bug fix for "Callbacks Hash in EventHandlerSubscription::Base gets longer randomly" (#52)

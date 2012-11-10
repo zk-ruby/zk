@@ -327,8 +327,8 @@ module ZK
         #
         def create_lock_path!(prefix='lock')
           @mutex.synchronize do
-            @lock_path = @zk.create("#{root_lock_path}/#{prefix}", :mode => :ephemeral_sequential)
-            @parent_stat = @zk.stat(root_lock_path)
+            @lock_path ||= @zk.create("#{root_lock_path}/#{prefix}", :mode => :ephemeral_sequential)
+            @parent_stat ||= @zk.stat(root_lock_path)
           end
 
           logger.debug { "got lock path #{@lock_path}" }
