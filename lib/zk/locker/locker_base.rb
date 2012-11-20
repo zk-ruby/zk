@@ -327,8 +327,10 @@ module ZK
         #
         def create_lock_path!(prefix='lock')
           @mutex.synchronize do
-            @lock_path ||= @zk.create("#{root_lock_path}/#{prefix}", :mode => :ephemeral_sequential)
-            @parent_stat ||= @zk.stat(root_lock_path)
+            unless lock_path_exists?
+              @lock_path = @zk.create("#{root_lock_path}/#{prefix}", :mode => :ephemeral_sequential)
+              @parent_stat = @zk.stat(root_lock_path)
+            end
           end
 
           logger.debug { "got lock path #{@lock_path}" }
@@ -336,6 +338,16 @@ module ZK
         rescue NoNode
           create_root_path!
           retry
+        end
+
+        # if we previously had a lock path, check if it still exists
+        #
+        def lock_path_exists?
+          @mutex.synchronize do
+            return false unless @lock_path
+            return false unless root_lock_path_same?
+            zk.exists?(@lock_path)
+          end
         end
 
         # if the root_lock_path has the same stat .ctime as the one
