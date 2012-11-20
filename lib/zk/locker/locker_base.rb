@@ -343,9 +343,11 @@ module ZK
         # if we previously had a lock path, check if it still exists
         #
         def lock_path_exists?
-          return false unless @lock_path
-          return false unless root_lock_path_same?
-          zk.exists?(@lock_path)
+          @mutex.synchronize do
+            return false unless @lock_path
+            return false unless root_lock_path_same?
+            zk.exists?(@lock_path)
+          end
         end
 
         # if the root_lock_path has the same stat .ctime as the one
