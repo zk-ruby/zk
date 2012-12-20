@@ -1,5 +1,9 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.7.5 ###
+
+* fix for jruby 1.7 (issue #53)
+
 ### v1.7.4 ###
 
 * Narsty bug in Locker (#54) 
