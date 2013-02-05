@@ -32,6 +32,13 @@ describe 'ZK::Client#locker' do
     @zk2.locker(@path_to_lock).lock.should be_false
   end
 
+  it "should assert properly if lock is acquired" do
+    @zk.locker(@path_to_lock).assert.should be_false
+    l = @zk2.locker(@path_to_lock)
+    l.lock.should be_true
+    l.assert.should be_true
+  end
+
   it "should be able to acquire the lock after the first one releases it" do
     lock1 = @zk.locker(@path_to_lock)
     lock2 = @zk2.locker(@path_to_lock)
