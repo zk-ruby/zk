@@ -280,6 +280,19 @@ module ZK
         end
       end
 
+      def assert
+        return true if @mutex.synchronize do
+          break unless locked?
+          break unless zk.connected?
+          break unless lock_path
+          break unless zk.exists?(lock_path)
+          break unless root_lock_path_same?
+          break unless got_lock?
+          true
+        end
+        false
+      end
+
       private
         def lock_with_opts_hash(opts={})
           raise NotImplementedError
