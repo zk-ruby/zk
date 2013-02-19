@@ -1,5 +1,9 @@
 This file notes feature differences and bugfixes contained between releases. 
 
+### v1.8.0 ###
+
+* Added non-exploderating Locker#assert method (issue #48, h/t: johnbellone)
+
 ### v1.7.5 ###
 
 * fix for jruby 1.7 (issue #53)
