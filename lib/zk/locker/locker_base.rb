@@ -281,15 +281,9 @@ module ZK
       end
 
       def assert
-        return true if @mutex.synchronize do
-          break unless locked?
-          break unless zk.connected?
-          break unless lock_path
-          break unless zk.exists?(lock_path)
-          break unless root_lock_path_same?
-          break unless got_lock?
-          true
-        end
+        assert!
+        true
+      rescue LockAssertionFailedError
         false
       end
 
