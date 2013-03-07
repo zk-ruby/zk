@@ -36,11 +36,6 @@ module ZK
         true
       end
 
-      # @private
-      def lock_number
-        lock_path and digit_from(lock_path)
-      end
-
       # returns the sequence number of the next lowest write lock node
       #
       # raises NoWriteLockFoundException when there are no write nodes with a 
@@ -64,11 +59,16 @@ module ZK
       #
       # @private
       def next_lowest_write_lock_name
+        lower_write_lock_names.first
+      end
+
+      # @private
+      def lower_write_lock_names
         ary = ordered_lock_children()
         my_idx = ary.index(lock_basename)   # our idx would be 2
 
-        ary[0..my_idx].reverse.find { |n| n.start_with?(EXCLUSIVE_LOCK_PREFIX) }.tap do |rv|
-          raise NoWriteLockFoundException if rv.nil?
+        ary[0..my_idx].reverse.select { |n| n.start_with?(EXCLUSIVE_LOCK_PREFIX) }.tap do |rv|
+          raise NoWriteLockFoundException if rv.empty?
         end
       end
 
@@ -80,41 +80,18 @@ module ZK
       end
       alias got_lock? got_read_lock?
 
-      private
-        def lock_with_opts_hash(opts)
-          create_lock_path!(SHARED_LOCK_PREFIX)
+      # @private
+      def blocking_locks
+        lower_write_lock_names
+      rescue NoWriteLockFoundException
+        []
+      end
 
-          lock_opts = LockOptions.new(opts)
+      # @private
+      def lock_prefix
+        SHARED_LOCK_PREFIX
+      end
 
-          if got_read_lock?
-            @mutex.synchronize { @locked = true }
-          elsif lock_opts.blocking?
-            block_until_read_lock!(:timeout => lock_opts.timeout)
-          else
-            false
-          end
-        ensure
-          cleanup_lock_path! unless @mutex.synchronize { @locked }
-        end
-
-        def block_until_read_lock!(opts={})
-          begin
-            path = "#{root_lock_path}/#{next_lowest_write_lock_name}"
-            logger.debug { "SharedLocker#block_until_read_lock! path=#{path.inspect}" }
-
-            @mutex.synchronize do
-              @node_deletion_watcher = NodeDeletionWatcher.new(zk, path)
-              @cond.broadcast
-            end
-
-            @node_deletion_watcher.block_until_deleted(opts)
-          rescue NoWriteLockFoundException
-            # next_lowest_write_lock_name may raise NoWriteLockFoundException,
-            # which means we should not block as we have the lock (there is nothing to wait for)
-          end
-
-          @mutex.synchronize { @locked = true }
-        end
     end # SharedLocker
   end # Locker
 end # ZK
