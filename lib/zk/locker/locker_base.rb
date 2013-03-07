@@ -412,6 +412,15 @@ module ZK
           raise NotImplementedError
         end
 
+        # for write locks & read locks, this will be zero since #blocking_locks
+        # accounts for all locks that could block at all.
+        # for semaphores, this is one less than the semaphore size.
+        # @private
+        # @returns [Integer]
+        def allowed_blocking_locks_remaining
+          0
+        end
+
         def blocking_locks_full_paths
           blocking_locks.map { |partial| "#{root_lock_path}/#{partial}"}
         end
@@ -437,7 +446,8 @@ module ZK
 
           @mutex.synchronize do
             logger.debug { "assigning the @node_deletion_watcher" }
-            @node_deletion_watcher = NodeDeletionWatcher.new(zk, paths)
+            ndw_options = {:threshold => allowed_blocking_locks_remaining}
+            @node_deletion_watcher = NodeDeletionWatcher.new(zk, paths, ndw_options)
             logger.debug { "broadcasting" }
             @cond.broadcast
           end
