@@ -29,9 +29,11 @@ module ZK
     # @param [Array] paths - one or more paths to watch
     #
     # @param optional [Hash] options - Symbol-keyed hash
-    # @option options [Integer] :threshold (0)
+    # @option options [Integer,false,nil] :threshold (0)
     #                           the number of remaining nodes allowed when
-    #                           deterning whether or not to continue blocking.
+    #                           determining whether or not to continue blocking.
+    #                           If `false` or `nil` are provided, the default
+    #                           will be substituted.
     #
     def initialize( zk, paths, options={} )
       paths = [paths] if paths.kind_of? String # old style single-node support
@@ -39,7 +41,7 @@ module ZK
       @zk         = zk
       @paths      = paths.dup
       @options    = options.dup
-      @threshold  = options.fetch(:threshold){ 0 }
+      @threshold  = options[:threshold] || 0
       raise BadArgument, <<-EOBADARG unless @threshold.kind_of? Integer
         options[:threshold] must be an Integer. Got #{@threshold.inspect}."
       EOBADARG
