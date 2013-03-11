@@ -71,7 +71,7 @@ module ZK
       end
 
       def got_semaphore?
-        !blocked_by_semaphore?
+        lock_path and not blocked_by_semaphore?
       end
       alias_method :got_lock?, :got_semaphore?
 
