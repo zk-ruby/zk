@@ -293,10 +293,6 @@ module ZK
       end
 
       private
-        def lock_with_opts_hash(opts={})
-          raise NotImplementedError
-        end
-
         def synchronize
           @mutex.synchronize { yield }
         end
