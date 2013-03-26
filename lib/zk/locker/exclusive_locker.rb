@@ -45,22 +45,6 @@ module ZK
 
       private
 
-        # the node that is next-lowest in sequence number to ours, the one we
-        # watch for updates to
-        def next_lowest_node
-          ary = ordered_lock_children()
-          my_idx = ary.index(lock_basename)
-
-          raise WeAreTheLowestLockNumberException if my_idx == 0
-
-          ary[(my_idx - 1)] 
-        end
-
-        def got_write_lock?
-          ordered_lock_children.first == lock_basename
-        end
-        alias got_lock? got_write_lock?
-
         # @private
         def lock_prefix
           EXCLUSIVE_LOCK_PREFIX
@@ -68,9 +52,7 @@ module ZK
 
         # @private
         def blocking_locks
-          ordered_lock_children.select do |lock|
-            lock_number.nil? or digit_from(lock) < lock_number
-          end
+          lower_lock_names
         end
 
     end # ExclusiveLocker

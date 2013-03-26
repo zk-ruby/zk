@@ -55,9 +55,7 @@ module ZK
 
       # @private
       def blocking_locks
-        ordered_lock_children.select do |lock|
-          lock_number.nil? or digit_from(lock) < lock_number
-        end
+        lower_lock_names
       end
 
       # @private

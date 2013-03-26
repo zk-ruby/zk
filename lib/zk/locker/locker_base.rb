@@ -397,6 +397,16 @@ module ZK
           rval
         end
 
+        # @private
+        def lower_lock_names(watch=false)
+          olc = ordered_lock_children(watch)
+          return olc unless lock_path
+
+          olc.select do |lock|
+            digit_from(lock) < lock_number
+          end
+        end
+
         # for write locks & semaphores, this will be all locks lower than us
         # for read locks, this will be all write-locks lower than us.
         # @return [Array] an array of string node paths
@@ -406,6 +416,10 @@ module ZK
 
         def lock_prefix
           raise NotImplementedError
+        end
+
+        def got_lock?
+          lock_path and blocking_locks.empty?
         end
 
         # for write locks & read locks, this will be zero since #blocking_locks
