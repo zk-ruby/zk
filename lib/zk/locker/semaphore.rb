@@ -1,23 +1,25 @@
 module ZK
   module Locker
     # A semaphore implementation
-    class SemaphoreLocker < LockerBase
+    class Semaphore < LockerBase
       include Exceptions
 
-      # TODO: sharing a namespace with the shared/exclusive locks
-      # by means of the root_lock_node is messy because the semaphore
-      # does not understand or respect the semantics of exclusive locks.
-      # What would be the preferred method of creating a different
-      # default, given that they both inherit from LockerBase?
-      # Address this issue before merging pull-request.
-      def initialize(client, name, semaphore_size, root_lock_node=nil)
+      @default_root_node = '/_zksemaphore'.freeze unless @default_root_node
+
+      class << self
+        # the default root path we will use when a value is not given to a
+        # constructor
+        attr_accessor :default_root_node
+      end
+
+      def initialize(client, name, semaphore_size, root_node=nil)
         raise BadArgument, <<-EOMESSAGE unless semaphore_size.kind_of? Integer
           semaphore_size must be Integer, not #{semaphore_size.inspect}
         EOMESSAGE
 
         @semaphore_size = semaphore_size
 
-        super(client, name, root_lock_node)
+        super(client, name, root_node || ::ZK::Locker::Semaphore.default_root_node)
       end
 
       # (see LockerBase#lock)
@@ -69,10 +71,10 @@ module ZK
       end
 
       def got_semaphore?
-        lock_path and not blocked_by_semaphore?
+        synchronize { lock_path and not blocked_by_semaphore? }
       end
       alias_method :got_lock?, :got_semaphore?
 
-    end # SemaphoreLocker
+    end # Semaphore
   end # Locker
 end # ZK

@@ -104,7 +104,7 @@ module ZK
 
       # @private
       def lock_number
-        lock_path and digit_from(lock_path)
+        synchronize { lock_path and digit_from(lock_path) }
       end
 
       # returns our current idea of whether or not we hold the lock, which does
@@ -319,13 +319,6 @@ module ZK
           retry
         end
 
-        # performs the checks that (according to the recipe) mean that we hold
-        # the lock. used by (#assert!)
-        #
-        def got_lock?
-          raise NotImplementedError
-        end
-
         # prefix is the string that will appear in front of the sequence num,
         # defaults to 'lock'
         #
@@ -418,6 +411,9 @@ module ZK
           raise NotImplementedError
         end
 
+        # performs the checks that (according to the recipe) mean that we hold
+        # the lock. used by (#assert!)
+        #
         def got_lock?
           lock_path and blocking_locks.empty?
         end

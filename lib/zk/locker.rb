@@ -119,14 +119,14 @@ module ZK
         ExclusiveLocker.new(client, name, *args)
       end
 
-      # Create a {SemaphoreLocker} instance
+      # Create a {Semaphore} instance
       #
-      # @param client (see SemaphoreLocker#initialize)
-      # @param name (see SemaphoreLocker#initialize)
-      # @param semaphore_size (see SemaphoreLocker#initialize)
-      # @return [SemaphoreLocker]
-      def semaphore_locker(client, name, semaphore_size, *args)
-        SemaphoreLocker.new(client, name, semaphore_size, *args)
+      # @param client (see Semaphore#initialize)
+      # @param name (see Semaphore#initialize)
+      # @param semaphore_size (see Semaphore#initialize)
+      # @return [Semaphore]
+      def semaphore(client, name, semaphore_size, *args)
+        Semaphore.new(client, name, semaphore_size, *args)
       end
 
       # Clean up dead locker directories. There are situations (particularly
@@ -175,5 +175,5 @@ require 'zk/locker/lock_options'
 require 'zk/locker/locker_base'
 require 'zk/locker/shared_locker'
 require 'zk/locker/exclusive_locker'
-require 'zk/locker/semaphore_locker'
+require 'zk/locker/semaphore'
 

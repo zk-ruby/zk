@@ -1,10 +1,10 @@
 require 'spec_helper'
 
-shared_examples_for 'ZK::Locker::SemaphoreLocker' do
+shared_examples_for 'ZK::Locker::Semaphore' do
   let(:semaphore_size){ 2 }
-  let(:locker)  { ZK::Locker::SemaphoreLocker.new(zk, path, semaphore_size) }
-  let(:locker2) { ZK::Locker::SemaphoreLocker.new(zk2, path, semaphore_size) }
-  let(:locker3) { ZK::Locker::SemaphoreLocker.new(zk3, path, semaphore_size) }
+  let(:locker)  { ZK::Locker::Semaphore.new(zk, path, semaphore_size) }
+  let(:locker2) { ZK::Locker::Semaphore.new(zk2, path, semaphore_size) }
+  let(:locker3) { ZK::Locker::Semaphore.new(zk3, path, semaphore_size) }
 
   describe :assert! do
     it_should_behave_like 'LockerBase#assert!'
@@ -13,7 +13,7 @@ shared_examples_for 'ZK::Locker::SemaphoreLocker' do
   describe :acquirable? do
     describe %[with default options] do
       it %[should work if the lock root doesn't exist] do
-        zk.rm_rf(ZK::Locker.default_root_lock_node)
+        zk.rm_rf(ZK::Locker::Semaphore.default_root_node)
         locker.should be_acquirable
       end
 
@@ -53,9 +53,9 @@ shared_examples_for 'ZK::Locker::SemaphoreLocker' do
 
     describe 'non-blocking failure' do
       before do
-        zk.mkdir_p(root_lock_path)
+        zk.mkdir_p(semaphore_root_path)
         semaphore_size.times do
-          zk.create("#{root_lock_path}/#{ZK::Locker::SEMAPHORE_LOCK_PREFIX}", '', :mode => :ephemeral_sequential)
+          zk.create("#{semaphore_root_path}/#{ZK::Locker::SEMAPHORE_LOCK_PREFIX}", '', :mode => :ephemeral_sequential)
         end
         @rval = locker.lock
       end
@@ -67,13 +67,17 @@ shared_examples_for 'ZK::Locker::SemaphoreLocker' do
       it %[should not be locked] do
         locker.should_not be_locked
       end
+
+      it %[should not have a lock_path] do
+        locker.lock_path.should be_nil
+      end
     end
 
     context do
       before do
-        zk.mkdir_p(root_lock_path)
+        zk.mkdir_p(semaphore_root_path)
         @existing_locks = semaphore_size.times.map do
-          zk.create("#{root_lock_path}/#{ZK::Locker::SEMAPHORE_LOCK_PREFIX}", '', :mode => :ephemeral_sequential)
+          zk.create("#{semaphore_root_path}/#{ZK::Locker::SEMAPHORE_LOCK_PREFIX}", '', :mode => :ephemeral_sequential)
         end
         @exc = nil
       end
@@ -151,11 +155,11 @@ end   # SharedLocker
 describe do
   include_context 'locker non-chrooted'
 
-  it_should_behave_like 'ZK::Locker::SemaphoreLocker'
+  it_should_behave_like 'ZK::Locker::Semaphore'
 end
 
 describe :chrooted => true do
   include_context 'locker chrooted'
 
-  it_should_behave_like 'ZK::Locker::SemaphoreLocker'
+  it_should_behave_like 'ZK::Locker::Semaphore'
 end
