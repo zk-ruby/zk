@@ -180,7 +180,7 @@ module ZK
 
         ObjectSpace.define_finalizer(self, self.class.finalizer(@fork_subs))
 
-        connect if opts.fetch(:connect, true)
+        connect(opts) if opts.fetch(:connect, true)
       end
       
       # ensure that the initializer and the reopen code set up the mutexes
@@ -621,7 +621,7 @@ module ZK
           # create the connection.
           @last_cnx_state = Zookeeper::ZOO_CONNECTING_STATE
 
-          @cnx = create_connection(@host, timeout, @event_handler.get_default_watcher_block)
+          @cnx = create_connection(@host, timeout, @event_handler.get_default_watcher_block, opts)
 
           spawn_reconnect_thread
           
