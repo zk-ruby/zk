@@ -92,6 +92,7 @@ module ZK
   module Locker
     SHARED_LOCK_PREFIX  = 'sh'.freeze
     EXCLUSIVE_LOCK_PREFIX = 'ex'.freeze
+    SEMAPHORE_LOCK_PREFIX = 'sem'.freeze
 
     @default_root_lock_node = '/_zklocking'.freeze unless @default_root_lock_node
 
@@ -116,6 +117,16 @@ module ZK
       # @return [ExclusiveLocker]
       def exclusive_locker(client, name, *args)
         ExclusiveLocker.new(client, name, *args)
+      end
+
+      # Create a {SemaphoreLocker} instance
+      #
+      # @param client (see SemaphoreLocker#initialize)
+      # @param name (see SemaphoreLocker#initialize)
+      # @param semaphore_size (see SemaphoreLocker#initialize)
+      # @return [SemaphoreLocker]
+      def semaphore_locker(client, name, semaphore_size, *args)
+        SemaphoreLocker.new(client, name, semaphore_size, *args)
       end
 
       # Clean up dead locker directories. There are situations (particularly
@@ -164,4 +175,5 @@ require 'zk/locker/lock_options'
 require 'zk/locker/locker_base'
 require 'zk/locker/shared_locker'
 require 'zk/locker/exclusive_locker'
+require 'zk/locker/semaphore_locker'
 

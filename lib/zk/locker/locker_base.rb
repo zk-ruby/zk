@@ -102,6 +102,11 @@ module ZK
         synchronize { lock_path and File.basename(lock_path) }
       end
 
+      # @private
+      def lock_number
+        lock_path and digit_from(lock_path)
+      end
+
       # returns our current idea of whether or not we hold the lock, which does
       # not actually check the state on the server.
       #
@@ -288,10 +293,6 @@ module ZK
       end
 
       private
-        def lock_with_opts_hash(opts={})
-          raise NotImplementedError
-        end
-
         def synchronize
           @mutex.synchronize { yield }
         end
@@ -394,6 +395,78 @@ module ZK
           end
 
           rval
+        end
+
+        # @private
+        def lower_lock_names(watch=false)
+          olc = ordered_lock_children(watch)
+          return olc unless lock_path
+
+          olc.select do |lock|
+            digit_from(lock) < lock_number
+          end
+        end
+
+        # for write locks & semaphores, this will be all locks lower than us
+        # for read locks, this will be all write-locks lower than us.
+        # @return [Array] an array of string node paths
+        def blocking_locks
+          raise NotImplementedError
+        end
+
+        def lock_prefix
+          raise NotImplementedError
+        end
+
+        def got_lock?
+          lock_path and blocking_locks.empty?
+        end
+
+        # for write locks & read locks, this will be zero since #blocking_locks
+        # accounts for all locks that could block at all.
+        # for semaphores, this is one less than the semaphore size.
+        # @private
+        # @returns [Integer]
+        def allowed_blocking_locks_remaining
+          0
+        end
+
+        def blocking_locks_full_paths
+          blocking_locks.map { |partial| "#{root_lock_path}/#{partial}"}
+        end
+
+        def lock_with_opts_hash(opts)
+          create_lock_path!(lock_prefix)
+
+          lock_opts = LockOptions.new(opts)
+
+          if got_lock? or (lock_opts.blocking? and block_until_lock!(:timeout => lock_opts.timeout))
+            @mutex.synchronize { @locked = true }
+          else
+            false
+          end
+        ensure
+          cleanup_lock_path! unless @mutex.synchronize { @locked }
+        end
+
+        def block_until_lock!(opts={})
+          paths = blocking_locks_full_paths
+
+          logger.debug { "#{self.class}\##{__method__} paths=#{paths.inspect}" }
+
+          @mutex.synchronize do
+            logger.debug { "assigning the @node_deletion_watcher" }
+            ndw_options = {:threshold => allowed_blocking_locks_remaining}
+            @node_deletion_watcher = NodeDeletionWatcher.new(zk, paths, ndw_options)
+            logger.debug { "broadcasting" }
+            @cond.broadcast
+          end
+
+          logger.debug { "calling block_until_deleted" }
+          Thread.pass
+
+          @node_deletion_watcher.block_until_deleted(opts)
+          true
         end
     end # LockerBase
   end # Locker
