@@ -42,6 +42,53 @@ shared_examples_for :shared_exclusive_integration do
     end
   end
 
+  describe 'multiple shared locks acquired first' do
+    before do
+      zk3.should_not be_nil
+      @sh_lock2 = ZK::Locker.shared_locker(zk3, path) 
+    end
+    it %[should not aquire a lock when highest-numbered released but others remain] do
+      @sh_lock.lock.should be_true
+      @sh_lock2.lock.should be_true
+      @ex_lock.lock.should be_false
+
+      mutex = Monitor.new
+      cond = mutex.new_cond
+
+      th = Thread.new do
+        logger.debug { "@ex_lock trying to acquire acquire lock" }
+        begin
+          @ex_lock.with_lock(:wait=>0.1) do
+            th[:got_lock] = @ex_lock.locked?
+            logger.debug { "@ex_lock.locked? #{@ex_lock.locked?}" }
+          end
+        rescue ZK::Exceptions::LockWaitTimeoutError
+          logger.debug { "@ex_lock timed out trying to acquire acquire lock" }
+          th[:got_lock] = false
+        rescue
+          logger.debug { "@ex_lock raised unexpected error: #{$!.inspext}" }
+          th[:got_lock] = {:error_raised => $!}
+        end
+        mutex.synchronize { cond.broadcast }
+      end
+
+      mutex.synchronize do
+        @ex_lock.wait_until_blocked(1)
+        logger.debug { "unlocking the highest shared lock" }
+        @sh_lock2.unlock.should be_true
+        cond.wait_until { (!th[:got_lock].nil?) }   # make sure they actually received the lock (avoid race)
+        th[:got_lock].should be_false
+        logger.debug { "they didn't get the lock." }
+      end
+
+      th.join(5).should == th
+
+      logger.debug { "thread joined, exclusive lock should be releasd" }
+      @sh_lock.unlock.should be_true
+      @ex_lock.should_not be_locked
+    end
+  end
+
   describe 'exclusive lock acquired first' do
     it %[should block shared lock from acquiring until released] do
       @ex_lock.lock.should be_true
