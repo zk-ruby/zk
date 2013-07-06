@@ -104,7 +104,7 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 
 * For JRuby, the [slyphon-zookeeper\_jar gem][szk-jar-gem] ([repo][szk-jar-repo]), which just wraps the upstream zookeeper driver jar in a gem for easy installation
 
-[szk-gem]: https://rubygems.org/gems/slyphon-zookeeper
+[szk-gem]: https://rubygems.org/gems/zookeeper
 [szk-repo]: https://github.com/zk-ruby/zookeeper
 [szk-repo-bundler]: https://github.com/zk-ruby/zookeeper/tree/dev/gemfile/
 [szk-jar-gem]: https://rubygems.org/gems/slyphon-zookeeper_jar
