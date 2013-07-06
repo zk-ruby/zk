@@ -11,3 +11,5 @@ wiki
 zookeeper
 coverage/
 .ctags_paths
+.ruby-gemset
+.ruby-version
