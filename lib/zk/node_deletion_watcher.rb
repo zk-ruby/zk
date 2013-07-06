@@ -14,11 +14,40 @@ module ZK
     end
     include Constants
 
-    attr_reader :zk, :path
+    attr_reader :zk,
+                :paths,
+                :options,
+                :watched_paths,
+                :remaining_paths,
+                :threshold
 
-    def initialize(zk, path)
-      @zk     = zk
-      @path   = path.dup
+    # Create a new NodeDeletionWatcher that has the ability to block until
+    # some or all of the paths given to it have been deleted.
+    #
+    # @param [ZK::client] zk
+    #
+    # @param [Array] paths - one or more paths to watch
+    #
+    # @param optional [Hash] options - Symbol-keyed hash
+    # @option options [Integer,false,nil] :threshold (0)
+    #                           the number of remaining nodes allowed when
+    #                           determining whether or not to continue blocking.
+    #                           If `false` or `nil` are provided, the default
+    #                           will be substituted.
+    #
+    def initialize( zk, paths, options={} )
+      paths = [paths] if paths.kind_of? String # old style single-node support
+
+      @zk         = zk
+      @paths      = paths.dup
+      @options    = options.dup
+      @threshold  = options[:threshold] || 0
+      raise BadArgument, <<-EOBADARG unless @threshold.kind_of? Integer
+        options[:threshold] must be an Integer. Got #{@threshold.inspect}."
+      EOBADARG
+
+      @watched_paths = []
+      @remaining_paths = paths.dup
 
       @subs   = []
 
@@ -92,25 +121,21 @@ module ZK
     end
 
     # @option opts [Numeric] :timeout (nil) if a positive integer, represents a duration in
-    #   seconds after which, if we have not acquired the lock, a LockWaitTimeoutError will
-    #   be raised in all waiting threads
+    #   seconds after which, if the threshold has not been met, a LockWaitTimeoutError will
+    #   be raised in all waiting threads.
     #
     def block_until_deleted(opts={})
       timeout = opts[:timeout]
 
       @mutex.synchronize do
-        raise InvalidStateError, "Already fired for #{path}" if @result
+        raise InvalidStateError, "Already fired for #{status_string}" if @result
         register_callbacks
 
-        unless zk.exists?(path, :watch => true)
-          # we are done, these are one-shot, so write the results
-          @result = :deleted
-          @blocked = NOT_ANYMORE
-          @cond.broadcast # wake any waiting threads
-          return true
-        end
+        watch_appropriate_nodes
 
-        logger.debug { "ok, going to block: #{path}" }
+        return finish_blocking if threshold_met?
+
+        logger.debug { "ok, going to block: #{status_string}" }
 
         @blocked = BLOCKED
         @cond.broadcast                 # wake threads waiting for @blocked to change
@@ -119,14 +144,15 @@ module ZK
 
         @blocked = NOT_ANYMORE
 
-        logger.debug { "got result for path: #{path}, result: #{@result.inspect}" } 
+        logger.debug { "got result: #{@result.inspect}. #{status_string}" }
 
         case @result
         when :deleted
-          logger.debug { "path #{path} was deleted" }
+          logger.debug { "enough paths were deleted. #{status_string}" }
           return true
         when TIMED_OUT
-          raise ZK::Exceptions::LockWaitTimeoutError, "timed out waiting for #{timeout.inspect} seconds for deletion of path: #{path.inspect}" 
+          raise ZK::Exceptions::LockWaitTimeoutError,
+            "timed out waiting for #{timeout.inspect} seconds for deletion of paths. #{status_string}"
         when INTERRUPTED
           raise ZK::Exceptions::WakeUpException
         when ZOO_EXPIRED_SESSION_STATE
@@ -136,7 +162,7 @@ module ZK
         when ZOO_CLOSED_STATE
           raise Zookeeper::Exceptions::ConnectionClosed
         else
-          raise "Hit unexpected case in block_until_node_deleted, result was: #{@result.inspect}"
+          raise "Hit unexpected case in block_until_node_deleted, result was: #{@result.inspect}. #{status_string}"
         end
       end
     ensure
@@ -144,6 +170,10 @@ module ZK
     end
 
     private
+      def status_string
+        "paths: #{paths.inspect}, remaining: #{remaining_paths.inspect}, options: #{options.inspect}"
+      end
+
       # this method must be synchronized on @mutex, obviously
       def wait_for_result(timeout)
         # do the deadline maths
@@ -172,7 +202,9 @@ module ZK
       end
 
       def register_callbacks
-        @subs << zk.register(path, &method(:node_deletion_cb))
+        paths.each do |path|
+          @subs << zk.register(path, &method(:node_deletion_cb))
+        end
 
         [:expired_session, :connecting, :closed].each do |sym|
           @subs << zk.event_handler.register_state_handler(sym, &method(:session_cb))
@@ -183,14 +215,8 @@ module ZK
         @mutex.synchronize do
           return if @result
 
-          if event.node_deleted?
-            @result = :deleted
-            @cond.broadcast
-          else
-            unless zk.exists?(path, :watch => true)
-              @result = :deleted
-              @cond.broadcast
-            end
+          if event.node_deleted? or not zk.exists?(event.path, :watch => true)
+            finish_node(event.path)
           end
         end
       end
@@ -202,6 +228,36 @@ module ZK
           @cond.broadcast
         end
       end
-  end
-end
 
+      # must be synchronized on @mutex
+      def threshold_met?
+        return true if remaining_paths.size <= threshold
+      end
+
+      # ensures that threshold + 1 nodes are being watched
+      def watch_appropriate_nodes
+        remaining_paths.last( threshold + 1 ).reverse_each do |path|
+          next if watched_paths.include? path
+          watched_paths << path
+          finish_node(path) unless zk.exists?(path, :watch => true)
+        end
+      end
+
+      # must be synchronized on @mutex
+      def finish_blocking
+        @result = :deleted
+        @blocked = NOT_ANYMORE
+        @cond.broadcast # wake any waiting threads
+        true
+      end
+
+      def finish_node(path)
+        remaining_paths.delete path
+        watched_paths.delete   path
+
+        watch_appropriate_nodes
+
+        finish_blocking if threshold_met?
+      end
+  end # MultiNodeDeletionWatcher
+end # ZK
