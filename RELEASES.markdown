@@ -1,4 +1,9 @@
-This file notes feature differences and bugfixes contained between releases. 
+This file notes feature differences and bugfixes contained between releases.
+
+### v1.9.0 ###
+
+* Semaphores!
+* shared/exclusive lock fixes
 
 ### v1.8.0 ###
 
