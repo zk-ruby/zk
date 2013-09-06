@@ -1,5 +1,10 @@
 This file notes feature differences and bugfixes contained between releases.
 
+### v1.9.1 (unreleased) ###
+
+* Fix re-rewatchind children watchers after the parent znode was deleted #68
+
+
 ### v1.9.0 ###
 
 * Semaphores!
