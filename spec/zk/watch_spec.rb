@@ -156,6 +156,34 @@ describe ZK do
       events.should_not be_empty
     end
 
+    it %[should call a child listener when the node is deleted] do
+      events = Queue.new
+
+      sub = @zk.register(@path) do |ev|
+        logger.debug { "got event #{ev}" }
+        events << ev
+      end
+
+      @zk.create(@path, '')
+
+      @zk.children(@path, :watch => true)
+
+      events.should be_empty
+
+      @zk.delete(@path)
+
+      wait_while { events.empty? }
+
+      event = events.pop(true)
+
+      event.should_not be_nil
+
+      event.path.should == @path
+      event.type.should == Zookeeper::ZOO_DELETED_EVENT
+
+      puts events.pop.inspect
+    end
+
     describe ':all' do
       before do
         mute_logger do

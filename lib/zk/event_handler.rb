@@ -160,7 +160,7 @@ module ZK
     def process(event)
       @zk.raw_event_handler(event)
 
-      logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
+      logger.debug { "EventHandler#process dispatching event for #{ZOOKEEPER_WATCH_TYPE_MAP[event.type].inspect}: #{event.inspect}" }# unless event.type == -1
       event.zk = @zk
 
       cb_keys = 
@@ -197,7 +197,7 @@ module ZK
       return unless event.node_event?
 
       if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
-        #logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
+        logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
         
         # we recieved a watch event for this path, now we allow code to set new watchers
         @outstanding_watches[watch_type].delete(event.path)
@@ -286,6 +286,8 @@ module ZK
         path = opts[:path]
 
         if set.add?(path)
+          logger.debug { "adding watcher #{watch_type.inspect} for #{path.inspect}"}
+
           # if we added the path to the set, blocking further registration of
           # watches and an exception is raised then we rollback
           begin
@@ -298,6 +300,8 @@ module ZK
             raise
           end
         else
+          logger.debug { "watcher #{watch_type.inspect} already set for #{path.inspect}"}
+
           # we did not add the path to the set, which means we are not
           # responsible for removing a block on further adds if the operation
           # fails, therefore, we just yield
