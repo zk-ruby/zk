@@ -245,6 +245,8 @@ module ZK
             logger.debug { "reopening, no fork detected" }
             @last_cnx_state = Zookeeper::ZOO_CONNECTING_STATE
             
+            @client_state  = RUNNING # reset state to running if we were paused or closed
+
             timeout ||= @connection_timeout     # or @connection_timeout here is the docuemnted behavior on Base#reopen
 
             @cnx.reopen(timeout)                # ok, we werent' forked, so just reopen
