@@ -18,14 +18,6 @@ module ZK
     ALL_STATE_EVENTS_KEY = :all_state_events
 
     # @private
-    ZOOKEEPER_WATCH_TYPE_MAP = {
-      Zookeeper::ZOO_CREATED_EVENT => :data,
-      Zookeeper::ZOO_DELETED_EVENT => :data,
-      Zookeeper::ZOO_CHANGED_EVENT => :data,
-      Zookeeper::ZOO_CHILD_EVENT   => :child,
-    }.freeze
-
-    # @private
     VALID_THREAD_OPTS = [:single, :per_callback].freeze
 
     # @private
@@ -157,10 +149,10 @@ module ZK
     #   and session events go through here, NOT anything else!!
     #
     # @private
-    def process(event)
+    def process(event, watch_type = nil)
       @zk.raw_event_handler(event)
 
-      logger.debug { "EventHandler#process dispatching event for #{ZOOKEEPER_WATCH_TYPE_MAP[event.type].inspect}: #{event.inspect}" }# unless event.type == -1
+      logger.debug { "EventHandler#process dispatching event for #{watch_type.inspect}: #{event.inspect}" }# unless event.type == -1
       event.zk = @zk
 
       cb_keys = 
@@ -173,7 +165,7 @@ module ZK
         end
 
       cb_ary = synchronize do 
-        clear_watch_restrictions(event)
+        clear_watch_restrictions(event, watch_type)
 
         @callbacks.values_at(*cb_keys)
       end
@@ -193,10 +185,10 @@ module ZK
     # happens inside the lock, clears the restriction on setting new watches
     # for a given path/event type combination
     #
-    def clear_watch_restrictions(event)
+    def clear_watch_restrictions(event, watch_type)
       return unless event.node_event?
 
-      if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
+      if watch_type
         logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
         
         # we recieved a watch event for this path, now we allow code to set new watchers
@@ -292,7 +284,7 @@ module ZK
           # watches and an exception is raised then we rollback
           begin
             # this path has no outstanding watchers, let it do its thing
-            opts[:watcher] = watcher_callback
+            opts[:watcher] = watcher_callback(watch_type)
 
             yield opts
           rescue Exception
@@ -315,8 +307,8 @@ module ZK
         @mutex.synchronize { yield }
       end
 
-      def watcher_callback
-        Zookeeper::Callbacks::WatcherCallback.create { |event| process(event) }
+      def watcher_callback(watch_type = nil)
+        Zookeeper::Callbacks::WatcherCallback.create { |event| process(event, watch_type) }
       end
 
       def state_key(arg)
