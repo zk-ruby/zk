@@ -292,7 +292,7 @@ module ZK
           # watches and an exception is raised then we rollback
           begin
             # this path has no outstanding watchers, let it do its thing
-            opts[:watcher] = watcher_callback 
+            opts[:watcher] = watcher_callback
 
             yield opts
           rescue Exception

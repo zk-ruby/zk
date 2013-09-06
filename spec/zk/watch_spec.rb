@@ -157,7 +157,7 @@ describe ZK do
     end
 
     it %[should call a child listener when the node is deleted] do
-      events = Queue.new
+      events = []
 
       sub = @zk.register(@path) do |ev|
         logger.debug { "got event #{ev}" }
@@ -166,22 +166,40 @@ describe ZK do
 
       @zk.create(@path, '')
 
+      # Watch for children
       @zk.children(@path, :watch => true)
 
-      events.should be_empty
-
+      # Delete the node
       @zk.delete(@path)
 
-      wait_while { events.empty? }
+      # We expect to see a delete event show up
+      wait_while(5) { events.empty? }
 
-      event = events.pop(true)
+      event = events.pop
 
       event.should_not be_nil
 
       event.path.should == @path
       event.type.should == Zookeeper::ZOO_DELETED_EVENT
 
-      puts events.pop.inspect
+      # Create the node again
+      @zk.create(@path, '')
+
+      # Watch for children again
+      @zk.children(@path, :watch => true)
+
+      # Delete the node again
+      @zk.delete(@path)
+
+      # We expect to see another delete event show up
+      wait_while(5) { events.empty? }
+
+      event = events.pop
+
+      event.should_not be_nil
+
+      event.path.should == @path
+      event.type.should == Zookeeper::ZOO_DELETED_EVENT
     end
 
     describe ':all' do
