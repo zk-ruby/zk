@@ -1,6 +1,6 @@
 This file notes feature differences and bugfixes contained between releases.
 
-### v1.9.1 (unreleased) ###
+### v1.9.1 ###
 
 * Fix re-rewatchind children watchers after the parent znode was deleted #68
 * Deal with reopening a closed connection properly #70
