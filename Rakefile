@@ -38,7 +38,7 @@ if File.exists?(release_ops_path)
           cd tmpdir do
             sh "git co #{tag} && git reset --hard && git clean -fdx"
 
-            sh "rvm 1.8.7 do gem build zk.gemspec"
+            sh "gem build zk.gemspec"
 
             mv FileList['*.gem'], orig_dir
           end
