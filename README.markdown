@@ -72,7 +72,7 @@ See the [RELEASES][] page for more info on features and bugfixes in each release
 
 ZK strives to be a complete, correct, and convenient way of interacting with ZooKeeper. There are a few things to be aware of:
 
-* In versions &lte; 0.9 there is only *one* event dispatch thread. It is *very important* that you don't block the event delivery thread. In 1.0, there is one delivery thread by default, but you can adjust the level of concurrency, allowing more control and convenience for building your event-driven app.
+* In versions < 0.9 there is only *one* event dispatch thread. It is *very important* that you don't block the event delivery thread. In 1.0, there is one delivery thread by default, but you can adjust the level of concurrency, allowing more control and convenience for building your event-driven app.
 
 * ZK uses threads. You will have to use synchronization primitives if you want to avoid getting hurt. There are use cases that do not require you to think about this, but as soon as you want to register for events, you're using multiple threads. 
 
