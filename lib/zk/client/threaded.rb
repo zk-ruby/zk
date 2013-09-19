@@ -624,6 +624,7 @@ module ZK
           @last_cnx_state = Zookeeper::ZOO_CONNECTING_STATE
 
           @cnx = create_connection(@host, timeout, @event_handler.get_default_watcher_block)
+          @event_handler.clear_outstanding_watch_restrictions!
 
           spawn_reconnect_thread
           

@@ -206,6 +206,13 @@ module ZK
       end
     end 
 
+    # used when establishing a new session
+    def clear_outstanding_watch_restrictions!
+      synchronize do
+        @outstanding_watches.values.each { |set| set.clear }
+      end
+    end
+
     # shut down the EventHandlerSubscriptions 
     def close
       synchronize do
