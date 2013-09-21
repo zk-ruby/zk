@@ -1,8 +1,13 @@
 This file notes feature differences and bugfixes contained between releases.
 
+### v1.9.2 ###
+
+* Fix re-watching znodes after a lost session #72 (reported by kalantar)
+
+
 ### v1.9.1 ###
 
-* Fix re-rewatchind children watchers after the parent znode was deleted #68
+* Fix re-rewatching children watchers after the parent znode was deleted #68
 * Deal with reopening a closed connection properly #70
 
 
