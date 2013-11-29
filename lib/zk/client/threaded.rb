@@ -641,16 +641,6 @@ module ZK
           #       (i.e. time-to-go) here
           wait_until_connected_or_dying(timeout) 
         end
-
-        # Grab the lock before we setup watchers to ensure that we grab locks in the same
-        # order as is grabbed in reconnect_thread_body().
-        #
-        # This fixes a deadlock when forking is happening during a reconnect.
-        def setup_watcher!(watch_type, opts, &b)
-          @mutex.synchronize do
-            super
-          end
-        end
     end # Threaded
   end # Client
 end # ZK
