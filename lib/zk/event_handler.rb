@@ -285,28 +285,22 @@ module ZK
 
       @setup_watcher_mutex.synchronize do
         path = opts[:path]
-        already_set = nil
-        set = nil
+        added, set = nil, nil
 
         synchronize do
           set = @outstanding_watches.fetch(watch_type)
-          already_set = set.add?(path)
+          added = set.add?(path)
         end
 
-        if already_set
-          logger.debug { "watcher #{watch_type.inspect} already set for #{path.inspect}"}
-
-          # we did not add the path to the set, which means we are not
-          # responsible for removing a block on further adds if the operation
-          # fails, therefore, we just yield
-          yield opts
-        else
-          logger.debug { "adding watcher #{watch_type.inspect} for #{path.inspect}"}
-
-          # this path has no outstanding watchers, let it do its thing
-          opts[:watcher] = watcher_callback(watch_type)
-
+        if added
+          # if we added the path to the set, blocking further registration of
+          # watches and an exception is raised then we rollback
           begin
+            logger.debug { "adding watcher #{watch_type.inspect} for #{path.inspect}"}
+
+            # this path has no outstanding watchers, let it do its thing
+            opts[:watcher] = watcher_callback(watch_type)
+
             yield opts
           rescue Exception
             synchronize do
@@ -314,6 +308,13 @@ module ZK
             end
             raise
           end
+        else
+          logger.debug { "watcher #{watch_type.inspect} already set for #{path.inspect}"}
+
+          # we did not add the path to the set, which means we are not
+          # responsible for removing a block on further adds if the operation
+          # fails, therefore, we just yield
+          yield opts
         end
       end
     end
