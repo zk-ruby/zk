@@ -293,11 +293,11 @@ module ZK
         end
 
         if added
+          logger.debug { "adding watcher #{watch_type.inspect} for #{path.inspect}"}
+
           # if we added the path to the set, blocking further registration of
           # watches and an exception is raised then we rollback
           begin
-            logger.debug { "adding watcher #{watch_type.inspect} for #{path.inspect}"}
-
             # this path has no outstanding watchers, let it do its thing
             opts[:watcher] = watcher_callback(watch_type)
 
