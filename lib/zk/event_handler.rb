@@ -34,6 +34,7 @@ module ZK
       EventHandlerSubscription.class_for_thread_option(@thread_opt) # this is side-effecty, will raise an ArgumentError if given a bad value. 
 
       @mutex = nil
+      @setup_watcher_mutex = nil
 
       @callbacks = Hash.new { |h,k| h[k] = [] }
 
@@ -53,6 +54,8 @@ module ZK
     def reopen_after_fork!
 #       logger.debug { "#{self.class}##{__method__}" }
       @mutex = Monitor.new
+      @setup_watcher_mutex = Monitor.new
+
       # XXX: need to test this w/ actor-style callbacks
       
       @state = :running
@@ -280,11 +283,16 @@ module ZK
     def setup_watcher!(watch_type, opts)
       return yield unless opts.delete(:watch)
 
-      synchronize do
-        set = @outstanding_watches.fetch(watch_type)
+      @setup_watcher_mutex.synchronize do
         path = opts[:path]
+        added, set = nil, nil
 
-        if set.add?(path)
+        synchronize do
+          set = @outstanding_watches.fetch(watch_type)
+          added = set.add?(path)
+        end
+
+        if added
           logger.debug { "adding watcher #{watch_type.inspect} for #{path.inspect}"}
 
           # if we added the path to the set, blocking further registration of
@@ -295,7 +303,9 @@ module ZK
 
             yield opts
           rescue Exception
-            set.delete(path)
+            synchronize do
+              set.delete(path)
+            end
             raise
           end
         else
