@@ -1,5 +1,10 @@
 This file notes feature differences and bugfixes contained between releases.
 
+### v1.9.3 ###
+
+* Fix deadlocks between watchers and reconnecting
+
+
 ### v1.9.2 ###
 
 * Fix re-watching znodes after a lost session #72 (reported by kalantar)
@@ -26,7 +31,7 @@ This file notes feature differences and bugfixes contained between releases.
 
 ### v1.7.4 ###
 
-* Narsty bug in Locker (#54) 
+* Narsty bug in Locker (#54)
 
 If a locker is waiting on the lock, and a connection interruption occurs (that doesn't render the session invalid), the waiter will attempt to clean up while the connection is invalid, and not succeed in cleaning up its ephemeral. This patch will recognize that the `@lock_path` was already acquired, and just wait on the current owner (ie. it won't create an erroneous *third* lock node). The reproduction code has been added under `spec/informal/two-locks-enter-three-locks-leave.rb`
 
@@ -51,9 +56,9 @@ The code path in the case of a LockWaitTimeout would skip the lock node cleanup,
 
 * Added Locker timeout feature for blocking calls. (issue #40)
 
-Previously, when dealing with locks, there were only two options: blocking or non-blocking. In order to come up with a time-limited lock, you had to poll every so often until you acquired the lock. This is, needless to say, both inefficient and doesn't allow for fair acquisition. 
+Previously, when dealing with locks, there were only two options: blocking or non-blocking. In order to come up with a time-limited lock, you had to poll every so often until you acquired the lock. This is, needless to say, both inefficient and doesn't allow for fair acquisition.
 
-A timeout option has been added so that when blocking waiting for a lock, you can specify a deadline by which the lock should have been acquired. 
+A timeout option has been added so that when blocking waiting for a lock, you can specify a deadline by which the lock should have been acquired.
 
 ```ruby
 zk = ZK.new
@@ -121,7 +126,7 @@ Will go through your locker nodes one by one and try to lock and unlock them. If
 
 ### v1.5.3 ###
 
-* Fixed reconnect code. There was an occasional race/deadlock condition caused because the reopen call was done on the underlying connection's dispatch thread. Closing the dispatch thread is part of reopen, so this would cause a deadlock in real-world use. Moved the reconnect logic to a separate, single-purpose thread on ZK::Client::Threaded that watches for connection state changes. 
+* Fixed reconnect code. There was an occasional race/deadlock condition caused because the reopen call was done on the underlying connection's dispatch thread. Closing the dispatch thread is part of reopen, so this would cause a deadlock in real-world use. Moved the reconnect logic to a separate, single-purpose thread on ZK::Client::Threaded that watches for connection state changes.
 
 * 'private' is not 'protected'. I've been writing ruby for several years now, and apparently I'd forgotten that 'protected' does not work like how it does in java. The visibility of these methods has been corrected, and all specs pass, so I don't expect issues...but please report if this change causes any bugs in user code.
 
@@ -136,15 +141,15 @@ Will go through your locker nodes one by one and try to lock and unlock them. If
 
 ### v1.5.1 ###
 
-* Added a `:retry_duration` option to client constructor which will allows the user to specify for how long in the case of a connection loss, should an operation wait for the connection to be re-established before retrying the operation. This can be set at a global level and overridden on a per-call basis. The default is to not retry (which may change at a later date). Generally speaking, a timeout of > 30s is probably excessive, and care should be taken because during a connection loss, the server-side state may change without you being aware of it (i.e. events will not be delivered). 
+* Added a `:retry_duration` option to client constructor which will allows the user to specify for how long in the case of a connection loss, should an operation wait for the connection to be re-established before retrying the operation. This can be set at a global level and overridden on a per-call basis. The default is to not retry (which may change at a later date). Generally speaking, a timeout of > 30s is probably excessive, and care should be taken because during a connection loss, the server-side state may change without you being aware of it (i.e. events will not be delivered).
 
 * Small fork-hook implementation fix. Previously we were using WeakRefs so that hooks would not prevent an object from being garbage collected. This has been replaced with a finalizer which is more deterministic.
 
 ### v1.5.0 ###
 
-Ok, now seriously this time. I think all of the forking issues are done. 
+Ok, now seriously this time. I think all of the forking issues are done.
 
-* Implemented a 'stop the world' feature to ensure safety when forking. All threads are stopped, but state is preserved. `fork()` can then be called safely, and after fork returns, all threads will be restarted in the parent, and the connection will be torn down and reopened in the child. 
+* Implemented a 'stop the world' feature to ensure safety when forking. All threads are stopped, but state is preserved. `fork()` can then be called safely, and after fork returns, all threads will be restarted in the parent, and the connection will be torn down and reopened in the child.
 
 * The easiest, and supported, way of doing this is now to call `ZK.install_fork_hook` after requiring zk. This will install an `alias_method_chain` style hook around the `Kernel.fork` method, which handles pausing all clients in the parent, calling fork, then resuming in the parent and reconnecting in the child. If you're using ZK in resque, I *highly* recommend using this approach, as it will give the most consistent results.
 
@@ -194,7 +199,7 @@ Phusion Passenger and Unicorn users are encouraged to upgrade!
 
 You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/tPbNBw) from the zookeeper 1.0.0 release
 
-* NOTICE: This release uses the 1.0 release of the zookeeper gem, which has had a MAJOR REFACTORING of its namespaces. Included in that zookeeper release is a compatibility layer that should ease the transition, but any references to Zookeeper\* heirarchy should be changed. 
+* NOTICE: This release uses the 1.0 release of the zookeeper gem, which has had a MAJOR REFACTORING of its namespaces. Included in that zookeeper release is a compatibility layer that should ease the transition, but any references to Zookeeper\* heirarchy should be changed.
 
 * Refactoring related to the zokeeper gem, use all the new names internally now.
 
@@ -202,7 +207,7 @@ You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/
 
 * Add new Locker features!
   * `LockerBase#assert!` - will raise an exception if the lock is not held. This check is not only for local in-memory "are we locked?" state, but will check the connection state and re-run the algorithmic tests that determine if a given Locker implementation actually has the lock.
-  * `LockerBase#acquirable?` - an advisory method that checks if any condition would prevent the receiver from acquiring the lock. 
+  * `LockerBase#acquirable?` - an advisory method that checks if any condition would prevent the receiver from acquiring the lock.
 
 * Deprecation of the `lock!` and `unlock!` methods. These may change to be exception-raising in a future relase, so document and refactor that `lock` and `unlock` are the way to go.
 
@@ -216,7 +221,7 @@ You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/
 
 * Fixes for Locker tests so that we can run specs against all supported ruby implementations on travis (relies on in-process zookeeper server in the zk-server-1.0.1 gem)
 
-* Support for 1.8.7 will be continued 
+* Support for 1.8.7 will be continued
 
 ## v1.1.0 ##
 
@@ -235,7 +240,7 @@ You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/
 
 * add zk.register(:all) to recevie node updates for all nodes (i.e. not filtered on path)
 
-* add 'interest' feature to zk.register, now you can indicate what kind of events should be delivered to the given block (previously you had to do that filtering inside the block). The default behavior is still the same, if no 'interest' is given, then all event types for the given path will be delivered to that block. 
+* add 'interest' feature to zk.register, now you can indicate what kind of events should be delivered to the given block (previously you had to do that filtering inside the block). The default behavior is still the same, if no 'interest' is given, then all event types for the given path will be delivered to that block.
   
     zk.register('/path', :created) do |event|
       # event.node_created? will always be true
@@ -257,8 +262,8 @@ You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/
 
 * fix for shutdown: close! called from threadpool will do the right thing
 
-* Chroot users rejoice! By default, ZK.new will create a chrooted path for you. 
-    
+* Chroot users rejoice! By default, ZK.new will create a chrooted path for you.
+
     ZK.new('localhost:2181/path', :chroot => :create) # the default, create the path before returning connection
 
     ZK.new('localhost:2181/path', :chroot => :check)  # make sure the chroot exists, raise if not
@@ -266,7 +271,7 @@ You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/
     ZK.new('localhost:2181/path', :chroot => :do_nothing) # old default behavior
 
     # and, just for kicks
-    
+
     ZK.new('localhost:2181', :chroot => '/path') # equivalent to 'localhost:2181/path', :chroot => :create
 
 * Most of the event functionality used is now in a ZK::Event module. This is still mixed into the underlying slyphon-zookeeper class, but now all of the important and relevant methods are documented, and Event appears as a first-class citizen.
@@ -278,16 +283,16 @@ You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/
 The "Don't forget to update the RELEASES file before pushing a new release" release
 
 * Fix a fairly bad bug in event de-duplication (diff: http://is.gd/a1iKNc)
-	
+
 	This is fairly edge-case-y but could bite someone. If you'd set a watch
 	when doing a get that failed because the node didn't exist, any subsequent
 	attempts to set a watch would fail silently, because the client thought that the
 	watch had already been set.
-	
+
 	We now wrap the operation in the setup_watcher! method, which rolls back the
 	record-keeping of what watches have already been set for what nodes if an
 	exception is raised.
-	
+
 	This change has the side-effect that certain operations (get,stat,exists?,children)
 	will block event delivery until completion, because they need to have a consistent
 	idea about what events are pending, and which have been delivered. This also means
@@ -303,7 +308,7 @@ The "Don't forget to update the RELEASES file before pushing a new release" rele
 * Fixed issue 9, where using a Locker in the main thread would never awaken if the connection was dropped or interrupted. Now a `ZK::Exceptions::InterruptedSession` exception (or mixee) will be thrown to alert the caller that something bad happened.
 * `ZK::Find.find` now returns the results in sorted order.
 * Added documentation explaining the Pool class, reasons for using it, reasons why you shouldn't (added complexities around watchers and events).
-* Began work on an experimental Multiplexed client, that would allow multithreaded clients to more effectively share a single connection by making all requests asynchronous behind the scenes, and using a queue to provide a synchronous (blocking) API. 
+* Began work on an experimental Multiplexed client, that would allow multithreaded clients to more effectively share a single connection by making all requests asynchronous behind the scenes, and using a queue to provide a synchronous (blocking) API.
 
 
 # vim:ft=markdown:sts=2:sw=2:et
