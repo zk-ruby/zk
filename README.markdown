@@ -1,6 +1,6 @@
 # ZK #
 
-[![Build Status (master)](https://secure.travis-ci.org/slyphon/zk.png?branch=master)](http://travis-ci.org/slyphon/zk)
+[![Build Status (master)](https://secure.travis-ci.org/zk-ruby/zk.png?branch=master)](http://travis-ci.org/zk-ruby/zk)
 
 ZK is an application programmer's interface to the Apache [ZooKeeper][] server. It is based on the [zookeeper gem][] which is a multi-Ruby low-level driver. Currently MRI 1.8.7, 1.9.2, 1.9.3, REE, and JRuby are supported. Rubinius 2.0.testing is supported-ish (it's expected to work, but upstream is unstable, so YMMV). 
 
@@ -16,10 +16,10 @@ Development is sponsored by [Snapfish][] and has been generously released to the
 
 [ZK::Client::Base]: http://rubydoc.info/gems/zk/ZK/Client/Base
 [ZooKeeper]: http://zookeeper.apache.org/ "Apache ZooKeeper"
-[zookeeper gem]: https://github.com/slyphon/zookeeper "slyphon-zookeeper gem"
+[zookeeper gem]: https://github.com/zk-ruby/zookeeper "zookeeper gem"
 [MIT]: http://www.gnu.org/licenses/license-list.html#Expat "MIT (Expat) License"
 [Snapfish]: http://www.snapfish.com/ "Snapfish"
-[RELEASES]: https://github.com/slyphon/zk/blob/master/RELEASES.markdown
+[RELEASES]: https://github.com/zk-ruby/zk/blob/master/RELEASES.markdown
 
 ## What is ZooKeeper? ##
 
@@ -38,7 +38,7 @@ ZooKeeper is easy to deploy in a [Highly Available][ha-config] configuration, an
 [leader election]: http://zookeeper.apache.org/doc/current/recipes.html#sc_leaderElection
 [group membership]: http://zookeeper.apache.org/doc/current/recipes.html#sc_outOfTheBox
 [ha-config]: http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_CrossMachineRequirements "HA config"
-[groups]: https://github.com/slyphon/zk-group
+[groups]: https://github.com/zk-ruby/zk-group
 [locks]: http://rubydoc.info/gems/zk/ZK/Locker
 
 
@@ -62,7 +62,7 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 [recipes]: http://zookeeper.apache.org/doc/current/recipes.html
 [Mongoid]: http://mongoid.org/
 [EventMachine]: https://github.com/eventmachine/eventmachine
-[zk-eventmachine]: https://github.com/slyphon/zk-eventmachine
+[zk-eventmachine]: https://github.com/zk-ruby/zk-eventmachine
 
 ## Release info / Changelog 
 
@@ -72,7 +72,7 @@ See the [RELEASES][] page for more info on features and bugfixes in each release
 
 ZK strives to be a complete, correct, and convenient way of interacting with ZooKeeper. There are a few things to be aware of:
 
-* In versions &lte; 0.9 there is only *one* event dispatch thread. It is *very important* that you don't block the event delivery thread. In 1.0, there is one delivery thread by default, but you can adjust the level of concurrency, allowing more control and convenience for building your event-driven app.
+* In versions < 0.9 there is only *one* event dispatch thread. It is *very important* that you don't block the event delivery thread. In 1.0, there is one delivery thread by default, but you can adjust the level of concurrency, allowing more control and convenience for building your event-driven app.
 
 * ZK uses threads. You will have to use synchronization primitives if you want to avoid getting hurt. There are use cases that do not require you to think about this, but as soon as you want to register for events, you're using multiple threads. 
 
@@ -85,7 +85,7 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 * ZK::Client supports asynchronous calls of all basic methods (get, set, delete, etc.) however these versions are kind of inconvenient to use. For a fully evented stack, try [zk-eventmachine][], which is designed to be compatible and convenient to use in event-driven code.
 
 [twitter/zookeeper]: https://github.com/twitter/zookeeper
-[async-branch]: https://github.com/slyphon/zk/tree/dev%2Fasync-conveniences
+[async-branch]: https://github.com/zk-ruby/zk/tree/dev%2Fasync-conveniences
 [chroot]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkSessions
 [YARD]: http://yardoc.org/
 [sessions]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkSessions 
@@ -100,19 +100,18 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 
 ## Dependencies
 
-* The [slyphon-zookeeper gem][szk-gem] ([repo][szk-repo]).
+* The [zookeeper gem][szk-gem] ([repo][szk-repo]).
 
 * For JRuby, the [slyphon-zookeeper\_jar gem][szk-jar-gem] ([repo][szk-jar-repo]), which just wraps the upstream zookeeper driver jar in a gem for easy installation
 
-[szk-gem]: https://rubygems.org/gems/slyphon-zookeeper
-[szk-repo]: https://github.com/slyphon/zookeeper
-[szk-repo-bundler]: https://github.com/slyphon/zookeeper/tree/dev/gemfile/
+[szk-gem]: https://rubygems.org/gems/zookeeper
+[szk-repo]: https://github.com/zk-ruby/zookeeper
+[szk-repo-bundler]: https://github.com/zk-ruby/zookeeper/tree/dev/gemfile/
 [szk-jar-gem]: https://rubygems.org/gems/slyphon-zookeeper_jar
-[szk-jar-repo]: https://github.com/slyphon/zookeeper_jar
+[szk-jar-repo]: https://github.com/zk-ruby/zookeeper_jar
 
 ## Contacting the author
 
-* I'm usually hanging out in IRC on freenode.net in the BRAND NEW #zk-gem channel.
 * if you really want to, you can also reach me via twitter [@slyphon][]
 
 [@slyphon]: https://twitter.com/#!/slyphon

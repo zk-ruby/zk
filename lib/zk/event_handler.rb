@@ -18,14 +18,6 @@ module ZK
     ALL_STATE_EVENTS_KEY = :all_state_events
 
     # @private
-    ZOOKEEPER_WATCH_TYPE_MAP = {
-      Zookeeper::ZOO_CREATED_EVENT => :data,
-      Zookeeper::ZOO_DELETED_EVENT => :data,
-      Zookeeper::ZOO_CHANGED_EVENT => :data,
-      Zookeeper::ZOO_CHILD_EVENT   => :child,
-    }.freeze
-
-    # @private
     VALID_THREAD_OPTS = [:single, :per_callback].freeze
 
     # @private
@@ -42,6 +34,7 @@ module ZK
       EventHandlerSubscription.class_for_thread_option(@thread_opt) # this is side-effecty, will raise an ArgumentError if given a bad value. 
 
       @mutex = nil
+      @setup_watcher_mutex = nil
 
       @callbacks = Hash.new { |h,k| h[k] = [] }
 
@@ -61,6 +54,8 @@ module ZK
     def reopen_after_fork!
 #       logger.debug { "#{self.class}##{__method__}" }
       @mutex = Monitor.new
+      @setup_watcher_mutex = Monitor.new
+
       # XXX: need to test this w/ actor-style callbacks
       
       @state = :running
@@ -157,10 +152,10 @@ module ZK
     #   and session events go through here, NOT anything else!!
     #
     # @private
-    def process(event)
+    def process(event, watch_type = nil)
       @zk.raw_event_handler(event)
 
-      logger.debug { "EventHandler#process dispatching event: #{event.inspect}" }# unless event.type == -1
+      logger.debug { "EventHandler#process dispatching event for #{watch_type.inspect}: #{event.inspect}" }# unless event.type == -1
       event.zk = @zk
 
       cb_keys = 
@@ -173,7 +168,7 @@ module ZK
         end
 
       cb_ary = synchronize do 
-        clear_watch_restrictions(event)
+        clear_watch_restrictions(event, watch_type)
 
         @callbacks.values_at(*cb_keys)
       end
@@ -193,11 +188,11 @@ module ZK
     # happens inside the lock, clears the restriction on setting new watches
     # for a given path/event type combination
     #
-    def clear_watch_restrictions(event)
+    def clear_watch_restrictions(event, watch_type)
       return unless event.node_event?
 
-      if watch_type = ZOOKEEPER_WATCH_TYPE_MAP[event.type]
-        #logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
+      if watch_type
+        logger.debug { "re-allowing #{watch_type.inspect} watches on path #{event.path.inspect}" }
         
         # we recieved a watch event for this path, now we allow code to set new watchers
         @outstanding_watches[watch_type].delete(event.path)
@@ -213,6 +208,13 @@ module ZK
         nil
       end
     end 
+
+    # used when establishing a new session
+    def clear_outstanding_watch_restrictions!
+      synchronize do
+        @outstanding_watches.values.each { |set| set.clear }
+      end
+    end
 
     # shut down the EventHandlerSubscriptions 
     def close
@@ -281,23 +283,34 @@ module ZK
     def setup_watcher!(watch_type, opts)
       return yield unless opts.delete(:watch)
 
-      synchronize do
-        set = @outstanding_watches.fetch(watch_type)
+      @setup_watcher_mutex.synchronize do
         path = opts[:path]
+        added, set = nil, nil
 
-        if set.add?(path)
+        synchronize do
+          set = @outstanding_watches.fetch(watch_type)
+          added = set.add?(path)
+        end
+
+        if added
+          logger.debug { "adding watcher #{watch_type.inspect} for #{path.inspect}"}
+
           # if we added the path to the set, blocking further registration of
           # watches and an exception is raised then we rollback
           begin
             # this path has no outstanding watchers, let it do its thing
-            opts[:watcher] = watcher_callback 
+            opts[:watcher] = watcher_callback(watch_type)
 
             yield opts
           rescue Exception
-            set.delete(path)
+            synchronize do
+              set.delete(path)
+            end
             raise
           end
         else
+          logger.debug { "watcher #{watch_type.inspect} already set for #{path.inspect}"}
+
           # we did not add the path to the set, which means we are not
           # responsible for removing a block on further adds if the operation
           # fails, therefore, we just yield
@@ -311,8 +324,8 @@ module ZK
         @mutex.synchronize { yield }
       end
 
-      def watcher_callback
-        Zookeeper::Callbacks::WatcherCallback.create { |event| process(event) }
+      def watcher_callback(watch_type = nil)
+        Zookeeper::Callbacks::WatcherCallback.create { |event| process(event, watch_type) }
       end
 
       def state_key(arg)

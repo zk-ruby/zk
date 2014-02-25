@@ -169,7 +169,7 @@ module ZK
       # Create a node with the given path. The node data will be the given data.
       # The path is returned.
       # 
-      # If the ephemeral option is given, the znode creaed will be removed by the
+      # If the ephemeral option is given, the znode created will be removed by the
       # server automatically when the session associated with the creation of the
       # node expires. Note that ephemeral nodes cannot have children.
       # 

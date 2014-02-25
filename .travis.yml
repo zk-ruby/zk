@@ -2,6 +2,7 @@
 notifications:
   email:
     - slyphon@gmail.com
+    - eric@5stops.com
 
 env:
   - SPAWN_ZOOKEEPER='true'

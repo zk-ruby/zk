@@ -36,8 +36,32 @@ describe ZK::Client::Threaded do
 
         shutdown_thread.join(5).should == shutdown_thread
 
-        wait_until(5) { @zk.closed? }.should be_true 
+        wait_until(5) { @zk.closed? }.should be_true
       end
+    end
+  end
+
+  describe :reopen do
+    include_context 'connection opts'
+
+    before do
+      @zk = ZK::Client::Threaded.new(*connection_args)
+    end
+
+    after do
+      @zk.close! unless @zk.closed?
+    end
+
+    it %[should say the client is connected after reopen] do
+      @zk.connected?.should == true
+
+      @zk.close!
+
+      @zk.connected?.should == false
+
+      @zk.reopen
+
+      @zk.connected?.should == true
     end
   end
 
@@ -54,8 +78,8 @@ describe ZK::Client::Threaded do
 
     it %[should retry a Retryable operation] do
       # TODO: this is a terrible test. there is no way to guarantee that this
-      #       has been retried. the join at the end should not raise an error 
-      
+      #       has been retried. the join at the end should not raise an error
+
       @zk.should_not be_connected
 
       th = Thread.new do

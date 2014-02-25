@@ -47,7 +47,7 @@ module ZK
         message_title = "message"
       end
       @zk.create("#{full_queue_path}/#{message_title}", data, :mode => mode)
-    rescue KeeperException::NodeExists
+    rescue ZK::Exceptions::NodeExists
       return false
     end
 
