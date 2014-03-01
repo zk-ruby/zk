@@ -277,7 +277,6 @@ module ZK
       def assert!
         @mutex.synchronize do
           raise LockAssertionFailedError, "have not obtained the lock yet"            unless locked?
-          raise LockAssertionFailedError, "not connected"                             unless zk.connected?
           raise LockAssertionFailedError, "lock_path was #{lock_path.inspect}"        unless lock_path
           raise LockAssertionFailedError, "the lock path #{lock_path} did not exist!" unless zk.exists?(lock_path)
           raise LockAssertionFailedError, "the parent node was replaced!"             unless root_lock_path_same?
