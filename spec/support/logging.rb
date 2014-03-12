@@ -42,7 +42,7 @@ module ZK
   end
 end
 
-ZK.logging_gem_setup
+# ZK.logging_gem_setup
 # ZK.stdlib_logger_setup
 
 # Zookeeper.logger = ZK.logger.clone_new_log(:progname => 'zoo')
@@ -51,13 +51,13 @@ ZK.logging_gem_setup
 
 module SpecGlobalLogger
   def logger
-    @spec_global_logger ||= ::Logging.logger['spec']
+    @spec_global_logger ||= ::Zookeeper.logger
   end
 
   # sets the log level to FATAL for the duration of the block
   def mute_logger
-    zk_log = Logging.logger['ZK']
-    orig_level, zk_log.level = zk_log.level, :off
+    zk_log = ::Zookeeper.logger
+    orig_level, zk_log.level = zk_log.level, ::Logger::FATAL
     orig_zoo_level, Zookeeper.debug_level = Zookeeper.debug_level, Zookeeper::Constants::ZOO_LOG_LEVEL_ERROR
     yield
   ensure
