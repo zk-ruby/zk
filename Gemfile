@@ -23,9 +23,9 @@ group :docs do
   end
 end
 
-platform :mri_19 do
-  gem 'simplecov', :group => :coverage, :require => false
-end
+# platform :mri_19 do
+#   gem 'simplecov', :group => :coverage, :require => false
+# end
 
 group :development do
   gem 'guard',          :require => false
