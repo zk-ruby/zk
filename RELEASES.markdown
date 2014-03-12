@@ -1,5 +1,13 @@
 This file notes feature differences and bugfixes contained between releases.
 
+### v1.9.4 ###
+
+* Forward options to underlying connection #69 (h/t: avalanche123)
+* Don't check connection state in Locker#assert! - leads to better retry behavior
+* allow specifying session-id
+* upgrade logging gem dependency
+
+
 ### v1.9.3 ###
 
 * Fix deadlocks between watchers and reconnecting
