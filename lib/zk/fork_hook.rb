@@ -39,7 +39,7 @@ module ZK
     
     # @private
     def clear!
-      @mutex.synchronize { @hooks.values(&:clear) }
+      @mutex.synchronize { @hooks.values.each(&:clear) }
     end
 
     # @private
