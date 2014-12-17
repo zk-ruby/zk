@@ -9,6 +9,12 @@ shared_examples_for 'ZK basic' do
     end
   end
 
+  describe ZK, "with no authentication" do
+    it "should add authentication" do
+      @zk.add_auth({:scheme => 'digest', :cert => 'bob:password'}).should include({:rc => 0})
+    end
+  end
+
   describe ZK, "with no paths" do
     it "should not exist" do
       @zk.exists?("#{@base_path}/test").should be_false
