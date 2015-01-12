@@ -1,5 +1,10 @@
 This file notes feature differences and bugfixes contained between releases.
 
+### v1.9.5 ###
+
+* Really clear hooks when clear! is called #83 (h/t: Liam Stewart)
+* implement `add_auth` method to send credentials to zookeeper #86 (h/t: ajf8)
+
 ### v1.9.4 ###
 
 * Forward options to underlying connection #69 (h/t: avalanche123)
