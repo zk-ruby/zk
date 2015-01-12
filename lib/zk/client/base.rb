@@ -870,6 +870,21 @@ module ZK
         opts[:callback] ? rv : rv[:stat]
       end
 
+      # Send authentication
+      #
+      # @param opts [String] :scheme authentication scheme being provided for.
+      #
+      # @param opts [String] :cert the authentication data.
+      #
+      # @example send digest authentication
+      #
+      #   zk.add_auth({ :scheme => 'digest', :cert => 'username:password' })
+      #
+      def add_auth(*args)
+        opts = args.extract_options!
+        call_and_check_rc(:add_auth, opts )
+      end
+
       # @private
       # @todo need to document this a little more
       def set_debug_level(level)
