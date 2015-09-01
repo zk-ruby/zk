@@ -43,6 +43,7 @@ group :test do
   gem 'rspec', '~> 2.8.0'
   gem 'flexmock', '~> 0.8.10'
   gem 'zk-server', '~> 1.1.4'
+  gem 'test-unit', :platforms => [:ruby_22]
 end
 
 # Specify your gem's dependencies in zk.gemspec
