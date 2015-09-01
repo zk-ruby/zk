@@ -9,6 +9,7 @@ env:
 
 # pull in releaseops submodule
 before_install:
+  - gem update bundler
   - git submodule update --init --recursive
 
 rvm:
