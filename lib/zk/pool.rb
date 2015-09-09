@@ -18,7 +18,7 @@ module ZK
     # complexity.
     #
     class Base
-      include Logging
+      include Logger
 
       attr_reader :connections #:nodoc:
 

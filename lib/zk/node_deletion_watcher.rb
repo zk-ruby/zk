@@ -2,7 +2,7 @@ module ZK
   class NodeDeletionWatcher
     include Zookeeper::Constants
     include Exceptions
-    include Logging
+    include Logger
 
     # @private
     module Constants

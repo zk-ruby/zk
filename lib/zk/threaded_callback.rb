@@ -4,7 +4,7 @@ module ZK
   # You will not have a useful return value from `call` so this is only useful
   # for background processing.
   class ThreadedCallback
-    include ZK::Logging
+    include ZK::Logger
     include ZK::Exceptions
 
     attr_reader :callback

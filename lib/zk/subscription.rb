@@ -7,7 +7,7 @@ module ZK
   # be passed the subscription instance 
   module Subscription
     class Base
-      include ZK::Logging
+      include ZK::Logger
 
       # the object from which we will attempt to #unregister on
       # XXX: need a better name for this

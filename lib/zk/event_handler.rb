@@ -6,7 +6,7 @@ module ZK
   # you never really need to initialize this yourself
   class EventHandler
     include Java::OrgApacheZookeeper::Watcher if defined?(JRUBY_VERSION)
-    include ZK::Logging
+    include ZK::Logger
 
     # @private
     VALID_WATCH_TYPES = [:data, :child].freeze

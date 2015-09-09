@@ -1,6 +1,5 @@
 require 'rubygems'
 
-require 'logging'
 require 'zookeeper'
 
 # XXX: after 1.0 we'll need this
@@ -23,7 +22,7 @@ end
 require 'zk/core_ext'
 require 'zk/exceptions'
 require 'zk/extensions'
-require 'zk/logging'
+require 'zk/logger'
 require 'zk/event'
 require 'zk/stat'
 require 'zk/subscription'
@@ -307,6 +306,3 @@ module ZK
       cnx_str   # the possibly-modified connection string (with chroot info)
     end
 end
-
-ZK::Logging.set_default
-

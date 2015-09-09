@@ -8,7 +8,7 @@ module ZK
     # author, and it may be corrected sometime in the future.
     #
     class LockerBase
-      include ZK::Logging
+      include ZK::Logger
       include ZK::Exceptions
 
       # @private
