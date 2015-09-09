@@ -1,4 +1,6 @@
----
+# This should kick us over to the docker system
+sudo: false
+
 notifications:
   email:
     - slyphon@gmail.com
