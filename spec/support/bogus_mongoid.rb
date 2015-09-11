@@ -1,6 +1,6 @@
 class BogusMongoid
   include ZK::Mongoid::Locking
-  include ZK::Logging
+  include ZK::Logger
 
   attr_reader :id
 

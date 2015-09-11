@@ -1,7 +1,7 @@
 module ZK
   module EventHandlerSubscription
     class Base < Subscription::Base
-      include ZK::Logging
+      include ZK::Logger
 
       # the path this subscription is for
       # @return [String]

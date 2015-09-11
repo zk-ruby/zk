@@ -1,7 +1,7 @@
 module ZK
   # a simple threadpool for running blocks of code off the main thread
   class Threadpool
-    include Logging
+    include Logger
     include Exceptions
 
     DEFAULT_SIZE = 5

@@ -60,7 +60,7 @@ module ZK
     }.freeze
  
     class Base
-     include Logging
+     include Logger
 
      attr_reader :zk, :vote_path, :root_election_node
 
