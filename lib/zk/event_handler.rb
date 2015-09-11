@@ -36,7 +36,7 @@ module ZK
       @mutex = nil
       @setup_watcher_mutex = nil
 
-      @callbacks = Hash.new { |h,k| h[k] = [] }
+      @callbacks = Hash.new
 
       @outstanding_watches = VALID_WATCH_TYPES.inject({}) do |h,k|
         h.tap { |x| x[k] = Set.new }
@@ -84,7 +84,9 @@ module ZK
       end
 
       EventHandlerSubscription.new(self, path, block, hash).tap do |subscription|
-        synchronize { @callbacks[path] << subscription }
+        synchronize do
+          (@callbacks[path] ||= []) << subscription
+        end
       end
     end
     alias :subscribe :register
@@ -131,15 +133,21 @@ module ZK
         subscription = args[1]
       else
         path, index = args[0..1]
-        synchronize { @callbacks[path][index] = nil }
+        synchronize do
+          if @callbacks[path] && @callbacks[path][index]
+            @callbacks[path][index] = nil
+          end
+        end
         return
       end
 
       synchronize do
-        ary = @callbacks[subscription.path]
-
-        idx = ary.index(subscription) and ary.delete_at(idx)
-        @callbacks.delete(subscription.path) if ary.empty?
+        if ary = @callbacks[subscription.path]
+          idx = ary.index(subscription) and ary.delete_at(idx)
+          if ary.empty?
+            @callbacks.delete(subscription.path)
+          end
+        end
       end
 
       nil
