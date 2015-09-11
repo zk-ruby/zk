@@ -1,5 +1,5 @@
 class ClientForker
-  include ZK::Logging
+  include ZK::Logger
   attr_reader :base_path, :cnx_args, :stat
 
   def self.run(cnx_args, base_path)

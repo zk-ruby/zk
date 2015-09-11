@@ -1,6 +1,6 @@
 module ZK
   module ForkHook
-    include ZK::Logging
+    include ZK::Logger
     extend self
 
     @mutex = Mutex.new unless @mutex
@@ -94,6 +94,10 @@ module ZK
       register(:after_child, callable || blk)
     end
 
+    def self.logger
+      @logger ||= ::ZK.logger || Zookeeper::Logger::ForwardingLogger.for(::ZK::Logger.wrapped_logger, _zk_logger_name)
+    end
+
     class ForkSubscription < Subscription::Base
       attr_reader :hook_type
 
@@ -108,4 +112,5 @@ module ZK
   def self.install_fork_hook
     require 'zk/install_fork_hooks'
   end
+
 end # ZK

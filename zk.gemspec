@@ -13,7 +13,6 @@ Gem::Specification.new do |s|
   s.description = s.summary + "\n"
 
   s.add_runtime_dependency 'zookeeper', '~> 1.4.0'
-  s.add_runtime_dependency 'logging',   '~> 1.8.2'
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")

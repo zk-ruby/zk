@@ -39,7 +39,7 @@ module ZK
       include StateMixin
       include Unixisms
       include Conveniences
-      include Logging
+      include Logger
 
       DEFAULT_THREADPOOL_SIZE = 1
 

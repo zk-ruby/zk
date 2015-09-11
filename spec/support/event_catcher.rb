@@ -1,6 +1,6 @@
 class EventCatcher
   extend Forwardable
-  include ZK::Logging
+  include ZK::Logger
 
   def_delegators :@mutex, :synchronize
 
