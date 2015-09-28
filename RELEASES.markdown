@@ -1,5 +1,10 @@
 This file notes feature differences and bugfixes contained between releases.
 
+### v1.9.6 ###
+
+* Fixes from @rickypai for ruby 2.2 (#89)
+* Remove dependency on logging gem #90 (h/t: @eric)
+
 ### v1.9.5 ###
 
 * Really clear hooks when clear! is called #83 (h/t: Liam Stewart)
