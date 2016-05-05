@@ -145,6 +145,28 @@ describe 'ZK::Client#locker' do
         @exc.should_not be_nil
         @exc.should be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
       end
+
+      it "should interrupt a blocked lock" do
+        first_lock = @zk.locker("mylock")
+        first_lock.lock.should be_true
+
+        second_lock = @zk.locker("mylock")
+        thread = Thread.new do
+          begin
+            second_lock.with_lock do
+              raise "NO NO NO!! should not have called the block!!"
+            end
+          rescue Exception => e
+            @exc = e
+          end
+        end
+
+        Thread.pass until second_lock.waiting?
+
+        second_lock.interrupt!
+        thread.join(2)
+        @exc.should be_kind_of(ZK::Exceptions::WakeUpException)
+      end
     end
   end # with_lock
 end
