@@ -12,7 +12,14 @@ source "https://rubygems.org"
 #   gem 'zookeeper', '~> 1.3.0'
 # end
 
-gem 'rake', :group => [:development, :test]
+group :development, :test do
+  if RUBY_VERSION >= '1.9.3'
+    gem 'rake'
+  else
+    gem 'rake', '~> 10.5'
+  end
+end
+
 gem 'pry',  :group => [:development]
 
 group :docs do
