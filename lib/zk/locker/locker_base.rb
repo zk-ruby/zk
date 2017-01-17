@@ -291,6 +291,19 @@ module ZK
         false
       end
 
+      # interrupt caller blocked on acquring a lock by delegating to
+      # ZK::NodeDeletionWatcher#interrupt!
+      #
+      # this does nothing if the watcher is not currently blocked.
+      #
+      # @raise [WakeUpException] raised when caller interrupted
+      #
+      def interrupt!
+        synchronize do
+          @node_deletion_watcher and @node_deletion_watcher.interrupt!
+        end
+      end
+
       private
         def synchronize
           @mutex.synchronize { yield }
