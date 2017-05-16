@@ -14,14 +14,13 @@ Bundler.require(:development, :test)
 
 require 'zk'
 require 'benchmark'
+require 'pry'
 
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
 Dir[File.expand_path("../{support,shared}/**/*.rb", __FILE__)].sort.each {|f| require f}
 
 $stderr.sync = true
-
-require 'flexmock'
 
 RSpec.configure do |config|
   config.mock_with :flexmock
