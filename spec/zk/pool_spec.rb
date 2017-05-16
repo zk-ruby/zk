@@ -112,7 +112,7 @@ describe ZK::Pool do
         end
 
         @cnx.length.should_not be_zero
-        
+
         # this exc nonsense is because 1.8.7's scheduler is broken
         @exc = nil
 
@@ -143,7 +143,7 @@ describe ZK::Pool do
 
       @connection_pool.with_connection do |zk|
         begin
-          zk.delete(@path) 
+          zk.delete(@path)
         rescue ZK::Exceptions::NoNode
         end
       end
@@ -169,7 +169,7 @@ describe ZK::Pool do
 
     # These tests are seriously yucky, but they show that when a client is !connected?
     # the pool behaves properly and will not return that client to the caller.
-    
+
     describe 'health checking with disconnected client', :rbx => :broken do
       before do
         wait_until(2) { @connection_pool.available_size == 2 }
@@ -200,7 +200,7 @@ describe ZK::Pool do
         @connection_pool.available_size.should == 2
 
         @cnx2 = @connection_pool.checkout
-        
+
         # this is gross and relies on knowing internal state
         @connection_pool.checkout(false).should be_false
 

@@ -6,7 +6,7 @@ module ZK
   # Once you've had a look there, take a look at {Client::Conveniences},
   # {Client::StateMixin}, and {Client::Unixisms}
   #
-  # @todo ACL support is pretty much unused currently. 
+  # @todo ACL support is pretty much unused currently.
   #   If anyone has suggestions, hints, use-cases, examples, etc. by all means please file a bug.
   #
   module Client
