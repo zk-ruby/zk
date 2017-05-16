@@ -54,8 +54,6 @@ describe ZK::Pool do
 
     describe :close_all! do
       it %[should shutdown gracefully] do
-        release_q  = Queue.new
-
         latch = Latch.new
 
         @about_to_block = false
@@ -269,10 +267,7 @@ describe ZK::Pool do
       end
 
       it %[should not grow past max_clients and block] do
-        win_q = Queue.new
         lose_q = Queue.new
-
-        threads = []
 
         @cnx1 = @connection_pool.checkout
         @cnx1.should_not be_false
