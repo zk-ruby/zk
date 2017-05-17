@@ -20,7 +20,7 @@ describe 'ZK::Client#locker' do
     @zk.close!
     @zk2.close!
     @zk3.close!
-    wait_until { @connections.all? { |c| c.closed? } } 
+    wait_until { @connections.all? { |c| c.closed? } }
   end
 
   it "should be able to acquire the lock if no one else is locking it" do

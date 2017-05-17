@@ -187,7 +187,7 @@ describe ZK do
           end
         end # as a connection string
       end # that exists
-    end # with a chroot 
+    end # with a chroot
   end # :new
 end # ZK
 

@@ -2,7 +2,7 @@ require 'spec_helper'
 
 shared_examples_for 'ZK basic' do
   before do
-    logger.debug { "connection_args: #{connection_args.inspect}" } 
+    logger.debug { "connection_args: #{connection_args.inspect}" }
     begin
       @zk.create(@base_path)
     rescue ZK::Exceptions::NodeExists

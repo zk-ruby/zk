@@ -4,7 +4,7 @@ describe ZK::Election, :jruby => :broken do
   include_context 'connection opts'
 
   before do
-    ZK.open(connection_host) do |cnx| 
+    ZK.open(connection_host) do |cnx|
       logger.debug { "REMOVING /_zkelection" }
       cnx.rm_rf('/_zkelection')
     end
@@ -92,7 +92,7 @@ describe ZK::Election, :jruby => :broken do
           @obama_won = @obama_lost = @palin_won = @palin_lost = nil
           win_latch, lose_latch = Latch.new, Latch.new
 
-          @obama.on_winning_election do 
+          @obama.on_winning_election do
             logger.debug { "obama on_winning_election fired" }
             @obama_won = true
             win_latch.release
@@ -115,7 +115,7 @@ describe ZK::Election, :jruby => :broken do
             @palin_lost = true
             lose_latch.release
           end
-          
+
           @obama.vote!
           @palin.vote!
 

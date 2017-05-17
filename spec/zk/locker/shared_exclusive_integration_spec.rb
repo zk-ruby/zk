@@ -13,7 +13,7 @@ shared_examples_for :shared_exclusive_integration do
 
       mutex = Monitor.new
       cond = mutex.new_cond
-      
+
       th = Thread.new do
         logger.debug { "@ex_lock trying to acquire acquire lock" }
         @ex_lock.with_lock do
@@ -96,7 +96,7 @@ shared_examples_for :shared_exclusive_integration do
 
       mutex = Monitor.new
       cond = mutex.new_cond
-      
+
       th = Thread.new do
         logger.debug { "@ex_lock trying to acquire acquire lock" }
         @sh_lock.with_lock do

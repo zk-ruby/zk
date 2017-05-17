@@ -48,7 +48,7 @@ describe ZK::Threadpool do
       @ary = []
 
       @threadpool.on_exception { |exc| @ary << exc }
-        
+
       @threadpool.defer { raise "ZOMG!" }
 
       wait_while(2) { @ary.empty? }
@@ -78,7 +78,7 @@ describe ZK::Threadpool do
 
       @rval = nil
 
-      @threadpool.defer do 
+      @threadpool.defer do
         @rval = true
       end
 

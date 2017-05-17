@@ -17,7 +17,7 @@ describe ZK do
     after do
       mute_logger do
         if @zk.connected?
-          @zk.close! 
+          @zk.close!
           wait_until { !@zk.connected? }
         end
 
@@ -48,8 +48,8 @@ describe ZK do
         pending_in_travis("these tests take too long or time out")
       end
 
-      # this is stupid, and a bad test, but we have to check that events 
-      # don't get re-delivered to a single registered callback just because 
+      # this is stupid, and a bad test, but we have to check that events
+      # don't get re-delivered to a single registered callback just because
       # :watch => true was called twice
       #
       # again, we're testing a negative here, so consider this a regression check

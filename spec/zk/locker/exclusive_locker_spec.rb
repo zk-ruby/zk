@@ -9,13 +9,13 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
 
     it %[should raise LockAssertionFailedError if there is an exclusive lock with a number lower than ours] do
       # this should *really* never happen
-      
+
       rlp = locker.root_lock_path
 
       zk.mkdir_p(rlp)
 
       bogus_path = zk.create("#{rlp}/#{ZK::Locker::EXCLUSIVE_LOCK_PREFIX}", :sequential => true, :ephemeral => true)
-      logger.debug { "bogus_path: #{bogus_path.inspect}" } 
+      logger.debug { "bogus_path: #{bogus_path.inspect}" }
 
       th = Thread.new do
         locker.lock(true)

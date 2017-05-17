@@ -88,7 +88,7 @@ module ZK
         start = Time.now
         time_to_stop = timeout ? (start + timeout) : nil
 
-        logger.debug { "#{__method__} @blocked: #{@blocked.inspect} about to wait" } 
+        logger.debug { "#{__method__} @blocked: #{@blocked.inspect} about to wait" }
         @cond.wait(timeout)
 
         if (time_to_stop and (Time.now > time_to_stop)) and (@blocked == NOT_YET)
@@ -100,7 +100,7 @@ module ZK
     end
 
     # cause a thread blocked by us to be awakened and have a WakeUpException
-    # raised. 
+    # raised.
     #
     # if a result has already been delivered, then this does nothing
     #
