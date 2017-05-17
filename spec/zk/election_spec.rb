@@ -56,8 +56,8 @@ describe ZK::Election, :jruby => :broken do
           end
 
           @palin.on_losing_election do
-            @obama_won.should be_true
-            @palin.leader_acked?.should be_true
+            expect(@obama_won).to be(true)
+            expect(@palin.leader_acked?).to be(true)
             @palin_lost = true
           end
 
@@ -68,21 +68,21 @@ describe ZK::Election, :jruby => :broken do
           oth.run
 
           wait_until { @obama_waiting }
-          @obama_waiting.should be_true
+          expect(@obama_waiting).to be(true)
 
           # palin's callbacks haven't fired
-          @palin_lost.should be_nil
+          expect(@palin_lost).to be_nil
 
           latch.release
 
           wait_until { @obama_won }
-          @obama_won.should be_true
+          expect(@obama_won).to be(true)
 
-          lambda { oth.join(1).should == oth }.should_not raise_error
+          expect { expect(oth.join(1)).to eq(oth) }.not_to raise_error
 
           wait_until { @palin_lost }
 
-          @palin_lost.should be_true
+          expect(@palin_lost).to be(true)
         end
       end
 
@@ -120,45 +120,45 @@ describe ZK::Election, :jruby => :broken do
           @palin.vote!
 
           win_latch.await
-          @obama_won.should be_true
+          expect(@obama_won).to be(true)
 
           lose_latch.await
-          @palin_lost.should be_true
+          expect(@palin_lost).to be(true)
         end
 
         describe 'winner' do
           it %[should fire the on_winning_election callbacks] do
-            @obama_won.should be_true
+            expect(@obama_won).to be(true)
           end
 
           it %[should not fire the on_losing_election callbacks] do
-            @obama_lost.should be_nil
+            expect(@obama_lost).to be_nil
           end
 
           it %[should acknowledge completion of winning callbacks] do
-            @zk.exists?(@obama.leader_ack_path).should be_true
+            expect(@zk.exists?(@obama.leader_ack_path)).to be(true)
           end
 
           it %[should write its data to the leader_ack node] do
-            @zk.get(@obama.leader_ack_path).first.should == @data1
+            expect(@zk.get(@obama.leader_ack_path).first).to eq(@data1)
           end
 
           it %[should know it's the leader] do
-            @obama.should be_leader
+            expect(@obama).to be_leader
           end
         end
 
         describe 'loser' do # gets a talk show on Fox News? I KEED! I KEED!
           it %[should know it isn't the leader] do
-            @palin.should_not be_leader
+            expect(@palin).not_to be_leader
           end
 
           it %[should not fire the winning callbacks] do
-            @palin_won.should_not be_true
+            expect(@palin_won).not_to be(true)
           end
 
           it %[should fire the losing callbacks] do
-            @palin_lost.should be_true
+            expect(@palin_lost).to be(true)
           end
 
           it %[should take over as leader when the current leader goes away] do
@@ -167,13 +167,13 @@ describe ZK::Election, :jruby => :broken do
             @obama.zk.close!
             wait_until { @palin_won }
 
-            @palin_won.should be_true # god forbid
+            expect(@palin_won).to be(true) # god forbid
 
             wait_until { @zk2.exists?(@palin.leader_ack_path) }
 
-            @zk2.exists?(@palin.leader_ack_path).should be_true
+            expect(@zk2.exists?(@palin.leader_ack_path)).to be(true)
 
-            @zk2.get(@palin.leader_ack_path).first.should == @data2
+            expect(@zk2.get(@palin.leader_ack_path).first).to eq(@data2)
           end
 
           it %[should remain leader if the original leader comes back] do
@@ -193,9 +193,9 @@ describe ZK::Election, :jruby => :broken do
               newbama.vote!
               wait_until { newbama.voted? }
 
-              newbama.should be_voted
-              win_again.should be_false
-              newbama.should_not be_leader
+              expect(newbama).to be_voted
+              expect(win_again).to be(false)
+              expect(newbama).not_to be_leader
             end
           end
         end
@@ -207,12 +207,12 @@ describe ZK::Election, :jruby => :broken do
     before do
       @zk3 = ZK.new(*connection_args)
 
-      @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
+      expect(@zk3.exists?('/_zkelection/2012/leader_ack')).to be(false)
 
       @obama = ZK::Election::Candidate.new(@zk, @election_name, :data => @data1)
       @palin = ZK::Election::Candidate.new(@zk2, @election_name, :data => @data2)
 
-      @zk3.exists?('/_zkelection/2012/leader_ack').should be_false
+      expect(@zk3.exists?('/_zkelection/2012/leader_ack')).to be(false)
 
       @observer = ZK::Election::Observer.new(@zk3, @election_name)
     end
@@ -231,17 +231,17 @@ describe ZK::Election, :jruby => :broken do
 
           @observer.observe!
           wait_until { !@observer.leader_alive.nil? }
-          @observer.leader_alive.should_not be_nil
-          @zk3.exists?(@observer.root_election_node).should be_false
+          expect(@observer.leader_alive).not_to be_nil
+          expect(@zk3.exists?(@observer.root_election_node)).to be(false)
         end
 
         it %[should set leader_alive to false] do
-          @observer.leader_alive.should be_false
+          expect(@observer.leader_alive).to be(false)
         end
 
         it %[should fire death callbacks] do
-          @events.length.should == 1
-          @events.first.should == :death
+          expect(@events.length).to eq(1)
+          expect(@events.first).to eq(:death)
         end
       end
 
@@ -263,19 +263,19 @@ describe ZK::Election, :jruby => :broken do
         end
 
         it %[should be obama that won] do
-          @obama.should be_leader
+          expect(@obama).to be_leader
         end
 
         it %[should be palin that lost] do
-          @palin.should_not be_leader
+          expect(@palin).not_to be_leader
         end
 
         it %[should set leader_alive to true] do
-          @observer.leader_alive.should be_true
+          expect(@observer.leader_alive).to be(true)
         end
 
         it %[should fire the new leader callbacks] do
-          @got_life_event.should be_true
+          expect(@got_life_event).to be(true)
         end
       end
 
@@ -286,7 +286,7 @@ describe ZK::Election, :jruby => :broken do
           wait_until { @obama.leader? }
 
           @palin.vote!
-          @palin.should_not be_leader
+          expect(@palin).not_to be_leader
 
           @got_life_event = @got_death_event = false
 
@@ -297,23 +297,23 @@ describe ZK::Election, :jruby => :broken do
 
           wait_until { !@observer.leader_alive.nil? }
 
-          @observer.leader_alive.should be_true
+          expect(@observer.leader_alive).to be(true)
           @zk.close!
           wait_until { !@zk.connected? && @palin.leader? && @palin.leader_acked? }
         end
 
         it %[should be palin who is leader] do
-          @palin.should be_leader
+          expect(@palin).to be_leader
         end
 
         it %[should have seen both the death and life events] do
           pending 'this test is flapping'
-          @got_life_event.should be_true
-          @got_death_event.should be_true
+          expect(@got_life_event).to be(true)
+          expect(@got_death_event).to be(true)
         end
 
         it %[should see the data of the new leader] do
-          @observer.leader_data.should == 'palin'
+          expect(@observer.leader_data).to eq('palin')
         end
       end
     end

@@ -25,7 +25,7 @@ describe EventCatcher do
 
       subject.add(:created, 'blah')
 
-      th.join(2).value.should be_true
+      expect(th.join(2).value).to be(true)
     end
   end
 end

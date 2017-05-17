@@ -1,7 +1,6 @@
 module ZK
   class NodeDeletionWatcher
     include Zookeeper::Constants
-    include Exceptions
     include Logger
 
     # @private
@@ -42,7 +41,7 @@ module ZK
       @paths      = paths.dup
       @options    = options.dup
       @threshold  = options[:threshold] || 0
-      raise BadArgument, <<-EOBADARG unless @threshold.kind_of? Integer
+      raise ZK::Exceptions::BadArguments, <<-EOBADARG unless @threshold.kind_of? Integer
         options[:threshold] must be an Integer. Got #{@threshold.inspect}."
       EOBADARG
 

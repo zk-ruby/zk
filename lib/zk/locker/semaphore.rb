@@ -2,8 +2,6 @@ module ZK
   module Locker
     # A semaphore implementation
     class Semaphore < LockerBase
-      include Exceptions
-
       @default_root_node = '/_zksemaphore'.freeze unless @default_root_node
 
       class << self
@@ -13,7 +11,7 @@ module ZK
       end
 
       def initialize(client, name, semaphore_size, root_node=nil)
-        raise BadArgument, <<-EOMESSAGE unless semaphore_size.kind_of? Integer
+        raise ZK::Exceptions::BadArguments, <<-EOMESSAGE unless semaphore_size.kind_of? Integer
           semaphore_size must be Integer, not #{semaphore_size.inspect}
         EOMESSAGE
 

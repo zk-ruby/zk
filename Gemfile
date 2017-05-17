@@ -51,8 +51,7 @@ group :development do
 end
 
 group :test do
-  gem 'rspec', '~> 2.14.0'
-  gem 'flexmock', '~> 0.8.10'
+  gem 'rspec', '~> 3.6.0'
   gem 'zk-server', '~> 1.1.4'
   gem 'test-unit', :platforms => [:ruby_22, :ruby_23, :ruby_24]
 end

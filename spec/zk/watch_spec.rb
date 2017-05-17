@@ -33,14 +33,14 @@ describe ZK do
         locker.synchronize do
           callback_called = true
         end
-        event.path.should == @path
+        expect(event.path).to eq(@path)
       end
 
       @zk.exists?(@path, :watch => true)
       @zk.create(@path, "", :mode => :ephemeral)
 
       wait_until(5) { locker.synchronize { callback_called } }
-      callback_called.should be_true
+      expect(callback_called).to be(true)
     end
 
     describe :regression do
@@ -55,7 +55,7 @@ describe ZK do
       # again, we're testing a negative here, so consider this a regression check
       #
       def wait_for_events_to_not_be_delivered(events)
-        lambda { wait_until(0.2) { events.length >= 2 } }.should raise_error(WaitWatchers::TimeoutError)
+        expect { wait_until(0.2) { events.length >= 2 } }.to raise_error(WaitWatchers::TimeoutError)
       end
 
       it %[should only deliver an event once to each watcher registered for exists?] do
@@ -67,14 +67,14 @@ describe ZK do
         end
 
         2.times do
-          @zk.exists?(@path, :watch => true).should_not be_true
+          expect(@zk.exists?(@path, :watch => true)).not_to be(true)
         end
 
         @zk.create(@path, '', :mode => :ephemeral)
 
         wait_for_events_to_not_be_delivered(events)
 
-        events.length.should == 1
+        expect(events.length).to eq(1)
       end
 
       it %[should only deliver an event once to each watcher registered for get] do
@@ -89,14 +89,14 @@ describe ZK do
 
         2.times do
           data, stat = @zk.get(@path, :watch => true)
-          data.should == 'one'
+          expect(data).to eq('one')
         end
 
         @zk.set(@path, 'two')
 
         wait_for_events_to_not_be_delivered(events)
 
-        events.length.should == 1
+        expect(events.length).to eq(1)
       end
 
 
@@ -112,20 +112,20 @@ describe ZK do
 
         2.times do
           children = @zk.children(@path, :watch => true)
-          children.should be_empty
+          expect(children).to be_empty
         end
 
         @zk.create("#{@path}/pfx", '', :mode => :ephemeral_sequential)
 
         wait_for_events_to_not_be_delivered(events)
 
-        events.length.should == 1
+        expect(events.length).to eq(1)
       end
     end
 
     it %[should restrict_new_watches_for? if a successul watch has been set] do
       @zk.stat(@path, :watch => true)
-      @zk.event_handler.should be_restricting_new_watches_for(:data, @path)
+      expect(@zk.event_handler).to be_restricting_new_watches_for(:data, @path)
     end
 
     it %[should not a block on new watches after an operation fails] do
@@ -141,19 +141,19 @@ describe ZK do
 
       # get a path that doesn't exist with a watch
 
-      lambda { @zk.get(@path, :watch => true) }.should raise_error(ZK::Exceptions::NoNode)
+      expect { @zk.get(@path, :watch => true) }.to raise_error(ZK::Exceptions::NoNode)
 
-      @zk.event_handler.should_not be_restricting_new_watches_for(:data, @path)
+      expect(@zk.event_handler).not_to be_restricting_new_watches_for(:data, @path)
 
       @zk.stat(@path, :watch => true)
 
-      @zk.event_handler.should be_restricting_new_watches_for(:data, @path)
+      expect(@zk.event_handler).to be_restricting_new_watches_for(:data, @path)
 
       @zk.create(@path, '')
 
       wait_while { events.empty? }
 
-      events.should_not be_empty
+      expect(events).not_to be_empty
     end
 
     it %[should call a child listener when the node is deleted] do
@@ -177,10 +177,10 @@ describe ZK do
 
       event = events.pop
 
-      event.should_not be_nil
+      expect(event).not_to be_nil
 
-      event.path.should == @path
-      event.type.should == Zookeeper::ZOO_DELETED_EVENT
+      expect(event.path).to eq(@path)
+      expect(event.type).to eq(Zookeeper::ZOO_DELETED_EVENT)
 
       # Create the node again
       @zk.create(@path, '')
@@ -196,10 +196,10 @@ describe ZK do
 
       event = events.pop
 
-      event.should_not be_nil
+      expect(event).not_to be_nil
 
-      event.path.should == @path
-      event.type.should == Zookeeper::ZOO_DELETED_EVENT
+      expect(event.path).to eq(@path)
+      expect(event.type).to eq(Zookeeper::ZOO_DELETED_EVENT)
     end
 
     describe ':all' do
@@ -230,7 +230,7 @@ describe ZK do
         @zk.create(@path)
         @zk.create(@other_path, 'blah')
 
-        wait_until { events.length == 2 }.should be_true
+        expect(wait_until { events.length == 2 }).to be(true)
       end
     end
 
@@ -250,58 +250,58 @@ describe ZK do
 
         it %[should deliver only the created event to the created block] do
           @events.synchronize do
-            @zk.stat(@path, :watch => true).should_not exist
+            expect(@zk.stat(@path, :watch => true)).not_to exist
 
             @zk.create(@path)
 
             @events.wait_for_created
 
-            @events.created.should_not be_empty
-            @events.created.first.should be_node_created
-            @events.all.should_not be_empty
+            expect(@events.created).not_to be_empty
+            expect(@events.created.first).to be_node_created
+            expect(@events.all).not_to be_empty
 
-            @zk.stat(@path, :watch => true).should exist
+            expect(@zk.stat(@path, :watch => true)).to exist
 
-            @events.all.length.should == 1
+            expect(@events.all.length).to eq(1)
 
             @zk.delete(@path)
 
             @events.wait_for_all
           end
 
-          @events.all.length.should == 2
+          expect(@events.all.length).to eq(2)
 
           # :deleted event was delivered, make sure it didn't get delivered to the :created block
-          @events.created.length.should == 1
+          expect(@events.created.length).to eq(1)
         end
 
         it %[should deliver only the changed event to the changed block] do
           @events.synchronize do
             @zk.create(@path)
 
-            @zk.stat(@path, :watch => true).should exist
+            expect(@zk.stat(@path, :watch => true)).to exist
 
             @zk.set(@path, 'data')
 
             @events.wait_for_changed
           end
 
-          @events.changed.should_not be_empty
-          @events.changed.length.should == 1
-          @events.changed.first.should be_node_changed
+          expect(@events.changed).not_to be_empty
+          expect(@events.changed.length).to eq(1)
+          expect(@events.changed.first).to be_node_changed
 
-          @events.all.length.should == 1
+          expect(@events.all.length).to eq(1)
 
           @events.synchronize do
-            @zk.stat(@path, :watch => true).should exist
+            expect(@zk.stat(@path, :watch => true)).to exist
             @zk.delete(@path)
             @events.wait_for_all
           end
 
-          @events.all.length.should == 2
+          expect(@events.all.length).to eq(2)
 
           # :deleted event was delivered, make sure it didn't get delivered to the :changed block
-          @events.changed.length.should == 1
+          expect(@events.changed.length).to eq(1)
         end
 
         it %[should deliver only the child event to the child block] do
@@ -309,53 +309,53 @@ describe ZK do
 
           @events.synchronize do
             @zk.create(@path)
-            @zk.children(@path, :watch => true).should be_empty
+            expect(@zk.children(@path, :watch => true)).to be_empty
 
             child_path = @zk.create("#{@path}/m", '', :sequence => true)
 
             @events.wait_for_child
 
-            @events.child.length.should == 1
-            @events.child.first.should be_node_child
+            expect(@events.child.length).to eq(1)
+            expect(@events.child.first).to be_node_child
 
-            @zk.stat(@path, :watch => true).should exist
+            expect(@zk.stat(@path, :watch => true)).to exist
 
-            @events.all.length.should == 1
+            expect(@events.all.length).to eq(1)
 
             @zk.set(@path, '') # equivalent to a 'touch'
             @events.wait_for_all
           end
 
-          @events.all.length.should == 2
+          expect(@events.all.length).to eq(2)
 
           # :changed event was delivered, make sure it didn't get delivered to the :child block
-          @events.child.length.should == 1
+          expect(@events.child.length).to eq(1)
         end
 
         it %[should deliver only the deleted event to the deleted block] do
           @events.synchronize do
             @zk.create(@path)
-            @zk.stat(@path, :watch => true).should exist
+            expect(@zk.stat(@path, :watch => true)).to exist
             @zk.delete(@path)
 
             @events.wait_for_deleted
             @events.wait_while_all { |all| all.empty? }
 
-            @events.deleted.should_not be_empty
-            @events.deleted.first.should be_node_deleted
-            @events.all.length.should == 1
+            expect(@events.deleted).not_to be_empty
+            expect(@events.deleted.first).to be_node_deleted
+            expect(@events.all.length).to eq(1)
 
-            @zk.stat(@path, :watch => true).should_not exist
+            expect(@zk.stat(@path, :watch => true)).not_to exist
 
             @zk.create(@path)
 
             @events.wait_for_all
           end
 
-          @events.all.length.should be > 1
+          expect(@events.all.length).to be > 1
 
           # :deleted event was delivered, make sure it didn't get delivered to the :created block
-          @events.deleted.length.should == 1
+          expect(@events.deleted.length).to eq(1)
         end
       end # event catcher scope
 
@@ -372,30 +372,30 @@ describe ZK do
         end
 
         @events.synchronize do
-          @zk.stat(@path, :watch => true).should_not exist
+          expect(@zk.stat(@path, :watch => true)).not_to exist
 
           @zk.create(@path)
 
           @cond.wait(5)
 
-          @events.should_not be_empty
-          @events.length.should == 1
-          @events.first.should be_node_created
+          expect(@events).not_to be_empty
+          expect(@events.length).to eq(1)
+          expect(@events.first).to be_node_created
 
-          @zk.stat(@path, :watch => true).should exist
+          expect(@zk.stat(@path, :watch => true)).to exist
           @zk.set(@path, 'blah')
 
           @cond.wait(5)
         end
 
-        @events.length.should == 2
-        @events.last.should be_node_changed
+        expect(@events.length).to eq(2)
+        expect(@events.last).to be_node_changed
       end
 
       it %[should barf if an invalid event name is given] do
-        lambda do
+        expect do
           @zk.register(@path, :only => :tripping) { }
-        end.should raise_error(ArgumentError)
+        end.to raise_error(ArgumentError)
       end
     end # event interest
   end # watchers
@@ -416,21 +416,9 @@ describe ZK do
 
       it %[should fire the registered callback] do
         wait_while { @event.nil? }
-        @event.should_not be_nil
+        expect(@event).not_to be_nil
       end
     end
-
-    describe 'registered listeners' do
-      before do
-        @event = flexmock(:event) do |m|
-          m.should_receive(:type).and_return(-1)
-          m.should_receive(:zk=).with(any())
-          m.should_receive(:node_event?).and_return(false)
-          m.should_receive(:state_event?).and_return(true)
-          m.should_receive(:state).and_return(Zookeeper::Constants::ZOO_CONNECTED_STATE)
-        end
-      end
-    end # registered listeners
   end
 end
 

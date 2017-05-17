@@ -24,40 +24,40 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
       th.run
 
       logger.debug { "calling wait_until_blocked" }
-      proc { locker.wait_until_blocked(5) }.should_not raise_error
+      expect { locker.wait_until_blocked(5) }.not_to raise_error
       logger.debug { "wait_until_blocked returned" }
-      locker.should be_waiting
+      expect(locker).to be_waiting
 
       wait_until { zk.exists?(locker.lock_path) }
 
-      zk.exists?(locker.lock_path).should be_true
+      expect(zk.exists?(locker.lock_path)).to be(true)
 
       zk.delete(bogus_path)
 
-      th.join(5).should == th
+      expect(th.join(5)).to eq(th)
 
-      locker.lock_path.should_not == bogus_path
+      expect(locker.lock_path).not_to eq(bogus_path)
 
       zk.create(bogus_path, :ephemeral => true)
 
-      lambda { locker.assert! }.should raise_error(ZK::Exceptions::LockAssertionFailedError)
+      expect { locker.assert! }.to raise_error(ZK::Exceptions::LockAssertionFailedError)
     end
   end
 
   describe :acquirable? do
     it %[should work if the lock root doesn't exist] do
       zk.rm_rf(ZK::Locker.default_root_lock_node)
-      locker.should be_acquirable
+      expect(locker).to be_acquirable
     end
 
     it %[should check local state of lockedness] do
-      locker.lock.should be_true
-      locker.should be_acquirable
+      expect(locker.lock).to be(true)
+      expect(locker).to be_acquirable
     end
 
     it %[should check if any participants would prevent us from acquiring the lock] do
-      locker.lock.should be_true
-      locker2.should_not be_acquirable
+      expect(locker.lock).to be(true)
+      expect(locker2).not_to be_acquirable
     end
   end
 
@@ -69,16 +69,16 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
       end
 
       it %[should acquire the first lock] do
-        @rval.should be_true
+        expect(@rval).to be(true)
       end
 
       it %[should not acquire the second lock] do
-        @rval2.should be_false
+        expect(@rval2).to be(false)
       end
 
       it %[should acquire the second lock after the first lock is released] do
-        locker.unlock.should be_true
-        locker2.lock.should be_true
+        expect(locker.unlock).to be(true)
+        expect(locker2.lock).to be(true)
       end
     end
 
@@ -95,7 +95,7 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
       it %[should block waiting for the lock with old style lock semantics] do
         ary = []
 
-        locker.lock.should be_false
+        expect(locker.lock).to be(false)
 
         th = Thread.new do
           locker.lock(true)
@@ -103,22 +103,22 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
         end
 
         locker.wait_until_blocked(5)
-      
-        ary.should be_empty
-        locker.should_not be_locked
+
+        expect(ary).to be_empty
+        expect(locker).not_to be_locked
 
         zk.delete(@read_lock_path)
 
-        th.join(2).should == th
+        expect(th.join(2)).to eq(th)
 
-        ary.length.should == 1
-        locker.should be_locked
+        expect(ary.length).to eq(1)
+        expect(locker).to be_locked
       end
 
       it %[should block waiting for the lock with new style lock semantics] do
         ary = []
 
-        locker.lock.should be_false
+        expect(locker.lock).to be(false)
 
         th = Thread.new do
           locker.lock(:wait => true)
@@ -126,24 +126,24 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
         end
 
         locker.wait_until_blocked(5)
-      
-        ary.should be_empty
-        locker.should_not be_locked
+
+        expect(ary).to be_empty
+        expect(locker).not_to be_locked
 
         zk.delete(@read_lock_path)
 
-        th.join(2).should == th
+        expect(th.join(2)).to eq(th)
 
-        ary.length.should == 1
-        locker.should be_locked
+        expect(ary.length).to eq(1)
+        expect(locker).to be_locked
       end
 
       it %[should time out waiting for the lock] do
         ary = []
 
-        zk.children(lock_path_base).length.should == 1
+        expect(zk.children(lock_path_base).length).to eq(1)
 
-        locker.lock.should be_false
+        expect(locker.lock).to be(false)
 
         th = Thread.new do
           begin
@@ -155,17 +155,17 @@ shared_examples_for 'ZK::Locker::ExclusiveLocker' do
         end
 
         locker.wait_until_blocked(5)
-      
-        ary.should be_empty
-        locker.should_not be_locked
 
-        th.join(2).should == th
+        expect(ary).to be_empty
+        expect(locker).not_to be_locked
 
-        zk.children(lock_path_base).length.should == 1
+        expect(th.join(2)).to eq(th)
 
-        ary.should be_empty
-        @exc.should_not be_nil
-        @exc.should be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
+        expect(zk.children(lock_path_base).length).to eq(1)
+
+        expect(ary).to be_empty
+        expect(@exc).not_to be_nil
+        expect(@exc).to be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
       end
     end # blocking
   end # lock

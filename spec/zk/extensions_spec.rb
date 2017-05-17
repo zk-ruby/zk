@@ -6,8 +6,8 @@ module ZK
 
       it %[should not barf if backtrace is nil] do
         exc = StandardError.new
-        exc.backtrace.should be_nil
-        lambda { exc.to_std_format }.should_not raise_error
+        expect(exc.backtrace).to be_nil
+        expect { exc.to_std_format }.not_to raise_error
       end
     end
   end

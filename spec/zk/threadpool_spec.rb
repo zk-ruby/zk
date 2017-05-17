@@ -11,11 +11,11 @@ describe ZK::Threadpool do
 
   describe :new do
     it %[should be running] do
-      @threadpool.should be_running
+      expect(@threadpool).to be_running
     end
 
     it %[should use the default size] do
-      @threadpool.size.should == ZK::Threadpool.default_size
+      expect(@threadpool.size).to eq(ZK::Threadpool.default_size)
     end
   end
 
@@ -27,19 +27,19 @@ describe ZK::Threadpool do
 
       wait_until(2) { @th }
 
-      @th.should_not == Thread.current
+      expect(@th).not_to eq(Thread.current)
     end
 
     it %[should barf if the argument is not callable] do
-      bad_obj = flexmock(:not_callable)
-      bad_obj.should_not respond_to(:call)
+      bad_obj = double(:not_callable)
+      expect(bad_obj).not_to respond_to(:call)
 
-      lambda { @threadpool.defer(bad_obj) }.should raise_error(ArgumentError)
+      expect { @threadpool.defer(bad_obj) }.to raise_error(ArgumentError)
     end
 
     it %[should not barf if the threadpool is not running] do
       @threadpool.shutdown
-      lambda { @threadpool.defer { "hai!" } }.should_not raise_error
+      expect { @threadpool.defer { "hai!" } }.not_to raise_error
     end
   end
 
@@ -53,28 +53,28 @@ describe ZK::Threadpool do
 
       wait_while(2) { @ary.empty? }
 
-      @ary.length.should == 1
+      expect(@ary.length).to eq(1)
 
       e = @ary.shift
 
-      e.should be_kind_of(RuntimeError)
-      e.message.should == 'ZOMG!'
+      expect(e).to be_kind_of(RuntimeError)
+      expect(e.message).to eq('ZOMG!')
     end
   end
 
   describe :shutdown do
     it %[should set running to false] do
       @threadpool.shutdown
-      @threadpool.should_not be_running
+      expect(@threadpool).not_to be_running
     end
   end
 
   describe :start! do
     it %[should be able to start a threadpool that had previously been shutdown (reuse)] do
       @threadpool.shutdown
-      @threadpool.start!.should be_true
+      expect(@threadpool.start!).to be(true)
 
-      @threadpool.should be_running
+      expect(@threadpool).to be_running
 
       @rval = nil
 
@@ -83,7 +83,7 @@ describe ZK::Threadpool do
       end
 
       wait_until(2) { @rval }
-      @rval.should be_true
+      expect(@rval).to be(true)
     end
   end
 
@@ -93,24 +93,24 @@ describe ZK::Threadpool do
       @threadpool.defer { @a << @threadpool.on_threadpool? }
 
       wait_while(2) { @a.empty? }
-      @a.should_not be_empty
+      expect(@a).not_to be_empty
 
-      @a.first.should be_true
+      expect(@a.first).to be(true)
     end
   end
 
   describe :pause_before_fork_in_parent do
     it %[should stop all running threads] do
-      @threadpool.should be_running
-      @threadpool.should be_alive
+      expect(@threadpool).to be_running
+      expect(@threadpool).to be_alive
       @threadpool.pause_before_fork_in_parent
 
-      @threadpool.should_not be_alive
+      expect(@threadpool).not_to be_alive
     end
 
     it %[should raise InvalidStateError if already paused] do
       @threadpool.pause_before_fork_in_parent
-      lambda { @threadpool.pause_before_fork_in_parent }.should raise_error(ZK::Exceptions::InvalidStateError)
+      expect { @threadpool.pause_before_fork_in_parent }.to raise_error(ZK::Exceptions::InvalidStateError)
     end
   end
 
@@ -121,12 +121,12 @@ describe ZK::Threadpool do
 
     it %[should start all threads running again] do
       @threadpool.resume_after_fork_in_parent
-      @threadpool.should be_alive
+      expect(@threadpool).to be_alive
     end
 
     it %[should raise InvalidStateError if not in paused state] do
       @threadpool.shutdown
-      lambda { @threadpool.resume_after_fork_in_parent }.should raise_error(ZK::Exceptions::InvalidStateError)
+      expect { @threadpool.resume_after_fork_in_parent }.to raise_error(ZK::Exceptions::InvalidStateError)
     end
 
     it %[should run callbacks deferred while paused] do
@@ -147,7 +147,7 @@ describe ZK::Threadpool do
 
       latch.await(2)
 
-      calls.should_not be_empty
+      expect(calls).not_to be_empty
     end
   end
 end

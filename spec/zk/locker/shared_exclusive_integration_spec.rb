@@ -8,8 +8,8 @@ shared_examples_for :shared_exclusive_integration do
 
   describe 'shared lock acquired first' do
     it %[should block exclusive locks from acquiring until released] do
-      @sh_lock.lock.should be_true
-      @ex_lock.lock.should be_false
+      expect(@sh_lock.lock).to be(true)
+      expect(@ex_lock.lock).to be(false)
 
       mutex = Monitor.new
       cond = mutex.new_cond
@@ -28,29 +28,29 @@ shared_examples_for :shared_exclusive_integration do
 
       mutex.synchronize do
         logger.debug { "unlocking the shared lock" }
-        @sh_lock.unlock.should be_true
+        expect(@sh_lock.unlock).to be(true)
         cond.wait_until { th[:got_lock] }   # make sure they actually received the lock (avoid race)
-        th[:got_lock].should be_true
+        expect(th[:got_lock]).to be(true)
         logger.debug { "ok, they got the lock" }
       end
 
-      th.join(5).should == th
+      expect(th.join(5)).to eq(th)
 
       logger.debug { "thread joined, exclusive lock should be releasd" }
 
-      @ex_lock.should_not be_locked
+      expect(@ex_lock).not_to be_locked
     end
   end
 
   describe 'multiple shared locks acquired first' do
     before do
-      zk3.should_not be_nil
-      @sh_lock2 = ZK::Locker.shared_locker(zk3, path) 
+      expect(zk3).not_to be_nil
+      @sh_lock2 = ZK::Locker.shared_locker(zk3, path)
     end
     it %[should not aquire a lock when highest-numbered released but others remain] do
-      @sh_lock.lock.should be_true
-      @sh_lock2.lock.should be_true
-      @ex_lock.lock.should be_false
+      expect(@sh_lock.lock).to be(true)
+      expect(@sh_lock2.lock).to be(true)
+      expect(@ex_lock.lock).to be(false)
 
       mutex = Monitor.new
       cond = mutex.new_cond
@@ -75,24 +75,24 @@ shared_examples_for :shared_exclusive_integration do
       mutex.synchronize do
         @ex_lock.wait_until_blocked(1)
         logger.debug { "unlocking the highest shared lock" }
-        @sh_lock2.unlock.should be_true
+        expect(@sh_lock2.unlock).to be(true)
         cond.wait_until { (!th[:got_lock].nil?) }   # make sure they actually received the lock (avoid race)
-        th[:got_lock].should be_false
+        expect(th[:got_lock]).to be(false)
         logger.debug { "they didn't get the lock." }
       end
 
-      th.join(5).should == th
+      expect(th.join(5)).to eq(th)
 
       logger.debug { "thread joined, exclusive lock should be releasd" }
-      @sh_lock.unlock.should be_true
-      @ex_lock.should_not be_locked
+      expect(@sh_lock.unlock).to be(true)
+      expect(@ex_lock).not_to be_locked
     end
   end
 
   describe 'exclusive lock acquired first' do
     it %[should block shared lock from acquiring until released] do
-      @ex_lock.lock.should be_true
-      @sh_lock.lock.should be_false
+      expect(@ex_lock.lock).to be(true)
+      expect(@sh_lock.lock).to be(false)
 
       mutex = Monitor.new
       cond = mutex.new_cond
@@ -111,31 +111,31 @@ shared_examples_for :shared_exclusive_integration do
 
       mutex.synchronize do
         logger.debug { "unlocking the shared lock" }
-        @ex_lock.unlock.should be_true
+        expect(@ex_lock.unlock).to be(true)
         cond.wait_until { th[:got_lock] }   # make sure they actually received the lock (avoid race)
-        th[:got_lock].should be_true
+        expect(th[:got_lock]).to be(true)
         logger.debug { "ok, they got the lock" }
       end
 
-      th.join(5).should == th
+      expect(th.join(5)).to eq(th)
 
       logger.debug { "thread joined, exclusive lock should be releasd" }
 
-      @sh_lock.should_not be_locked
+      expect(@sh_lock).not_to be_locked
     end
   end
 
   describe 'shared-exclusive-shared' do
     before do
-      zk3.should_not be_nil
-      @sh_lock2 = ZK::Locker.shared_locker(zk3, path) 
+      expect(zk3).not_to be_nil
+      @sh_lock2 = ZK::Locker.shared_locker(zk3, path)
     end
 
     it %[should act something like a queue] do
       @array = []
 
-      @sh_lock.lock.should be_true
-      @sh_lock.should be_locked
+      expect(@sh_lock.lock).to be(true)
+      expect(@sh_lock).to be_locked
 
       ex_th = Thread.new do
         begin
@@ -150,15 +150,15 @@ shared_examples_for :shared_exclusive_integration do
       logger.debug { "about to wait for @ex_lock to be blocked" }
 
       @ex_lock.wait_until_blocked(5)
-      @ex_lock.should be_waiting
+      expect(@ex_lock).to be_waiting
 
       logger.debug { "@ex_lock is waiting" }
 
-      @ex_lock.should_not be_locked
+      expect(@ex_lock).not_to be_locked
 
       # this is the important one, does the second shared lock get blocked by
       # the exclusive lock
-      @sh_lock2.lock.should_not be_true
+      expect(@sh_lock2.lock).not_to be(true)
 
       sh2_th = Thread.new do
         begin
@@ -173,19 +173,19 @@ shared_examples_for :shared_exclusive_integration do
       logger.debug { "about to wait for @sh_lock2 to be blocked" }
 
       @sh_lock2.wait_until_blocked(5)
-      @sh_lock2.should be_waiting
+      expect(@sh_lock2).to be_waiting
 
       logger.debug { "@sh_lock2 is waiting" }
 
       # ok, now unlock the first in the chain
       @sh_lock.assert!
-      @sh_lock.unlock.should be_true
+      expect(@sh_lock.unlock).to be(true)
 
-      ex_th.join(5).should == ex_th
-      sh2_th.join(5).should == sh2_th
+      expect(ex_th.join(5)).to eq(ex_th)
+      expect(sh2_th.join(5)).to eq(sh2_th)
 
-      @array.length.should == 2
-      @array.should == [:ex_lock, :sh_lock2]
+      expect(@array.length).to eq(2)
+      expect(@array).to eq([:ex_lock, :sh_lock2])
     end
   end
 end # shared_exclusive_integration

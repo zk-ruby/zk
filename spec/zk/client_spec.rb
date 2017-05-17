@@ -21,7 +21,7 @@ describe ZK::Client::Threaded do
       it %[should do the right thing and not fail] do
         # this is an extra special case where the user obviously hates us
 
-        @zk.should be_kind_of(ZK::Client::Threaded) # yeah yeah, just be sure
+        expect(@zk).to be_kind_of(ZK::Client::Threaded) # yeah yeah, just be sure
 
         shutdown_thread = nil
 
@@ -31,12 +31,12 @@ describe ZK::Client::Threaded do
 
         wait_while { shutdown_thread.nil? }
 
-        shutdown_thread.should_not be_nil
-        shutdown_thread.should be_kind_of(Thread)
+        expect(shutdown_thread).not_to be_nil
+        expect(shutdown_thread).to be_kind_of(Thread)
 
-        shutdown_thread.join(5).should == shutdown_thread
+        expect(shutdown_thread.join(5)).to eq(shutdown_thread)
 
-        wait_until(5) { @zk.closed? }.should be_true
+        expect(wait_until(5) { @zk.closed? }).to be(true)
       end
     end
   end
@@ -53,15 +53,15 @@ describe ZK::Client::Threaded do
     end
 
     it %[should say the client is connected after reopen] do
-      @zk.connected?.should == true
+      expect(@zk.connected?).to eq(true)
 
       @zk.close!
 
-      @zk.connected?.should == false
+      expect(@zk.connected?).to eq(false)
 
       @zk.reopen
 
-      @zk.connected?.should == true
+      expect(@zk.connected?).to eq(true)
     end
   end
 
@@ -80,7 +80,7 @@ describe ZK::Client::Threaded do
       # TODO: this is a terrible test. there is no way to guarantee that this
       #       has been retried. the join at the end should not raise an error
 
-      @zk.should_not be_connected
+      expect(@zk).not_to be_connected
 
       th = Thread.new do
         @zk.stat('/path/to/blah', :retry_duration => 30)
@@ -89,11 +89,11 @@ describe ZK::Client::Threaded do
       th.run
 
       @zk.connect
-      th.join(5).should == th
+      expect(th.join(5)).to eq(th)
     end
 
     it %[barfs if the connection is closed before the connected event is received] do
-      @zk.should_not be_connected
+      expect(@zk).not_to be_connected
 
       exc = nil
 
@@ -110,14 +110,14 @@ describe ZK::Client::Threaded do
 
       @zk.close!
 
-      th.join(5).should == th
+      expect(th.join(5)).to eq(th)
 
-      exc.should_not be_nil
-      exc.should be_kind_of(ZK::Exceptions::Retryable)
+      expect(exc).not_to be_nil
+      expect(exc).to be_kind_of(ZK::Exceptions::Retryable)
     end
 
     it %[should barf if the timeout expires] do
-      @zk.should_not be_connected
+      expect(@zk).not_to be_connected
 
       exc = nil
 
@@ -132,10 +132,10 @@ describe ZK::Client::Threaded do
 
       th.run
 
-      th.join(5).should == th
+      expect(th.join(5)).to eq(th)
 
-      exc.should_not be_nil
-      exc.should be_kind_of(ZK::Exceptions::Retryable)
+      expect(exc).not_to be_nil
+      expect(exc).to be_kind_of(ZK::Exceptions::Retryable)
     end
   end
 end # ZK::Client::Threaded

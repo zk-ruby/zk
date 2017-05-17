@@ -21,7 +21,7 @@ describe ZK do
 
     describe %[with a chrooted connection string and a :chroot => '/path'] do
       it %[should raise an ArgumentError] do
-        lambda { @zk = ZK.new("#{connection_host}/zktest", :chroot => '/zktest') }.should raise_error(ArgumentError)
+        expect { @zk = ZK.new("#{connection_host}/zktest", :chroot => '/zktest') }.to raise_error(ArgumentError)
       end
     end
 
@@ -29,7 +29,7 @@ describe ZK do
       before { @zk = ZK.new }
 
       it %[should create a default connection] do
-        @zk.should be_connected
+        expect(@zk).to be_connected
       end
     end
 
@@ -54,10 +54,10 @@ describe ZK do
           before { @zk = ZK.new(:chroot => chroot_path) }
 
           it %[should use the default connection string, create the chroot and return the connection] do
-            @zk.exists?('/').should be_true
+            expect(@zk.exists?('/')).to be(true)
             @zk.create('/blah', 'data')
 
-            @unchroot.get("#{chroot_path}/blah").first.should == 'data'
+            expect(@unchroot.get("#{chroot_path}/blah").first).to eq('data')
           end
         end
 
@@ -69,10 +69,10 @@ describe ZK do
             end
 
             it %[should create the chroot path and then return the connection] do
-              @zk.exists?('/').should be_true
+              expect(@zk.exists?('/')).to be(true)
               @zk.create('/blah', 'data')
 
-              @unchroot.get("#{chroot_path}/blah").first.should == 'data'
+              expect(@unchroot.get("#{chroot_path}/blah").first).to eq('data')
             end
           end
 
@@ -82,26 +82,26 @@ describe ZK do
             end
 
             it %[should create the chroot path and then return the connection] do
-              @zk.exists?('/').should be_true
+              expect(@zk.exists?('/')).to be(true)
               @zk.create('/blah', 'data')
 
-              @unchroot.get("#{chroot_path}/blah").first.should == 'data'
+              expect(@unchroot.get("#{chroot_path}/blah").first).to eq('data')
             end
           end
 
           describe %[and :chroot => :check] do
             it %[should barf with a ChrootPathDoesNotExistError] do
-              lambda do
+              expect do
                 # assign in case of a bug, that way this connection will get torn down
                 @zk = ZK.new("#{connection_host}#{chroot_path}", :chroot => :check)
-              end.should raise_error(ZK::Exceptions::ChrootPathDoesNotExistError)
+              end.to raise_error(ZK::Exceptions::ChrootPathDoesNotExistError)
             end
           end
 
           describe %[and :chroot => :do_nothing] do
             it %[should return a connection in a weird state] do
               @zk = ZK.new("#{connection_host}#{chroot_path}", :chroot => :do_nothing)
-              lambda { @zk.get('/') }.should raise_error(ZK::Exceptions::NoNode)
+              expect { @zk.get('/') }.to raise_error(ZK::Exceptions::NoNode)
             end
           end
 
@@ -109,10 +109,10 @@ describe ZK do
             before { @zk = ZK.new(connection_host, :chroot => chroot_path) }
 
             it %[should create the chroot path and then return the connection] do
-              @zk.exists?('/').should be_true
+              expect(@zk.exists?('/')).to be(true)
               @zk.create('/blah', 'data')
 
-              @unchroot.get("#{chroot_path}/blah").first.should == 'data'
+              expect(@unchroot.get("#{chroot_path}/blah").first).to eq('data')
             end
           end
         end # as a connection string
@@ -125,10 +125,10 @@ describe ZK do
           before { @zk = ZK.new(:chroot => chroot_path) }
 
           it %[should use the default connection string and totally work] do
-            @zk.exists?('/').should be_true
+            expect(@zk.exists?('/')).to be(true)
             @zk.create('/blah', 'data')
 
-            @unchroot.get("#{chroot_path}/blah").first.should == 'data'
+            expect(@unchroot.get("#{chroot_path}/blah").first).to eq('data')
           end
         end
 
@@ -139,10 +139,10 @@ describe ZK do
             end
 
             it %[should totally work] do
-              @zk.exists?('/').should be_true
+              expect(@zk.exists?('/')).to be(true)
               @zk.create('/blah', 'data')
 
-              @unchroot.get("#{chroot_path}/blah").first.should == 'data'
+              expect(@unchroot.get("#{chroot_path}/blah").first).to eq('data')
             end
           end
 
@@ -152,26 +152,26 @@ describe ZK do
             end
 
             it %[should totally work] do
-              @zk.exists?('/').should be_true
+              expect(@zk.exists?('/')).to be(true)
               @zk.create('/blah', 'data')
 
-              @unchroot.get("#{chroot_path}/blah").first.should == 'data'
+              expect(@unchroot.get("#{chroot_path}/blah").first).to eq('data')
             end
           end
 
           describe %[and :chroot => :check] do
             it %[should totally work] do
-              lambda do
+              expect do
                 # assign in case of a bug, that way this connection will get torn down
                 @zk = ZK.new("#{connection_host}#{chroot_path}", :chroot => :check)
-              end.should_not raise_error
+              end.not_to raise_error
             end
           end
 
           describe %[and :chroot => :do_nothing] do
             it %[should totally work] do
               @zk = ZK.new("#{connection_host}#{chroot_path}", :chroot => :do_nothing)
-              lambda { @zk.get('/') }.should_not raise_error
+              expect { @zk.get('/') }.not_to raise_error
             end
           end
 
@@ -179,10 +179,10 @@ describe ZK do
             before { @zk = ZK.new(connection_host, :chroot => chroot_path) }
 
             it %[should totally work] do
-              @zk.exists?('/').should be_true
+              expect(@zk.exists?('/')).to be(true)
               @zk.create('/blah', 'data')
 
-              @unchroot.get("#{chroot_path}/blah").first.should == 'data'
+              expect(@unchroot.get("#{chroot_path}/blah").first).to eq('data')
             end
           end
         end # as a connection string

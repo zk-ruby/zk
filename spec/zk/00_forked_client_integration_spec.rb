@@ -23,9 +23,9 @@ describe 'forked client integration' do
     it %[should deliver callbacks in the child] do
       10.times do 
         ClientForker.run(@cnx_args, @base_path) do |forker|
-          forker.stat.should_not be_signaled
-          forker.stat.should be_exited
-          forker.stat.should be_success
+          expect(forker.stat).not_to be_signaled
+          expect(forker.stat).to be_exited
+          expect(forker.stat).to be_success
         end
       end
     end # should deliver callbacks in the child

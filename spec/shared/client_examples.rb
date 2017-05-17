@@ -8,27 +8,27 @@ shared_examples_for 'client' do
     end
    
     it %[should create all intermediate paths for the path givem] do
-      @zk.should_not be_exists(@bogus_path)
-      @zk.should_not be_exists(File.dirname(@bogus_path))
+      expect(@zk.exists?(@bogus_path)).to be(false)
+      expect(@zk.exists?(File.dirname(@bogus_path))).to be(false)
       @zk.mkdir_p(@bogus_path)
-      @zk.should be_exists(@bogus_path)
+      expect(@zk.exists?(@bogus_path)).to be(true)
     end
 
     it %[should place the data only at the leaf node] do
       @zk.mkdir_p(@bogus_path, :data => 'foobar')
-      @zk.get(@bogus_path).first.should == 'foobar'
+      expect(@zk.get(@bogus_path).first).to eq('foobar')
 
       path = ''
       @path_ary[0..-2].each do |el|
         path = File.join(path, el)
-        @zk.get(path).first.should == ''
+        expect(@zk.get(path).first).to eq('')
       end
     end
 
     it %[should replace the data at the leaf node if it already exists] do
       @zk.mkdir_p(@bogus_path, :data => 'blahfoo')
       @zk.mkdir_p(@bogus_path, :data => 'foodink')
-      @zk.get(@bogus_path).first.should == 'foodink'
+      expect(@zk.get(@bogus_path).first).to eq('foodink')
     end
   end
 
@@ -37,14 +37,14 @@ shared_examples_for 'client' do
     describe 'only path given' do
       it %[should create a node with blank data] do
         @zk.create(@base_path)
-        @zk.get(@base_path).first.should == ''
+        expect(@zk.get(@base_path).first).to eq('')
       end
     end
 
     describe 'path and data given' do
       it %[should create a node with the path and data] do
         @zk.create(@base_path, 'blah')
-        @zk.get(@base_path).first.should == 'blah'
+        expect(@zk.get(@base_path).first).to eq('blah')
       end
     end
 
@@ -52,37 +52,37 @@ shared_examples_for 'client' do
       it %[should create a sequential node with blank data] do
         @zk.create(@base_path)
         path = @zk.create("#{@base_path}/v", :sequential => true)
-        path.start_with?(@base_path).should be_true
+        expect(path.start_with?(@base_path)).to be(true)
 
-        File.basename(path).should match(/v\d+/)
+        expect(File.basename(path)).to match(/v\d+/)
 
-        @zk.get(path).first.should == ''
+        expect(@zk.get(path).first).to eq('')
       end
 
       it %[should create a sequential node with given data] do
         @zk.create(@base_path)
         path = @zk.create("#{@base_path}/v", 'thedata', :sequential => true)
-        path.start_with?(@base_path).should be_true
+        expect(path.start_with?(@base_path)).to be(true)
 
-        File.basename(path).should match(/v\d+/)
+        expect(File.basename(path)).to match(/v\d+/)
 
         data, st = @zk.get(path)
-        data.should == 'thedata'
-        st.should_not be_ephemeral
+        expect(data).to eq('thedata')
+        expect(st).not_to be_ephemeral
       end
     end
 
     describe 'path and ephemeral' do
       it %[should create an ephemeral node with blank data] do
         @zk.create(@base_path, :ephemeral => true)
-        @zk.get(@base_path).last.should be_ephemeral
+        expect(@zk.get(@base_path).last).to be_ephemeral
       end
 
       it %[should create an ephemeral node with given data] do
         @zk.create(@base_path, 'thedata', :ephemeral => true)
         data, stat = @zk.get(@base_path)
-        data.should == 'thedata'
-        stat.should be_ephemeral
+        expect(data).to eq('thedata')
+        expect(stat).to be_ephemeral
       end
     end
 
@@ -90,45 +90,45 @@ shared_examples_for 'client' do
       it %[should create a sequential ephemeral node with blank data] do
         @zk.create(@base_path)
         path = @zk.create("#{@base_path}/v", :sequential => true, :ephemeral => true)
-        path.start_with?(@base_path).should be_true
+        expect(path.start_with?(@base_path)).to be(true)
 
-        File.basename(path).should match(/v\d+/)
+        expect(File.basename(path)).to match(/v\d+/)
 
         data, st = @zk.get(path)
-        data.should == ''
-        st.should be_ephemeral
+        expect(data).to eq('')
+        expect(st).to be_ephemeral
       end
 
       it %[should create a sequential ephemeral node with given data] do
         @zk.create(@base_path)
         path = @zk.create("#{@base_path}/v", 'thedata', :sequential => true, :ephemeral => true)
-        path.start_with?(@base_path).should be_true
+        expect(path.start_with?(@base_path)).to be(true)
 
-        File.basename(path).should match(/v\d+/)
+        expect(File.basename(path)).to match(/v\d+/)
 
         data, st = @zk.get(path)
-        data.should == 'thedata'
-        st.should be_ephemeral
+        expect(data).to eq('thedata')
+        expect(st).to be_ephemeral
       end
     end
 
     it %[should barf if someone hands 3 params] do
-      lambda { @zk.create(@base_path, 'data', :sequence) }.should raise_error(ArgumentError)
+      expect { @zk.create(@base_path, 'data', :sequence) }.to raise_error(ArgumentError)
     end
 
     it %[should barf if both :sequence and :sequential are given] do
-      lambda { @zk.create(@base_path, 'data', :sequence => true, :sequential => true) }.should raise_error(ArgumentError)
+      expect { @zk.create(@base_path, 'data', :sequence => true, :sequential => true) }.to raise_error(ArgumentError)
     end
 
     describe %[:ignore option] do
       it %[should squelch node_exists] do
         @zk.create(@base_path)
 
-        proc { @zk.create(@base_path, :ignore => :node_exists).should be_nil }.should_not raise_error(ZK::Exceptions::NoNode)
+        expect { expect(@zk.create(@base_path, :ignore => :node_exists)).to be_nil }.not_to raise_error
       end
 
       it %[should squelch no_node] do
-        proc { @zk.create("#{@base_path}/foo/bar/baz", :ignore => :no_node).should be_nil }.should_not raise_error(ZK::Exceptions::NoNode)
+        expect { expect(@zk.create("#{@base_path}/foo/bar/baz", :ignore => :no_node)).to be_nil }.not_to raise_error
       end
     end
 
@@ -136,7 +136,7 @@ shared_examples_for 'client' do
       let(:path) { "#{@base_path}/foo/bar" }
 
       it %[should barf if anything but the the :set value is given] do
-        proc { @zk.create(path, :or => :GFY) }.should raise_error(ArgumentError)
+        expect { @zk.create(path, :or => :GFY) }.to raise_error(ArgumentError)
       end
 
       def create_args(opts={})
@@ -150,24 +150,24 @@ shared_examples_for 'client' do
       end
 
       it %[should barf if any node option besides 'persistent' is given] do
-        create_args(:persistent => true).should_not         raise_error
-        create_args(:sequential => true).should             raise_error(ArgumentError)
-        create_args(:mode => :ephemeral).should             raise_error(ArgumentError)
-        create_args(:mode => :ephemeral_sequential).should  raise_error(ArgumentError)
-        create_args(:mode => :sequential).should            raise_error(ArgumentError)
+        expect(create_args(:persistent => true)).not_to         raise_error
+        expect(create_args(:sequential => true)).to             raise_error(ArgumentError)
+        expect(create_args(:mode => :ephemeral)).to             raise_error(ArgumentError)
+        expect(create_args(:mode => :ephemeral_sequential)).to  raise_error(ArgumentError)
+        expect(create_args(:mode => :sequential)).to            raise_error(ArgumentError)
       end
 
       it %[should replace the data at the leaf node if it already exists] do
         @zk.mkdir_p(path, :data => 'foodink')
         @zk.create(path, 'blahfoo', :or => :set)
-        @zk.get(path).first.should == 'blahfoo'
+        expect(@zk.get(path).first).to eq('blahfoo')
       end
 
       it %[should create the intermediate paths] do
-        proc { @zk.create(path, 'foobar', :or => :set) }.should_not raise_error
+        expect { @zk.create(path, 'foobar', :or => :set) }.not_to raise_error
 
-        @zk.stat(@base_path).should exist
-        @zk.stat("#{@base_path}/foo").should exist
+        expect(@zk.stat(@base_path)).to exist
+        expect(@zk.stat("#{@base_path}/foo")).to exist
       end
     end
   end
@@ -178,16 +178,16 @@ shared_examples_for 'client' do
         @zk.create(@base_path)
         @zk.create("#{@base_path}/blah")
 
-        proc { @zk.delete(@base_path, :ignore => :not_empty).should be_nil }.should_not raise_error
+        expect { expect(@zk.delete(@base_path, :ignore => :not_empty)).to be_nil }.not_to raise_error
       end
 
       it %[should squelch no_node] do
-        proc { @zk.delete("#{@base_path}/foo/bar/baz", :ignore => :no_node).should be_nil }.should_not raise_error
+        expect { expect(@zk.delete("#{@base_path}/foo/bar/baz", :ignore => :no_node)).to be_nil }.not_to raise_error
       end
 
       it %[should squelch bad_version] do
         @zk.create(@base_path)
-        proc { @zk.delete("#{@base_path}", :version => 7, :ignore => :bad_version).should be_nil }.should_not raise_error
+        expect { expect(@zk.delete("#{@base_path}", :version => 7, :ignore => :bad_version)).to be_nil }.not_to raise_error
       end
     end
   end
@@ -203,15 +203,15 @@ shared_examples_for 'client' do
       end
 
       it %[should not raise any error] do
-        lambda { @zk.stat(@missing_path) }.should_not raise_error
+        expect { @zk.stat(@missing_path) }.not_to raise_error
       end
 
       it %[should return a Stat object] do
-        @zk.stat(@missing_path).should be_kind_of(Zookeeper::Stat)
+        expect(@zk.stat(@missing_path)).to be_kind_of(Zookeeper::Stat)
       end
 
       it %[should return a stat that not exists?] do
-        @zk.stat(@missing_path).should_not be_exists
+        expect(@zk.stat(@missing_path)).not_to be_exists
       end
     end
   end
@@ -219,12 +219,12 @@ shared_examples_for 'client' do
   describe :set do
     describe %[:ignore option] do
       it %[should squelch no_node] do
-        proc { @zk.set("#{@base_path}/foo/bar/baz", '', :ignore => :no_node).should be_nil }.should_not raise_error
+        expect { expect(@zk.set("#{@base_path}/foo/bar/baz", '', :ignore => :no_node)).to be_nil }.not_to raise_error
       end
 
       it %[should squelch bad_version] do
         @zk.create(@base_path)
-        proc { @zk.set("#{@base_path}", '', :version => 7, :ignore => :bad_version).should be_nil }.should_not raise_error
+        expect { expect(@zk.set("#{@base_path}", '', :version => 7, :ignore => :bad_version)).to be_nil }.not_to raise_error
       end
     end
   end
@@ -236,7 +236,7 @@ shared_examples_for 'client' do
 
     describe 'no node initially' do
       before do
-        @zk.exists?(@path).should be_false
+        expect(@zk.exists?(@path)).to be(false)
       end
 
       it %[should not block] do
@@ -248,42 +248,42 @@ shared_examples_for 'client' do
         end
 
         th.join(2)
-        @a.should be_true
+        expect(@a).to be(true)
       end
     end
 
     describe 'node exists initially' do
       before do
         @zk.create(@path, :mode => :ephemeral)
-        @zk.exists?(@path).should be_true
+        expect(@zk.exists?(@path)).to be(true)
       end
 
       it %[should block until the node is deleted] do
         @a = false
 
-        th = Thread.new do
+        Thread.new do
           @zk.block_until_node_deleted(@path)
           @a = true
         end
 
         Thread.pass
-        @a.should be_false
+        expect(@a).to be(false)
 
         @zk.delete(@path)
 
         wait_until(2) { @a }
-        @a.should be_true
+        expect(@a).to be(true)
       end
     end
   end
 
   describe 'session_id and session_passwd' do
     it %[should expose the underlying session_id] do
-      @zk.session_id.should be_kind_of(Integer)
+      expect(@zk.session_id).to be_kind_of(Integer)
     end
 
     it %[should expose the underlying session_passwd] do
-      @zk.session_passwd.should be_kind_of(String)
+      expect(@zk.session_passwd).to be_kind_of(String)
     end
   end
 
@@ -306,7 +306,7 @@ shared_examples_for 'client' do
           @queue << event
         end
 
-        @zk.exists?(@path, :watch => true).should be_false
+        expect(@zk.exists?(@path, :watch => true)).to be(false)
         @zk.create(@path)
 
         logger.debug { "waiting for event delivery" } 
@@ -323,7 +323,7 @@ shared_examples_for 'client' do
         end
 
         # first watch delivered correctly
-        @events.length.should > 0
+        expect(@events.length).to be > 0
       end
 
       it %[should fire re-registered watchers after reopen (#9)] do
@@ -362,7 +362,7 @@ shared_examples_for 'client' do
       # we also check that the session_id was changed, which is the desired effect
 
       orig_session_id = @zk.session_id
-      @zk.should be_connected
+      expect(@zk).to be_connected
 
       props = { 
         :session_event?   => true,
@@ -372,8 +372,8 @@ shared_examples_for 'client' do
         :state            => Zookeeper::ZOO_EXPIRED_SESSION_STATE,
       }
 
-      bogus_event = flexmock(:expired_session_event, props)
-      bogus_event.should_receive(:zk=).with(@zk).once
+      bogus_event = instance_double(Zookeeper::Callbacks::WatcherCallback, props)
+      expect(bogus_event).to receive(:zk=).with(@zk).once
 
       mutex = Monitor.new
       cond  = mutex.new_cond
@@ -388,7 +388,7 @@ shared_examples_for 'client' do
       end
 
       mutex.synchronize do
-        events.should be_empty
+        expect(events).to be_empty
         @zk.event_handler.process(bogus_event)
       end
 
@@ -399,9 +399,9 @@ shared_examples_for 'client' do
         cond.wait_while { (events.length < 2 ) && (Time.now < time_to_stop) }
       end
 
-      events.should include(Zookeeper::ZOO_EXPIRED_SESSION_STATE) 
-      events.should include(Zookeeper::ZOO_CONNECTED_STATE)
-      @zk.session_id.should_not == orig_session_id
+      expect(events).to include(Zookeeper::ZOO_EXPIRED_SESSION_STATE)
+      expect(events).to include(Zookeeper::ZOO_CONNECTED_STATE)
+      expect(@zk.session_id).not_to eq(orig_session_id)
     end
   end # reconnection
 
@@ -415,12 +415,12 @@ shared_examples_for 'client' do
 
       wait_while(2) { @ary.empty? }
 
-      @ary.length.should == 1
+      expect(@ary.length).to eq(1)
 
       e = @ary.shift
 
-      e.should be_kind_of(RuntimeError)
-      e.message.should == 'ZOMG!'
+      expect(e).to be_kind_of(RuntimeError)
+      expect(e.message).to eq('ZOMG!')
     end
   end
 
@@ -431,8 +431,8 @@ shared_examples_for 'client' do
       @zk.defer { @ary << @zk.on_threadpool? }
 
       wait_while(2) { @ary.empty? }
-      @ary.length.should == 1
-      @ary.first.should be_true
+      expect(@ary.length).to eq(1)
+      expect(@ary.first).to be(true)
     end
   end
 end
