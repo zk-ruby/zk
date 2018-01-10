@@ -43,14 +43,13 @@ group :development do
     gem 'rb-readline', :platform => :ruby
   end
 
-  gem 'pry'
-
   platform :mri do
     gem 'pry-byebug'
   end
 end
 
 group :test do
+  gem 'pry'
   gem 'rspec', '~> 3.6.0'
   gem 'zk-server', '~> 1.1.4'
   gem 'test-unit', :platforms => [:ruby_22, :ruby_23, :ruby_24]
