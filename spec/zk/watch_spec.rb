@@ -44,9 +44,9 @@ describe ZK do
     end
 
     describe :regression do
-      before do
-        pending_in_travis("these tests take too long or time out")
-      end
+      # before do
+      #   pending_in_travis("these tests take too long or time out")
+      # end
 
       # this is stupid, and a bad test, but we have to check that events
       # don't get re-delivered to a single registered callback just because

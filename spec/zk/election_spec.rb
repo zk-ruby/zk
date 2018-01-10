@@ -307,7 +307,7 @@ describe ZK::Election, :jruby => :broken do
         end
 
         it %[should have seen both the death and life events] do
-          pending 'this test is flapping'
+          # pending 'this test is flapping'
           expect(@got_life_event).to be(true)
           expect(@got_death_event).to be(true)
         end
