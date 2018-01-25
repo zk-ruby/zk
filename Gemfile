@@ -20,8 +20,6 @@ group :development, :test do
   end
 end
 
-gem 'pry',  :group => [:development]
-
 group :docs do
   gem 'yard', '~> 0.8.0'
 
@@ -44,13 +42,17 @@ group :development do
     gem 'growl',       :require => false
     gem 'rb-readline', :platform => :ruby
   end
+
+  platform :mri do
+    gem 'pry-byebug'
+  end
 end
 
 group :test do
-  gem 'rspec', '~> 2.8.0'
-  gem 'flexmock', '~> 0.8.10'
+  gem 'pry'
+  gem 'rspec', '~> 3.6.0'
   gem 'zk-server', '~> 1.1.4'
-  gem 'test-unit', :platforms => [:ruby_22]
+  gem 'test-unit', :platforms => [:ruby_22, :ruby_23, :ruby_24]
 end
 
 # Specify your gem's dependencies in zk.gemspec

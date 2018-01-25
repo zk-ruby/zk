@@ -1,18 +1,18 @@
 module ZK
   module Pool
-    # Base class for a ZK connection pool. There are some applications that may 
+    # Base class for a ZK connection pool. There are some applications that may
     # require high synchronous throughput, which would be a suitable use for a
     # connection pool. The ZK::Client::Threaded class is threadsafe, so it's
     # not a problem accessing it from multiple threads, but it is limited to
     # one outgoing synchronous request at a time, which could cause throughput
-    # issues for apps that are making very heavy use of zookeeper. 
+    # issues for apps that are making very heavy use of zookeeper.
     #
     # The problem with using a connection pool is the added complexity when you
     # try to use watchers. It may be possible to register a watch with one
     # connection, and then call `:watch => true` on a different connection if
     # you're not careful. Events delivered as part of an event handler have a
     # `zk` attribute which can be used to access the connection that the
-    # callback is registered with. 
+    # callback is registered with.
     #
     # Unless you're sure you *need* a connection pool, then avoid the added
     # complexity.
@@ -27,7 +27,7 @@ module ZK
 
         @mutex  = Monitor.new
         @checkin_cond = @mutex.new_cond
-        
+
         @connections = []     # all connections we control
         @pool = []            # currently available connections
 
@@ -58,7 +58,7 @@ module ZK
 
       # close all the connections on the pool
       def close_all!
-        @mutex.synchronize do 
+        @mutex.synchronize do
           return unless open?
           @state = :closing
 
@@ -86,7 +86,7 @@ module ZK
 
           @state = :closed
 
-          # free any waiting 
+          # free any waiting
           @checkin_cond.broadcast
         end
       end
@@ -146,7 +146,7 @@ module ZK
         end
 
         def assert_open!
-          raise Exceptions::PoolIsShuttingDownException, "pool is shutting down" unless open? 
+          raise Exceptions::PoolIsShuttingDownException, "pool is shutting down" unless open?
         end
 
     end # Base
@@ -211,7 +211,7 @@ module ZK
         @mutex.synchronize { @count_waiters }
       end
 
-      def checkout(blocking=true) 
+      def checkout(blocking=true)
         raise ArgumentError, "checkout does not take a block, use .with_connection" if block_given?
         @mutex.lock
         begin
@@ -224,7 +224,7 @@ module ZK
               # XXX(slyphon): not really sure how this case happens, but protect against it as we're
               # seeing an issue in production
               next if cnx.nil?
-              
+
               # if the connection isn't connected, then set up an on_connection
               # handler and try the next one in the pool
               unless cnx.connected?
@@ -263,7 +263,7 @@ module ZK
         def add_connection!
           @mutex.synchronize do
             cnx = create_connection
-            @connections << cnx 
+            @connections << cnx
 
             handle_checkin_on_connection(cnx)
           end # synchronize
@@ -281,7 +281,7 @@ module ZK
             else
               @on_connected_subs.synchronize do
 
-                sub = cnx.on_connected do 
+                sub = cnx.on_connected do
                   # this synchronization is to prevent a race between setting up the subscription
                   # and assigning it to the @on_connected_subs hash. It's possible that the callback
                   # would fire before we had a chance to add the sub to the hash.

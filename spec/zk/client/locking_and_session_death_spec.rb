@@ -42,9 +42,9 @@ shared_examples_for 'session death' do
     deliver_session_event_to(zoo_state, @other_zk)
 
     # ditto, this is probably happening synchrnously
-    wait_until(2) { @a }.should be_true
+    expect(wait_until(2) { @a }).to be(true)
 
-    lambda { th.join(2) }.should raise_error(zoo_error_class)
+    expect { th.join(2) }.to raise_error(zoo_error_class)
   end
 end # session death
 

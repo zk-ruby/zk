@@ -9,11 +9,11 @@ if File.exists?(release_ops_path)
   ReleaseOps::SimpleCov.maybe_start
 end
 
-
 Bundler.require(:development, :test)
 
 require 'zk'
 require 'benchmark'
+require 'pry'
 
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
@@ -21,11 +21,10 @@ Dir[File.expand_path("../{support,shared}/**/*.rb", __FILE__)].sort.each {|f| re
 
 $stderr.sync = true
 
-require 'flexmock'
-
 RSpec.configure do |config|
-  config.mock_with :flexmock
-  config.include(FlexMock::ArgumentTypes)
+  config.expect_with :rspec do |c|
+    c.syntax = :expect
+  end
 
   [WaitWatchers, SpecGlobalLogger, Pendings].each do |mod|
     config.include(mod)
@@ -48,7 +47,7 @@ RSpec.configure do |config|
   if ZK.spawn_zookeeper?
     require 'zk-server'
 
-    config.before(:suite) do 
+    config.before(:suite) do
       SpecGlobalLogger.logger.debug { "Starting zookeeper service" }
       ZK::Server.run do |c|
         c.client_port = ZK.test_port
@@ -68,24 +67,24 @@ RSpec.configure do |config|
     count = 0
     ObjectSpace.each_object(klass) { |o| count += 1 if tester.call(o) }
     unless count.zero?
-      raise "There were #{count} leaked #{klass} objects after #{example.full_description.inspect}" 
+      raise "There were #{count} leaked #{klass} objects after #{example.full_description.inspect}"
     end
   end
 
   # these make tests run slow
   if ENV['ZK_LEAK_CHECK']
-    config.after do 
+    config.after do
       leak_check(ZK::Client::Threaded) { |o| !o.closed? }
       leak_check(ZK::ThreadedCallback, &:alive?)
       leak_check(ZK::Threadpool, &:alive?)
       leak_check(Thread) { |th| Thread.current != th && th.alive? }
-      ZK::ForkHook.hooks.values.flatten.should be_empty
+      expect(ZK::ForkHook.hooks.values.flatten).to be_empty
     end
   end
 end
 
 class ::Thread
-  # join with thread until given block is true, the thread joins successfully, 
+  # join with thread until given block is true, the thread joins successfully,
   # or timeout seconds have passed
   #
   def join_until(timeout=2)
@@ -97,7 +96,7 @@ class ::Thread
       Thread.pass
     end
   end
-  
+
   def join_while(timeout=2)
     time_to_stop = Time.now + timeout
 

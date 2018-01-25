@@ -1,7 +1,6 @@
 module ZK
   class NodeDeletionWatcher
     include Zookeeper::Constants
-    include Exceptions
     include Logger
 
     # @private
@@ -42,7 +41,7 @@ module ZK
       @paths      = paths.dup
       @options    = options.dup
       @threshold  = options[:threshold] || 0
-      raise BadArgument, <<-EOBADARG unless @threshold.kind_of? Integer
+      raise ZK::Exceptions::BadArguments, <<-EOBADARG unless @threshold.kind_of? Integer
         options[:threshold] must be an Integer. Got #{@threshold.inspect}."
       EOBADARG
 
@@ -89,7 +88,7 @@ module ZK
         start = Time.now
         time_to_stop = timeout ? (start + timeout) : nil
 
-        logger.debug { "#{__method__} @blocked: #{@blocked.inspect} about to wait" } 
+        logger.debug { "#{__method__} @blocked: #{@blocked.inspect} about to wait" }
         @cond.wait(timeout)
 
         if (time_to_stop and (Time.now > time_to_stop)) and (@blocked == NOT_YET)
@@ -101,7 +100,7 @@ module ZK
     end
 
     # cause a thread blocked by us to be awakened and have a WakeUpException
-    # raised. 
+    # raised.
     #
     # if a result has already been delivered, then this does nothing
     #

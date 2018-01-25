@@ -22,35 +22,35 @@ describe ZK::MessageQueue do
   it "should be able to receive a published message" do
     message_received = false
     @consume_queue.subscribe do |title, data|
-      data.should == 'mydata'
+      expect(data).to eq('mydata')
       message_received = true
     end
     @publish_queue.publish("mydata")
     wait_until {message_received }
-    message_received.should be_true
+    expect(message_received).to be(true)
   end
 
   it "should be able to receive a custom message title" do
     message_title = false
     @consume_queue.subscribe do |title, data|
-      title.should == 'title'
+      expect(title).to eq('title')
       message_title = true
     end
     @publish_queue.publish("data", "title")
     wait_until { message_title }
-    message_title.should be_true
+    expect(message_title).to be(true)
   end
 
   it "should work even after processing a message from before" do
     @publish_queue.publish("data1", "title")
     message_times = 0
     @consume_queue.subscribe do |title, data|
-      title.should == "title"
+      expect(title).to eq("title")
       message_times += 1
     end
 
     @publish_queue.publish("data2", "title")
     wait_until { message_times == 2 }
-    message_times.should == 2
+    expect(message_times).to eq(2)
   end
 end

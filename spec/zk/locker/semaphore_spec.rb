@@ -10,25 +10,32 @@ shared_examples_for 'ZK::Locker::Semaphore' do
     it_should_behave_like 'LockerBase#assert!'
   end
 
+  context %[invalid semaphore_size] do
+    let(:semaphore_size) { :boom }
+    it 'should raise' do
+      expect{ locker }.to raise_error(ZK::Exceptions::BadArguments)
+    end
+  end
+
   describe :acquirable? do
     describe %[with default options] do
       it %[should work if the lock root doesn't exist] do
         zk.rm_rf(ZK::Locker::Semaphore.default_root_node)
-        locker.should be_acquirable
+        expect(locker).to be_acquirable
       end
 
       it %[should check local state of lockedness] do
-        locker.lock.should be_true
-        locker.should be_acquirable
+        expect(locker.lock).to be(true)
+        expect(locker).to be_acquirable
       end
 
       it %[should check if any participants would prevent us from acquiring the lock] do
-        locker3.lock.should be_true
-        locker.should be_acquirable # total locks given less than semaphore_size
-        locker2.lock.should be_true
-        locker.should_not be_acquirable # total locks given equal to semaphore size
+        expect(locker3.lock).to be(true)
+        expect(locker).to be_acquirable # total locks given less than semaphore_size
+        expect(locker2.lock).to be(true)
+        expect(locker).not_to be_acquirable # total locks given equal to semaphore size
         locker3.unlock
-        locker.should be_acquirable # total locks given less than semaphore_size
+        expect(locker).to be_acquirable # total locks given less than semaphore_size
       end
     end
   end
@@ -41,13 +48,13 @@ shared_examples_for 'ZK::Locker::Semaphore' do
       end
 
       it %[should acquire the first lock] do
-        @rval.should be_true
-        locker.should be_locked
+        expect(@rval).to be(true)
+        expect(locker).to be_locked
       end
 
       it %[should acquire the second lock] do
-        @rval2.should be_true
-        locker2.should be_locked
+        expect(@rval2).to be(true)
+        expect(locker2).to be_locked
       end
     end
 
@@ -61,15 +68,15 @@ shared_examples_for 'ZK::Locker::Semaphore' do
       end
 
       it %[should return false] do
-        @rval.should be_false
+        expect(@rval).to be(false)
       end
 
       it %[should not be locked] do
-        locker.should_not be_locked
+        expect(locker).not_to be_locked
       end
 
       it %[should not have a lock_path] do
-        locker.lock_path.should be_nil
+        expect(locker.lock_path).to be_nil
       end
     end
 
@@ -87,7 +94,7 @@ shared_examples_for 'ZK::Locker::Semaphore' do
         it %[should acquire the lock after the write lock is released] do
           ary = []
 
-          locker.lock.should be_false
+          expect(locker.lock).to be(false)
 
           th = Thread.new do
             locker.lock(:wait => true)
@@ -95,18 +102,18 @@ shared_examples_for 'ZK::Locker::Semaphore' do
           end
 
           locker.wait_until_blocked(5)
-          locker.should be_waiting
-          locker.should_not be_locked
-          ary.should be_empty
+          expect(locker).to be_waiting
+          expect(locker).not_to be_locked
+          expect(ary).to be_empty
 
           zk.delete(@existing_locks.shuffle.first)
 
-          th.join(2).should == th
+          expect(th.join(2)).to eq(th)
 
-          ary.should_not be_empty
-          ary.length.should == 1
+          expect(ary).not_to be_empty
+          expect(ary.length).to eq(1)
 
-          locker.should be_locked
+          expect(locker).to be_locked
         end
       end
 
@@ -116,9 +123,9 @@ shared_examples_for 'ZK::Locker::Semaphore' do
 
           write_lock_dir = File.dirname(@existing_locks.first)
 
-          zk.children(write_lock_dir).length.should == semaphore_size
+          expect(zk.children(write_lock_dir).length).to eq(semaphore_size)
 
-          locker.lock.should be_false
+          expect(locker.lock).to be(false)
 
           th = Thread.new do
             begin
@@ -130,16 +137,16 @@ shared_examples_for 'ZK::Locker::Semaphore' do
           end
 
           locker.wait_until_blocked(5)
-          locker.should be_waiting
-          locker.should_not be_locked
-          ary.should be_empty
+          expect(locker).to be_waiting
+          expect(locker).not_to be_locked
+          expect(ary).to be_empty
 
-          th.join(2).should == th
+          expect(th.join(2)).to eq(th)
 
-          zk.children(write_lock_dir).length.should == semaphore_size
+          expect(zk.children(write_lock_dir).length).to eq(semaphore_size)
 
-          ary.should be_empty
-          @exc.should be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
+          expect(ary).to be_empty
+          expect(@exc).to be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
         end
 
       end

@@ -3,13 +3,13 @@ module ZK
     include ZK::Logger
     extend self
 
-    @mutex = Mutex.new unless @mutex
+    @mutex = Mutex.new unless defined?(@mutex)
 
     @hooks = {
       :prepare      => [],
       :after_child  => [],
       :after_parent => [],
-    } unless @hooks
+    } unless defined?(@hooks)
 
     attr_reader :hooks, :mutex
 

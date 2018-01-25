@@ -14,9 +14,9 @@ describe ZK::Locker do
 
       ZK::Locker.cleanup(@zk)
 
-      lambda { locker.assert! }.should_not raise_error
+      expect { locker.assert! }.not_to raise_error
 
-      bogus_lock_dir_names.each { |n| @zk.stat("#{ZK::Locker.default_root_lock_node}/#{n}").should_not exist }
+      bogus_lock_dir_names.each { |n| expect(@zk.stat("#{ZK::Locker.default_root_lock_node}/#{n}")).not_to exist }
 
     end
   end

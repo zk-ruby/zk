@@ -15,18 +15,18 @@ describe ZK::NodeDeletionWatcher do
       @zk.mkdir_p(@path)
 
       th = Thread.new { @n.block_until_deleted }
-      
-      @n.wait_until_blocked(5).should be_true
+
+      expect(@n.wait_until_blocked(5)).to be(true)
 
       logger.debug { "wait_until_blocked returned" }
 
-      @n.should be_blocked
+      expect(@n).to be_blocked
 
       @zk.rm_rf(@path)
 
-      th.join(5).should == th
-      @n.should_not be_blocked
-      @n.should be_done
+      expect(th.join(5)).to eq(th)
+      expect(@n).not_to be_blocked
+      expect(@n).to be_done
     end
 
     it %[should wake up if interrupt! is called] do
@@ -43,12 +43,12 @@ describe ZK::NodeDeletionWatcher do
 
       @n.wait_until_blocked(5)
 
-      @n.should be_blocked
+      expect(@n).to be_blocked
 
       @n.interrupt!
-      th.join(5).should == th
+      expect(th.join(5)).to eq(th)
 
-      @exc.should be_kind_of(ZK::Exceptions::WakeUpException)
+      expect(@exc).to be_kind_of(ZK::Exceptions::WakeUpException)
     end
 
     it %[should raise LockWaitTimeoutError if we time out waiting for a node to be deleted] do
@@ -62,28 +62,28 @@ describe ZK::NodeDeletionWatcher do
         end
       end
 
-      @n.wait_until_blocked(5).should be_true
+      expect(@n.wait_until_blocked(5)).to be(true)
 
       logger.debug { "wait_until_blocked returned" }
 
-      th.join(5).should == th
-      
-      @exc.should be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
-      @n.should be_done
-      @n.should be_timed_out
+      expect(th.join(5)).to eq(th)
+
+      expect(@exc).to be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
+      expect(@n).to be_done
+      expect(@n).to be_timed_out
     end
   end
 
   describe %[when the node doesn't exist] do
     it %[should not block the caller and be done] do
-      @zk.exists?(@path).should be_false
+      expect(@zk.exists?(@path)).to be(false)
 
       th = Thread.new { @n.block_until_deleted }
 
       @n.wait_until_blocked
-      @n.should_not be_blocked
-      th.join(5).should == th
-      @n.should be_done
+      expect(@n).not_to be_blocked
+      expect(th.join(5)).to eq(th)
+      expect(@n).to be_done
     end
   end
 
@@ -140,23 +140,27 @@ describe ZK::NodeDeletionWatcher do
       runner.run
       controller.run
       controller.join
-      runner.join(5).should == runner
-      watcher.should be_done
+      expect(runner.join(5)).to eq(runner)
+      expect(watcher).to be_done
     end
 
     context %[threshold not supplied] do
       let(:watcher_params){}
 
       it 'should raise' do
-        expect{ watcher }.to_not raise_exception
+        expect{ watcher }.to_not raise_error
       end
-      its(:threshold){ should be_zero }
+
+      describe '#threshold' do
+        subject { super().threshold }
+        it { should be_zero }
+      end
     end
 
     context %[invalid threshold given] do
       let(:watcher_params){ {:threshold => :foo} }
       it 'should raise' do
-        expect{ watcher }.to raise_exception
+        expect{ watcher }.to raise_error(ZK::Exceptions::BadArguments)
       end
     end
 
@@ -168,10 +172,14 @@ describe ZK::NodeDeletionWatcher do
           runner.run
           controller.run
           controller.join
-          runner.join(5).should == runner
-          watcher.should be_done
+          expect(runner.join(5)).to eq(runner)
+          expect(watcher).to be_done
         end
-        its(:threshold){ should == 1 }
+
+        describe '#threshold' do
+          subject { super().threshold }
+          it { should == 1 }
+        end
       end
 
       context do
@@ -181,10 +189,10 @@ describe ZK::NodeDeletionWatcher do
           runner.run
           controller.run
           controller.join
-          runner.join(5).should == runner
-          @exc.should be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
-          watcher.should be_done
-          watcher.should be_timed_out
+          expect(runner.join(5)).to eq(runner)
+          expect(@exc).to be_kind_of(ZK::Exceptions::LockWaitTimeoutError)
+          expect(watcher).to be_done
+          expect(watcher).to be_timed_out
         end
       end
     end

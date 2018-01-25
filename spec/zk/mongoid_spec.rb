@@ -18,7 +18,7 @@ describe ZK::Mongoid::Locking do
     unless th.join(5) == th
       logger.warn { "Forcing pool closed!" }
       ZK::Mongoid::Locking.zk_lock_pool.force_close!
-      th.join(5).should == th
+      expect(th.join(5)).to eq(th)
     end
 
     ZK::Mongoid::Locking.zk_lock_pool = nil
@@ -35,8 +35,8 @@ describe ZK::Mongoid::Locking do
       end
 
       th.join_until { !@lock_state.nil? }
-      @lock_state.should_not be_nil
-      @lock_state.should be_true
+      expect(@lock_state).not_to be_nil
+      expect(@lock_state).to be(true)
     end
 
     it %[should allow another thread to enter the shared lock] do
@@ -52,10 +52,10 @@ describe ZK::Mongoid::Locking do
         end
 
         @th1.join_until { @counter > 0 }
-        @counter.should > 0
+        expect(@counter).to be > 0
 
         @th1.join_until { @queue.num_waiting > 0 }
-        @queue.num_waiting.should > 0
+        expect(@queue.num_waiting).to be > 0
 
         @th2 = Thread.new do
           @other_doc.with_shared_lock do
@@ -64,9 +64,9 @@ describe ZK::Mongoid::Locking do
         end
 
         @th2.join_until { @counter == 2 }
-        @counter.should == 2
+        expect(@counter).to eq(2)
 
-        @th2.join(2).should == @th2
+        expect(@th2.join(2)).to eq(@th2)
       ensure
         @queue << :unlock
 
@@ -102,32 +102,32 @@ describe ZK::Mongoid::Locking do
         end
 
         @th1.join_until { q2.num_waiting >= 1 }
-        q2.num_waiting.should >= 1
+        expect(q2.num_waiting).to be >= 1
 
         @th2.join_until { q1.size == 0 }
-        q1.size.should be_zero
+        expect(q1.size).to be_zero
 
-        @got_exclusive_lock.should_not be_true
+        expect(@got_exclusive_lock).not_to be(true)
 
         q2.enq(:release)
 
         @th1.join_until { q2.size == 0 }
-        q2.size.should be_zero
+        expect(q2.size).to be_zero
 
         @th2.join_until(5) { @got_exclusive_lock }
-        @got_exclusive_lock.should be_true
+        expect(@got_exclusive_lock).to be(true)
 
       rescue Exception => e
         $stderr.puts e.to_std_format
         raise e
-      ensure 
+      ensure
         q2 << :release
 
         unless @th1.join(2)
           $stderr.puts "UH OH! @th1 IS HUNG!!"
         end
 
-        unless @th2.join(2) 
+        unless @th2.join(2)
           $stderr.puts "UH OH! @th2 IS HUNG!!"
         end
       end
@@ -145,8 +145,8 @@ describe ZK::Mongoid::Locking do
       end
 
       th.join_until { !@lock_state.nil? }
-      @lock_state.should_not be_nil
-      @lock_state.should be_true
+      expect(@lock_state).not_to be_nil
+      expect(@lock_state).to be(true)
     end
 
     it %[should allow the same thread to re-enter the lock] do
@@ -165,7 +165,7 @@ describe ZK::Mongoid::Locking do
       end
 
       th.join_until { @counter >= 2 }
-      @counter.should == 2
+      expect(@counter).to eq(2)
     end
 
     it %[should block another thread from entering the lock] do
@@ -181,9 +181,9 @@ describe ZK::Mongoid::Locking do
       end
 
       th1.join_until { @counter == 1 }
-      @counter.should == 1
+      expect(@counter).to eq(1)
 
-      th1.zk_mongoid_lock_registry[:exclusive].should include(@doc.zk_lock_name)
+      expect(th1.zk_mongoid_lock_registry[:exclusive]).to include(@doc.zk_lock_name)
 
       th2 = Thread.new do
         @other_doc.lock_for_update do
@@ -196,17 +196,17 @@ describe ZK::Mongoid::Locking do
 
       # this is not a deterministic check of whether or not th2 ran and did not
       # get the lock but probably close enough
-      
-      @counter.should == 1
-      @other_doc_got_lock.should == false
-      th2.zk_mongoid_lock_registry[:exclusive].should_not include(@other_doc.zk_lock_name)
+
+      expect(@counter).to eq(1)
+      expect(@other_doc_got_lock).to eq(false)
+      expect(th2.zk_mongoid_lock_registry[:exclusive]).not_to include(@other_doc.zk_lock_name)
 
       queue << :release_lock
-      th1.join(5).should == th1
+      expect(th1.join(5)).to eq(th1)
 
       th2.join_until { @counter == 2 }
-      @counter.should == 2
-      @other_doc_got_lock.should be_true
+      expect(@counter).to eq(2)
+      expect(@other_doc_got_lock).to be(true)
     end
 
     describe :with_name do
@@ -217,7 +217,7 @@ describe ZK::Mongoid::Locking do
       after do
         if @queue.num_waiting > 0
           @queue << :bogus
-          @th1.join(5).should == @th1
+          expect(@th1.join(5)).to eq(@th1)
         end
       end
 
@@ -235,9 +235,9 @@ describe ZK::Mongoid::Locking do
         end
 
         @th1.join_until { @counter == 1 }
-        @counter.should == 1
+        expect(@counter).to eq(1)
 
-        @th1.zk_mongoid_lock_registry[:exclusive].should include(@doc.zk_lock_name(@name))
+        expect(@th1.zk_mongoid_lock_registry[:exclusive]).to include(@doc.zk_lock_name(@name))
 
         @th2 = Thread.new do
           @other_doc.lock_for_update(@name) do
@@ -250,16 +250,16 @@ describe ZK::Mongoid::Locking do
 
         # this is not a deterministic check of whether or not @th2 ran and did not
         # get the lock but probably close enough
-        
-        @counter.should == 1
-        @other_doc_got_lock.should == false
+
+        expect(@counter).to eq(1)
+        expect(@other_doc_got_lock).to eq(false)
 
         @queue << :release_lock
-        @th1.join(5).should == @th1
+        expect(@th1.join(5)).to eq(@th1)
 
         @th2.join_until { @counter == 2 }
-        @counter.should == 2
-        @other_doc_got_lock.should be_true
+        expect(@counter).to eq(2)
+        expect(@other_doc_got_lock).to be(true)
       end
 
       it %[should not affect another thread using a different name] do
@@ -276,9 +276,9 @@ describe ZK::Mongoid::Locking do
         end
 
         @th1.join_until { @counter == 1 }
-        @counter.should == 1
+        expect(@counter).to eq(1)
 
-        @th1.zk_mongoid_lock_registry[:exclusive].should include(@doc.zk_lock_name(@name))
+        expect(@th1.zk_mongoid_lock_registry[:exclusive]).to include(@doc.zk_lock_name(@name))
 
         @th2 = Thread.new do
           @other_doc.lock_for_update do
@@ -288,41 +288,41 @@ describe ZK::Mongoid::Locking do
         end
 
         @th2.join_until { @other_doc_got_lock }
-        @other_doc_got_lock.should be_true
-        
-        @counter.should == 2
+        expect(@other_doc_got_lock).to be(true)
+
+        expect(@counter).to eq(2)
 
         @queue << :release_lock
-        @th1.join(2).should == @th1
+        expect(@th1.join(2)).to eq(@th1)
       end
     end
   end
 
   describe :assert_locked_for_update! do
     it %[should raise MustBeExclusivelyLockedException if the current thread does not hold the lock] do
-      lambda { @doc.assert_locked_for_update! }.should raise_error(ZK::Exceptions::MustBeExclusivelyLockedException)
+      expect { @doc.assert_locked_for_update! }.to raise_error(ZK::Exceptions::MustBeExclusivelyLockedException)
     end
 
     it %[should not raise an exception if the current thread holds the lock] do
-      lambda do
+      expect do
         @doc.lock_for_update do
           @doc.assert_locked_for_update!
         end
-      end.should_not raise_error
+      end.not_to raise_error
     end
   end
 
   describe :assert_locked_for_share! do
     it %[should raise MustBeShareLockedException if the current thread does not hold a shared lock] do
-      lambda { @doc.assert_locked_for_share! }.should raise_error(ZK::Exceptions::MustBeShareLockedException)
+      expect { @doc.assert_locked_for_share! }.to raise_error(ZK::Exceptions::MustBeShareLockedException)
     end
 
     it %[should not raise an exception if the current thread holds a shared lock] do
-      lambda do
+      expect do
         @doc.with_shared_lock do
           @doc.assert_locked_for_share!
         end
-      end.should_not raise_error
+      end.not_to raise_error
     end
   end
 end
