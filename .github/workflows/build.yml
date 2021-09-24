@@ -20,10 +20,10 @@ jobs:
           - 2.5
           - 2.6
           - 2.7
-          - jruby
+          - jruby-9.1.17.0
+          - jruby-latest
         gcc:
           - 7
-          - latest
         exclude:
           - os: macos-latest
             gcc: 7
