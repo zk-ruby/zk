@@ -21,7 +21,7 @@ group :development, :test do
 end
 
 group :docs do
-  gem 'yard', '~> 0.8.0'
+  gem 'yard', '>= 0.9.20'
 
   platform :mri_19 do
     gem 'redcarpet'
