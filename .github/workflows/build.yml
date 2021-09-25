@@ -21,7 +21,7 @@ jobs:
           - 2.6
           - 2.7
           - jruby-9.1.17.0
-          - jruby-latest
+          - jruby
         gcc:
           - 7
         exclude:
