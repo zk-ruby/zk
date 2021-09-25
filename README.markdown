@@ -1,10 +1,10 @@
 # ZK #
 
-[![Build Status (master)](https://secure.travis-ci.org/zk-ruby/zk.png?branch=master)](http://travis-ci.org/zk-ruby/zk)
+![Build Status](https://github.com/zk-ruby/zk/actions/workflows/build.yml/badge.svg)
 
-ZK is an application programmer's interface to the Apache [ZooKeeper][] server. It is based on the [zookeeper gem][] which is a multi-Ruby low-level driver. Currently MRI 1.8.7, 1.9.2, 1.9.3, REE, and JRuby are supported. Rubinius 2.0.testing is supported-ish (it's expected to work, but upstream is unstable, so YMMV). 
+ZK is an application programmer's interface to the Apache [ZooKeeper][] server. It is based on the [zookeeper gem][] which is a multi-Ruby low-level driver. Currently MRI 1.8.7, 1.9.2, 1.9.3, REE, and JRuby are supported. Rubinius 2.0.testing is supported-ish (it's expected to work, but upstream is unstable, so YMMV).
 
-ZK is licensed under the [MIT][] license. 
+ZK is licensed under the [MIT][] license.
 
 The key place to start in the documentation is with ZK::Client::Base ([rubydoc.info][ZK::Client::Base], [local](/docs/ZK/Client/Base)).
 
@@ -27,11 +27,11 @@ ZooKeeper is a multi-purpose tool that is designed to allow you to write code th
 
 One of the most useful aspects of ZooKeeper is the ability to set "[watches][]" on nodes. This allows one to be notified when a node has been deleted, created, changed, or has had its list of child znodes modified. The asynchronous nature of these watches enables you to write code that can _react_ to changes in your environment without polling and busy-waiting.
 
-Znodes can be _ephemeral_, which means that when the connection that created them goes away, they're automatically cleaned up, and all the clients that were watching them are notified of the deletion. This is an incredibly useful mechanism for providing _presence_ in a cluster ("which of my thingamabobers are up?). If you've ever run across a stale pid file or lock, you can imagine how useful this feature can be. 
+Znodes can be _ephemeral_, which means that when the connection that created them goes away, they're automatically cleaned up, and all the clients that were watching them are notified of the deletion. This is an incredibly useful mechanism for providing _presence_ in a cluster ("which of my thingamabobers are up?). If you've ever run across a stale pid file or lock, you can imagine how useful this feature can be.
 
 Znodes can also be created as _sequence_ nodes, which means that beneath a given path, a node can be created with a given prefix and assigned a unique integer. This, along with the _ephemeral_ property, provide the basis for most of the coordination classes such as [groups][] and [locks][].
 
-ZooKeeper is easy to deploy in a [Highly Available][ha-config] configuration, and the clients natively understand the clustering and how to resume a session transparently when one of the cluster nodes goes away. 
+ZooKeeper is easy to deploy in a [Highly Available][ha-config] configuration, and the clients natively understand the clustering and how to resume a session transparently when one of the cluster nodes goes away.
 
 [watches]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkWatches
 [locking]: http://zookeeper.apache.org/doc/current/recipes.html#sc_recipes_Locks
@@ -64,7 +64,7 @@ In addition to all of that, I would like to think that the public API the ZK::Cl
 [EventMachine]: https://github.com/eventmachine/eventmachine
 [zk-eventmachine]: https://github.com/zk-ruby/zk-eventmachine
 
-## Release info / Changelog 
+## Release info / Changelog
 
 See the [RELEASES][] page for more info on features and bugfixes in each release.
 
@@ -74,9 +74,9 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 
 * In versions < 0.9 there is only *one* event dispatch thread. It is *very important* that you don't block the event delivery thread. In 1.0, there is one delivery thread by default, but you can adjust the level of concurrency, allowing more control and convenience for building your event-driven app.
 
-* ZK uses threads. You will have to use synchronization primitives if you want to avoid getting hurt. There are use cases that do not require you to think about this, but as soon as you want to register for events, you're using multiple threads. 
+* ZK uses threads. You will have to use synchronization primitives if you want to avoid getting hurt. There are use cases that do not require you to think about this, but as soon as you want to register for events, you're using multiple threads.
 
-* If you're not familiar with developing solutions with zookeeper, you should read about [sessions][] and [watches][] in the Programmer's Guide. Even if you *are* familiar, you should probably go read it again. 
+* If you're not familiar with developing solutions with zookeeper, you should read about [sessions][] and [watches][] in the Programmer's Guide. Even if you *are* familiar, you should probably go read it again.
 
 * It is very important that you not ignore connection state events if you're using watches.
 
@@ -88,7 +88,7 @@ ZK strives to be a complete, correct, and convenient way of interacting with Zoo
 [async-branch]: https://github.com/zk-ruby/zk/tree/dev%2Fasync-conveniences
 [chroot]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkSessions
 [YARD]: http://yardoc.org/
-[sessions]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkSessions 
+[sessions]: http://zookeeper.apache.org/doc/current/zookeeperProgrammers.html#ch_zkSessions
 [watches]: http://zookeeper.apache.org/doc/r3.3.5/zookeeperProgrammers.html#ch_zkWatches
 
 ## Users

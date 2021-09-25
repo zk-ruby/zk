@@ -41,7 +41,7 @@ describe ZK::Client::Threaded do
     end
   end
 
-  describe :reopen do
+  describe :reopen, :jruby => :broken do
     include_context 'connection opts'
 
     before do
