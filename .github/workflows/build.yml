@@ -24,6 +24,7 @@ jobs:
           - jruby
         gcc:
           - 7
+          - latest
         exclude:
           - os: macos-latest
             gcc: 7
