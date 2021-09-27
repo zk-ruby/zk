@@ -1,5 +1,14 @@
 This file notes feature differences and bugfixes contained between releases.
 
+### v1.10.0 ###
+
+* Updates dependency on zookeeper gem to 1.5.0 #90 (h/t: @malmckay)
+* Move build to Github Actions, drop support for older Rubies (#104) (h/t: @malmckay)
+* bump yard revision to ~> 0.9.11 (Fixes #101) (#102) (h/t: @slyphon)
+* Add other Ruby versions with currently breaking tests (h/t: @berlincount)
+* RSpec 3 support and cleanups (h/t: @nerdrew)
+* Interrupt blocked locker (h/t: @lmarburger)
+
 ### v1.9.6 ###
 
 * Fixes from @rickypai for ruby 2.2 (#89)
@@ -259,7 +268,7 @@ You are __STRONGLY ENCOURAGED__ to go and look at the [CHANGELOG](http://git.io/
 * add zk.register(:all) to recevie node updates for all nodes (i.e. not filtered on path)
 
 * add 'interest' feature to zk.register, now you can indicate what kind of events should be delivered to the given block (previously you had to do that filtering inside the block). The default behavior is still the same, if no 'interest' is given, then all event types for the given path will be delivered to that block.
-  
+
     zk.register('/path', :created) do |event|
       # event.node_created? will always be true
     end
