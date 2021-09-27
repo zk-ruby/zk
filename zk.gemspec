@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   s.summary     = %q{A high-level wrapper around the zookeeper driver}
   s.description = s.summary + "\n"
 
-  s.add_runtime_dependency 'zookeeper', '~> 1.4.0'
+  s.add_runtime_dependency 'zookeeper', '~> 1.5.0'
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
